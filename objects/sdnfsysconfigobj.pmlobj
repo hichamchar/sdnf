@@ -1,0 +1,425 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsysconfigobj.pmlobj
+--   Type:          Object Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         05/02/2010 10:56:27
+--
+--
+-- Description:
+--   PML object to store system configuration data
+--
+------------------------------------------------------------------------
+--
+-- Methods defined:
+--
+--  Method call                      Return              Description
+--  ===========                      ======              ===========
+--  addEquivToList(STRING,STRING)    -
+--  addProgToList(STRING,STRING)     -
+--  copyFromGlobal()                 -
+--  copyToGlobal()                   -
+--  getEquivList(ARRAY)              -
+--  getProgLists(ARRAY,ARRAY)        -
+--  load(STRING)                     -
+--  remEquivFromList(STRING,STRING)  -
+--  remProgFromList(STRING)          -
+--  save(STRING,STRING)              -
+--  sdnfsysconfigobj()               -
+--  sdnfsysconfigobj(STRING)         -
+--  validateName(STRING)             BOOLEAN
+--
+
+
+-- Import form data
+define object SDNFSYSCONFIGOBJ
+
+   -- Run Parameters
+   member .fVersion        is STRING
+   member .fConfigObj      is STRING
+   member .fDistTol        is REAL
+   member .fMinTol         is REAL
+   member .fWaitTime       is REAL
+   member .fNoOfTries      is REAL
+   member .briefHdr        is BOOLEAN
+   member .fMaxFileSize    is REAL
+
+   -- Model Parameters
+   member .fModelNr        is REAL
+   member .fModelType      is STRING
+   member .noUnconnMem     is BOOLEAN
+   member .ignoreMatl      is BOOLEAN
+   member .sCTNtoGENSEC    is BOOLEAN
+   member .eMarkMode       is STRING
+
+   -- Display Colours
+   member .colChangedBut   is REAL
+   member .colAddedBut     is REAL
+   member .colDeletedBut   is REAL
+   member .colDuplicateBut is REAL
+   member .colExportedBut  is REAL
+   member .colDefaultBut   is REAL
+
+   -- Environment Parameters
+   member .fProgram        is STRING
+   member .fProfFileSep    is STRING
+   member .fMatFileSep     is STRING
+   member .fOriFileSep     is STRING
+   member .fMarkSep        is STRING
+   member .fProfMapType    is STRING
+   member .fPrograms       is ARRAY
+   member .fAbbrevs        is ARRAY
+   member .fEquivalences   is ARRAY
+
+   -- Macros
+   member .fPreExpMacro    is STRING
+   member .fPostExpMacro   is STRING
+   member .fPreImpMacro    is STRING
+   member .fPostImpMacro   is STRING
+   member .fMaterialMac    is STRING
+
+   member .fileName        is STRING
+   member .loadSuccess     is BOOLEAN
+
+endobject
+
+------------------------------------------------------------------------
+
+define method .sdnfsysconfigobj( )
+
+   !this.sdnfsysconfigobj( !!sdnfConfigFileName )
+
+endmethod
+
+------------------------------------------------------------------------
+
+define method .sdnfsysconfigobj( !fileName is STRING )
+
+   !this.copyFromGlobal( )
+   !this.load( !fileName )
+
+endmethod
+
+------------------------------------------------------------------------
+
+define method .copyFromGlobal( )
+
+   !this.fileName        = !!sdnfConfigFileName
+
+   -- Run Parameters
+   !this.fVersion        = !!sdnfSDNFVersion
+   !this.fConfigObj      = !!sdnfConfigObj
+   !this.fDistTol        = !!sdnfDistTol
+   !this.fMinTol         = !!sdnfMinTol
+   !this.fWaitTime       = !!sdnfWaitTime
+   !this.fNoOfTries      = !!sdnfNoOfTries
+   !this.briefHdr        = !!sdnfBriefHdr
+   !this.fMaxFileSize    = !!sdnfMaxFileSize
+
+   -- Model Parameters
+   !this.fModelNr        = !!sdnfModelNr
+   !this.fModelType      = !!sdnfModelType
+   !this.noUnconnMem     = !!sdnfNoUnconnMem
+   !this.ignoreMatl      = !!sdnfIgnoreMatl
+   !this.sCTNtoGENSEC    = !!sdnfSCTNtoGENSEC
+   !this.eMarkMode       = !!sdnfEMarkMode
+
+   -- Display Colours
+   !this.colChangedBut   = !!sdnfColChanged
+   !this.colAddedBut     = !!sdnfColAdded
+   !this.colDeletedBut   = !!sdnfColDeleted
+   !this.colDuplicateBut = !!sdnfColDuplicate
+   !this.colExportedBut  = !!sdnfColExported
+   !this.colDefaultBut   = !!sdnfColDefault
+
+   -- Environment Parameters
+   !this.fProgram        = !!sdnfDefProgram
+   !this.fProfFileSep    = !!sdnfProfSep
+   !this.fMatFileSep     = !!sdnfMatSep
+   !this.fOriFileSep     = !!sdnfOriSep
+   !this.fMarkSep        = !!sdnfMarkSep
+   !this.fProfMapType    = !!sdnfProfMapRef
+   !this.fPrograms       = !!sdnfExtProgList
+   !this.fAbbrevs        = !!sdnfExtProgAbbr
+   !this.fEquivalences   = !!sdnfExtProgEquList
+
+   -- Macros
+   !this.fPreExpMacro    = !!sdnfPreExpMac
+   !this.fPostExpMacro   = !!sdnfPostExpMac
+   !this.fPreImpMacro    = !!sdnfPreImpMac
+   !this.fPostImpMacro   = !!sdnfPostImpMac
+   !this.fMaterialMac    = !!sdnfMaterialMac
+
+endmethod
+
+
+------------------------------------------------------------------------
+
+define method .copyToGlobal( )
+
+--   !!sdnfConfigFileName = !this.fileName
+
+   -- Run Parameters
+   !!sdnfSDNFVersion  = !this.fVersion
+   if( !this.validateName( !this.fConfigObj )) then
+      !!sdnfConfigObj    = !this.fConfigObj
+   endif
+   !!sdnfDistTol      = !this.fDistTol
+   !!sdnfMinTol       = !this.fMinTol
+   !!sdnfWaitTime     = !this.fWaitTime
+   !!sdnfNoOfTries    = !this.fNoOfTries
+   !!sdnfBriefHdr     = !this.briefHdr
+   !!sdnfMaxFileSize  = !this.fMaxFileSize
+
+
+   -- Model Parameters
+   !!sdnfModelNr      = !this.fModelNr
+   !!sdnfModelType    = !this.fModelType
+   !!sdnfNoUnconnMem  = !this.noUnconnMem
+   !!sdnfIgnoreMatl   = !this.ignoreMatl
+   !!sdnfSCTNtoGENSEC = !this.sCTNtoGENSEC
+   !!sdnfEMarkMode    = !this.eMarkMode
+
+   -- Display Colours
+   !!sdnfColChanged   = !this.colChangedBut
+   !!sdnfColAdded     = !this.colAddedBut
+   !!sdnfColDeleted   = !this.colDeletedBut
+   !!sdnfColDuplicate = !this.colDuplicateBut
+   !!sdnfColExported  = !this.colExportedBut
+   !!sdnfColDefault   = !this.colDefaultBut
+
+   -- Environment Parameters
+   !!sdnfDefProgram     = !this.fProgram
+   !!sdnfProfSep        = !this.fProfFileSep
+   !!sdnfMatSep         = !this.fMatFileSep
+   !!sdnfOriSep         = !this.fOriFileSep
+   !!sdnfMarkSep        = !this.fMarkSep
+   !!sdnfProfMapRef     = !this.fProfMapType
+   !!sdnfExtProgList    = !this.fPrograms
+   !!sdnfExtProgAbbr    = !this.fAbbrevs
+   !!sdnfExtProgEquList = !this.fEquivalences
+
+   -- Macros
+   !!sdnfPreExpMac    = !this.fPreExpMacro
+   !!sdnfPostExpMac   = !this.fPostExpMacro
+   !!sdnfPreImpMac    = !this.fPreImpMacro
+   !!sdnfPostImpMac   = !this.fPostImpMacro
+   !!sdnfMaterialMac  = !this.fMaterialMac
+
+endmethod
+
+------------------------------------------------------------------------
+
+define method .load( !fileName is STRING )
+
+   !this.loadSuccess = false
+
+   -- load from file
+   !file = object FILE( !fileName )
+   if( !file.exists( ) )then
+      !lines = ARRAY( )
+      !lines = !file.readFile( )
+
+      !index = 0
+      do
+         !index = !index + 1
+         break if( !index.gt( !lines.size( ) ) )
+         !line = !lines[ !index ].trim( )
+         if( !line.trim( ).match( |<attribute| ).eq( 1 ) )then
+            !key   = !line.after( |name="| ).before( |" value="| )
+            !value = !line.after( |" value="| ).before( |" type="| )
+            !type  = !line.after( |" type="| ).before( |"/>| )
+            if( !type.upcase( ).eq( |STRING| ) )then
+               -- replace contained | characters with duplicate
+               !value.replace( '|', '||' )
+               !this.$!key = |$!value|
+            elseif( !type.upcase( ).eq( |BOOLEAN| ) )then
+               !this.$!key = $!value
+            elseif( !type.upcase( ).eq( |REAL| ) )then
+               !this.$!key = !value.real( )
+            endif
+         elseif( !line.trim( ).match( |<programs| ).eq( 1 ) )then
+            -- read to end of programs
+            !this.fPrograms.clear( )
+            !this.fAbbrevs.clear( )
+            do
+               !index = !index + 1
+               !line = !lines[ !index ]
+               break if( !line.trim( ).match( |</programs| ).eq( 1 ) )
+               !program = !line.after( |program="| ).before( |" abbrev="| )
+               !abbrev  = !line.after( |" abbrev="| ).before( |"/>| )
+               !this.fPrograms.append( !program )
+               !this.fAbbrevs.append( !abbrev )
+            enddo
+            -- Abbreviations list must also have an extra entry
+            !this.fAbbrevs.append( |ANY| )
+         elseif( !line.trim( ).match( |<equivalences| ).eq( 1 ) )then
+            -- read to end of equivalences
+            !this.fEquivalences.clear( )
+            do
+               !index = !index + 1
+               !line = !lines[ !index ]
+               break if( !line.trim( ).match( |</equivalences| ).eq( 1 ) )
+               !program = !line.after( |program="| ).before( |" equiv="| )
+               !equiv  = !line.after( |" equiv="| ).before( |"/>| )
+               !equivalence = ARRAY( )
+               !equivalence.append( !program )
+               !equivalence.append( !equiv )
+               !this.fEquivalences.append( !equivalence )
+            enddo
+         endif
+      enddo
+      !this.fileName    = !fileName
+      !this.loadSuccess = true
+   endif
+
+endmethod
+
+------------------------------------------------------------------------
+
+define method .save( !fileName is STRING, !mode is STRING )
+
+   -- save file
+   !file = object FILE( !fileName )
+   if( !file.unset( ) )then
+      return
+   endif
+
+   !lines = ARRAY( )
+   !lines.append( |﻿<?xml version="1.0" encoding="utf-8"?>| )
+   !lines.append( |<| + !!sdnfShortProduct + | xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">| )
+
+   !lines.append( |   <attribute name="fileName" value="$!this.fileName" type="string"/>| )
+
+   -- Run Parameters
+   !lines.append( |   <attribute name="fVersion" value="$!this.fVersion" type="string"/>| )
+   !lines.append( |   <attribute name="fConfigObj" value="$!this.fConfigObj" type="string"/>| )
+   !lines.append( |   <attribute name="fDistTol" value="$!this.fDistTol" type="real"/>| )
+   !lines.append( |   <attribute name="fMinTol" value="$!this.fMinTol" type="real"/>| )
+   !lines.append( |   <attribute name="fWaitTime" value="$!this.fWaitTime" type="real"/>| )
+   !lines.append( |   <attribute name="fNoOfTries" value="$!this.fNoOfTries" type="real"/>| )
+   !lines.append( |   <attribute name="briefHdr" value="$!this.briefHdr" type="boolean"/>| )
+   !lines.append( |   <attribute name="fMaxFileSize" value="$!this.fMaxFileSize" type="real"/>| )
+
+   -- Model Parameters
+   !lines.append( |   <attribute name="fModelNr" value="$!this.fModelNr" type="real"/>| )
+   !lines.append( |   <attribute name="fModelType" value="$!this.fModelType" type="string"/>| )
+   !lines.append( |   <attribute name="noUnconnMem" value="$!this.noUnconnMem" type="boolean"/>| )
+   !lines.append( |   <attribute name="ignoreMatl" value="$!this.ignoreMatl" type="boolean"/>| )
+   !lines.append( |   <attribute name="sCTNtoGENSEC" value="$!this.sCTNtoGENSEC" type="boolean"/>| )
+   !lines.append( |   <attribute name="eMarkMode" value="$!this.eMarkMode" type="string"/>| )
+
+   -- Display Colours
+   !lines.append( |   <attribute name="colChangedBut" value="$!this.colChangedBut" type="real"/>| )
+   !lines.append( |   <attribute name="colAddedBut" value="$!this.colAddedBut" type="real"/>| )
+   !lines.append( |   <attribute name="colDeletedBut" value="$!this.colDeletedBut" type="real"/>| )
+   !lines.append( |   <attribute name="colDuplicateBut" value="$!this.colDuplicateBut" type="real"/>| )
+   !lines.append( |   <attribute name="colExportedBut" value="$!this.colExportedBut" type="real"/>| )
+   !lines.append( |   <attribute name="colDefaultBut" value="$!this.colDefaultBut" type="real"/>| )
+
+   -- Environment Parameters
+   !lines.append( |   <attribute name="fProgram" value="$!this.fProgram" type="string"/>| )
+   !lines.append( |   <attribute name="fProfFileSep" value="$!this.fProfFileSep" type="string"/>| )
+   !lines.append( |   <attribute name="fMatFileSep" value="$!this.fMatFileSep" type="string"/>| )
+   !lines.append( |   <attribute name="fOriFileSep" value="$!this.fOriFileSep" type="string"/>| )
+   !lines.append( |   <attribute name="fMarkSep" value="$!this.fMarkSep" type="string"/>| )
+   !lines.append( |   <attribute name="fProfMapType" value="$!this.fProfMapType" type="string"/>| )
+
+   !lines.append( |   <programs>| )
+   do !index indices !this.fPrograms
+      !program   = !this.fPrograms[ !index ]
+      !abbrev = !this.fAbbrevs[ !index ]
+      !lines.append( |      <program program="$!program" abbrev="$!abbrev"/>| )
+   enddo
+   !lines.append( |   </programs>| )
+
+   !lines.append( |   <equivalences>| )
+   do !index indices !this.fEquivalences
+      !equivalence = !this.fEquivalences[ !index ]
+      !program     = !equivalence[ 1 ]
+      !equiv       = !equivalence[ 2 ]
+      !lines.append( |      <equivalence program="$!program" equiv="$!equiv"/>| )
+   enddo
+   !lines.append( |   </equivalences>| )
+
+   -- Macros
+   !lines.append( |   <attribute name="fPreExpMacro" value="$!this.fPreExpMacro" type="string"/>| )
+   !lines.append( |   <attribute name="fPostExpMacro" value="$!this.fPostExpMacro" type="string"/>| )
+   !lines.append( |   <attribute name="fPreImpMacro" value="$!this.fPreImpMacro" type="string"/>| )
+   !lines.append( |   <attribute name="fPostImpMacro" value="$!this.fPostImpMacro" type="string"/>| )
+   !lines.append( |   <attribute name="fMaterialMac" value="$!this.fMaterialMac" type="string"/>| )
+
+   !lines.append( |</| + !!sdnfShortProduct + |>| )
+   !file.writeFile( !mode, !lines )
+
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .remProgFromList( !program is STRING )
+   !index = !this.fPrograms.findFirst( !program )
+   !this.fPrograms.remove( !index )
+   !this.fAbbrevs.remove( !index )
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .remEquivFromList( !program is STRING, !equiv is STRING )
+   do !index indices !this.fEquivalences
+      -- remove the matched equivalence not the program as there may be more than 1 equivalence to the program
+      if( !this.fEquivalences[ !index ][ 2 ].eq( !equiv ) )then
+         !this.fEquivalences.remove( !index )
+         break
+      endif
+   enddo
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .addProgToList( !program is STRING, !abbrev is STRING )
+   -- the abbreviation list is terminated with 'ANY'
+   !this.fAbbrevs.removeLast( )
+   !this.fPrograms.append( !program )
+   !this.fAbbrevs.append( !abbrev )
+   !this.fAbbrevs.append( |ANY| )
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .addEquivToList( !program is STRING, !equiv is STRING )
+   !equivalence = ARRAY( )
+   !equivalence.append( !program )
+   !equivalence.append( !equiv )
+   !this.fEquivalences.append( !equivalence )
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .getProgLists( !progList is ARRAY, !abbrevList is ARRAY )
+   !progList   = !this.fPrograms
+   !abbrevList = !this.fAbbrevs
+endmethod
+
+-------------------------------------------------------------------------
+define method .getEquivList( !progEquList is ARRAY )
+   !progEquList = !this.fEquivalences
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .validateName( !name is STRING ) is BOOLEAN
+   !test = !name.dbref().badref()
+   handle ANY
+      -- Problem converting to refno
+      return false
+   elsehandle NONE
+      return !test
+   endhandle
+endmethod

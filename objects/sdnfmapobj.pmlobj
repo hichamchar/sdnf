@@ -1,0 +1,41 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfmapobj.pmlobj
+--   Type:          Object Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        paragon
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+--
+-- Description:
+--   PML object to store mapping between shape and upgrade macro name.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Object
+-- Member data:
+--   [#]     [R/RW] [Data Type] [Description]
+--    .shape  R      STRING      Shape description in Plineset name
+--    .macro  R      STRING      Upgrade macro name
+--
+------------------------------------------------------------------------
+
+-- Define object
+define object SDNFMAPOBJ
+
+  -- Member data
+  member .name  is STRING
+  member .macro is STRING
+  member .args  is STRING
+
+endobject

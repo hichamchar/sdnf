@@ -1,0 +1,33 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnferrorobj.pmlobj
+--   Type:          Object Definition
+--   Group:         Interfaces
+--   Keyword:       SDNF
+--   Module:        Design
+--   Replaces:
+--
+-- Author:          D.Wilson
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+-- Description:     PML object to store Error status.
+--
+------------------------------------------------------------------------
+--
+------------------------------------------------------------------------
+
+-- Define object
+define object SDNFERROROBJ
+
+  -- Member Data
+  member .severity is REAL
+  member .status   is REAL
+  member .query    is REAL
+  member .message  is STRING
+--    message to use if .status is !!sdnfErrUserMessage
+  member .default  is STRING
+--    default query result to use when in tty or non-interactive mode
+
+endobject

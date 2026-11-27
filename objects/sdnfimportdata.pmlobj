@@ -1,0 +1,81 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfimportdata.pmlobj
+--   Type:          Object Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         19/11/2009 13:36:51
+--
+--
+-- Description:
+--   PML object to store data on sdnfImport form.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Object
+-- Member data:
+--   [#]     [R/RW] [Data Type] [Description]
+--
+------------------------------------------------------------------------
+
+
+-- Import form data
+define object SDNFIMPORTDATA
+
+  -- Form member data
+  member .mainFunc    is STRING
+  member .store       is DBREF
+  member .features    is STRING
+
+  -- Source Information
+  member .sourceList  is ARRAY
+  member .source      is STRING
+  member .sourceAbbr  is STRING
+  member .target      is STRING
+  member .mapMode     is STRING
+  member .matMode     is STRING
+  member .mapFile     is STRING
+  member .matFile     is STRING
+  member .oriFile     is STRING
+  member .uniFile     is STRING
+
+  -- Import Information
+  member .file        is STRING
+  member .linMem      is BOOLEAN
+  member .arcMem      is BOOLEAN
+  member .plate       is BOOLEAN
+  member .hole        is BOOLEAN
+  member .endConn     is BOOLEAN
+  member .specMode    is STRING
+
+  -- Run Information
+  member .viewMode    is STRING
+  member .viewLog     is BOOLEAN
+  member .saveModel   is BOOLEAN
+  member .mapVerify   is BOOLEAN
+  member .markVerify  is STRING
+  member .sortMode    is BOOLEAN
+  member .linMemAttr  is ARRAY
+  member .plateAttr   is ARRAY
+  member .reviewDiffs is BOOLEAN
+
+  member .fileVersion is STRING
+  member .modelType   is STRING
+
+  -- specials for TTY running
+  member .logFile     is STRING
+  member .testing     is BOOLEAN
+
+endobject
+
+------------------------------------------------------------------------

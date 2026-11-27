@@ -1,0 +1,269 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfdiffobj.pmlobj
+--   Type:          Object Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         11/05/2010 15:47:35
+--
+-- Description:
+--    PML object to store comparison results
+--
+------------------------------------------------------------------------
+--
+-- Methods defined:
+--
+--  Method call                      Return              Description
+--  ===========                      ======              ===========
+--  asCSV()                          STRING
+--  asTXT()                          ARRAY
+--  asXHTML()                        STRING
+--  dText()                          STRING
+--  initialise(DBREF,DBREF,REAL,STRING,STRING,REAL) -
+--  isResolved()                     BOOLEAN
+--  isVisible()                      BOOLEAN
+--  item()                           STRING
+--  itemAsCSV()                      STRING
+--  itemAsTXT()                      STRING
+--  itemAsXHTML()                    STRING
+--  listEntry()                      ARRAY
+--  listHeader()                     ARRAY
+--  proc(STRING)                     -
+--  rText()                          STRING
+--  sdnfdiffobj()                    -
+--  sdnfdiffobj(DBREF,DBREF,REAL,STRING,STRING,REAL) -
+--  sdnfdiffobj(DBREF,DBREF,REAL,STRING,STRING,REAL,BOOLEAN) -
+--  statusColor()                    STRING
+--  statusString()                   STRING
+--  writeCommand(FILE)               -
+--  writeDesc(FILE)                  -
+
+-- Define object
+define object SDNFDIFFOBJ
+   -- Member data
+   member .source      is DBREF
+   member .target      is DBREF
+   member .typeCode    is REAL
+   member .description is STRING
+   member .command     is STRING
+   member .colour      is REAL
+   member .visible     is BOOLEAN
+
+   -- The acceptance status is a 3 phase variable. Undecided (0), reject (-1), accept (+1)
+   member .accept      is REAL
+endobject
+
+--------------------------------------------------------------------------------
+
+define method .sdnfdiffobj( )
+   !this.visible     = true
+   !this.accept      = 0
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .sdnfdiffobj( !sou is DBREF, !tar is DBREF, !tcd is REAL, !des is STRING, !com is STRING, !col is REAL )
+   !this.sdnfdiffobj( )
+   !this.initialise( !sou, !tar, !tcd, !des, !com, !col )
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .sdnfdiffobj( !sou is DBREF, !tar is DBREF, !tcd is REAL, !des is STRING, !com is STRING, !col is REAL, !visible is BOOLEAN )
+   !this.sdnfdiffobj( !sou, !tar, !tcd, !des, !com, !col )
+   !this.visible = !visible
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .initialise( !sou is DBREF, !tar is DBREF, !tcd is REAL, !des is STRING, !com is STRING, !col is REAL )
+   !this.source      = !sou
+   !this.target      = !tar
+   !this.typeCode    = !tcd
+   !this.colour      = !col
+   !this.description = !des
+   !this.command     = !com
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .dText( )is STRING
+   return !this.source.string( ) + |^| + !this.target.string( ) + |^| + !this.description
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .listHeader( )is ARRAY
+   !header = ARRAY()
+   !header.append( |Acc/Rej| )
+   !header.append( |Description| )
+   if( !!sdnfDebug )then
+      !header.append( |Type Code| )
+      !header.append( |Command| )
+   endif
+   return !header
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .listEntry( )is ARRAY
+   !entry = ARRAY( )
+   if( !this.accept.lt( 0 ) )then
+      !entry.append( |R| )
+   elseif( !this.accept.eq( 0 ) )then
+      !entry.append( | | )
+   elseif( !this.accept.gt( 0 ) )then
+      !entry.append( |A| )
+   endif
+   !entry.append( !this.description )
+   if( !!sdnfDebug )then
+      !entry.append( !this.typeCode.string( ) )
+      !entry.append( !this.command )
+   endif
+   return !entry
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .rText( )is STRING
+   return !this.command
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .proc( !oper is STRING )
+   if( !oper.eq( |ACCEPT| ) )then
+      !this.accept = +1
+   elseif( !oper.eq( |REJECT| ) )then
+      !this.accept = -1
+   elseif( !oper.eq( |UNSET| ) )then
+      !this.accept = 0
+   endif
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .writeCommand( !file is FILE )
+   !commands = !this.command.split( |^| )
+   do !command values !commands
+      !file.writeRecord( !command )
+   enddo
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .writeDesc( !file is FILE )
+   if( !this.description.length( ).gt( 0 ) )then
+      !file.writeRecord( |     | + !this.description )
+   endif
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .isVisible( ) is BOOLEAN
+   return ( !this.visible or !!sdnfDebug )
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .isResolved( ) is BOOLEAN
+   return ( !this.accept.neq( 0 ) )
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .asCSV( ) is STRING
+   !status = !this.statusString( )
+   !desc = !this.description
+   !field = |"","$!status","$!desc"|
+   return !field
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .item( ) is STRING
+   !originalName  = !this.target.attribute( |NAME| )
+   handle any
+      !originalName = ||
+   endhandle
+   !originalType  = !this.target.attribute( |TYPE| )
+   handle any
+      !originalType  = |Added or deleted element|
+   endhandle
+   !field = |$!originalType $!originalName|
+   return !field
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .itemAsCSV( ) is STRING
+   !field = |"| + !this.item( ) + |"|
+   return !field
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .itemAsTXT( ) is STRING
+   return !this.item( )
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .itemAsXHTML( ) is STRING
+   !field = |<tr align="left"><td>| + !this.item( ) + |</td></tr>|
+   return !field
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .asTXT( ) is ARRAY
+   !result = ARRAY( )
+   !status = !this.statusString( )
+   !result.append( || )
+   !result.append( !status )
+   !result.append( !this.description )
+   return !result
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .asXHTML( ) is STRING
+   !status  = !this.statusString( )
+   !bgcolor = !this.statusColor( )
+   !result  = |<tr align="left"><td/><td bgcolor="$!bgcolor">| + !status + |</td><td>| + !this.description + |</td><tr>|
+   return !result
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .statusString( ) is STRING
+   !status = ||
+   if( !this.accept.lt( 0 ) )then
+      !status = |REJECTED|
+   elseif( !this.accept.eq( 0 ) )then
+      !status = | |
+   elseif( !this.accept.gt( 0 ) )then
+      !status = |ACCEPTED|
+   endif
+   return !status
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .statusColor( ) is STRING
+   !color = ||
+   if( !this.accept.lt( 0 ) )then
+      !color = |red|
+   elseif( !this.accept.eq( 0 ) )then
+      !color = |white|
+   elseif( !this.accept.gt( 0 ) )then
+      !color = |green|
+   endif
+   return !color
+endmethod

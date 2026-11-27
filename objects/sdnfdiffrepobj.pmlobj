@@ -1,0 +1,571 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfdiffrepobj.pmlobj
+--   Type:          Object Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         11/05/2010 15:47:35
+--
+-- Description:
+--    PML object to store comparison results
+--
+------------------------------------------------------------------------
+--
+-- Methods defined:
+--
+--  Method call                      Return              Description
+--  ===========                      ======              ===========
+--  append(ARRAY)                    -
+--  appendElement(ARRAY)             -
+--  asCSV()                          ARRAY
+--  asTXT()                          ARRAY
+--  asXHTML()                        ARRAY
+--  createCSVHeader()                ARRAY
+--  createTXTHeader()                ARRAY
+--  createXHTMLFooter()              ARRAY
+--  createXHTMLHeader()              ARRAY
+--  firstElement()                   -
+--  getElementCount()                REAL
+--  getGraphicData()                 ARRAY
+--  getHeader()                      ARRAY
+--  getList()                        ARRAY
+--  getTextData()                    ARRAY
+--  getTitle()                       STRING
+--  initialise()                     -
+--  isItemResolved(REAL)             BOOLEAN
+--  lastElement()                    -
+--  nextBackward(REAL)               REAL
+--  nextElement()                    -
+--  nextForward(REAL)                REAL
+--  nextVisibleElement(BOOLEAN)      -
+--  prevElement()                    -
+--  prevVisibleElement(BOOLEAN)      -
+--  proc(STRING,STRING,REAL)         -
+--  sdnfdiffrepobj()                 -
+--  sdnfdiffrepobj(ARRAY,STRING,STRING) -
+
+-- Define object
+define object SDNFDIFFREPOBJ
+   -- Member data
+   member .user         is STRING
+   member .mdb          is STRING
+   member .proj         is STRING
+   member .diffArray    is ARRAY
+   member .sourceFile   is STRING
+   member .transferVsn  is STRING
+   member .arrayPtr     is REAL
+endobject
+
+--------------------------------------------------------------------------------
+
+define method .sdnfdiffrepobj( )
+   !this.diffArray = ARRAY( )
+   !this.arrayPtr = 0
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .sdnfdiffrepobj( !diffArr is ARRAY, !fileName is STRING, !trRevNo is STRING )
+   !this.sdnfdiffrepobj( )
+   !this.initialise( )
+
+   !this.diffArray   = !diffArr
+   if( !this.diffArray.size( ).gt( 0 ) )then
+      !this.arrayPtr = 1
+   endif
+
+   !this.sourceFile  = !fileName
+   !this.transferVsn = !trRevNo
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .initialise( )
+   var !temp    user
+   !this.user  = !temp
+   var !temp    mdb
+   !this.mdb   = !temp
+   !cp         = current project
+   !this.proj  = !cp.code( )
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .append( !diffArr is ARRAY )
+   !this.diffArray.append( !diffArr )
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .asTXT( ) is ARRAY
+   !report = ARRAY( )
+
+   -- add CSV header
+   !columns = ARRAY( )
+   !column1 = ARRAY( )
+   !column2 = ARRAY( )
+   !column3 = ARRAY( )
+   !columns.append( !column1 )
+   !columns.append( !column2 )
+   !columns.append( !column3 )
+
+   !headerArray = !this.createTXTHeader( )
+   !columns[ 1 ].appendArray( !headerArray[ 1 ] )
+   !columns[ 2 ].appendArray( !headerArray[ 2 ] )
+   !columns[ 3 ].appendArray( !headerArray[ 3 ] )
+   !headerLength = !headerArray[ 3 ].size( )
+
+   -- process difference array
+   do !ind1 indices !this.diffArray
+      !columns[ 1 ].append( !this.diffArray[ !ind1 ][ 1 ].itemAsTXT( ) )
+      !columns[ 2 ].append( || )
+      !columns[ 3 ].append( || )
+      do !ind2 indices !this.diffArray[ !ind1 ]
+         if( !this.diffArray[ !ind1 ][ !ind2 ].typeCode.gt( 0 ) )then
+            !lineArray = !this.diffArray[ !ind1 ][ !ind2 ].asTXT( )
+            !columns[ 1 ].append( !lineArray[ 1 ] )
+            !columns[ 2 ].append( !lineArray[ 2 ] )
+            !columns[ 3 ].append( !lineArray[ 3 ] )
+         endif
+      enddo
+   enddo
+
+   -- Work out column widths for underlining the column headings
+   !totalWidth = 1
+   !colSep     = 3
+   !colIndices = ARRAY( )
+   do !ind1 indices !columns
+      !colIndices[ !ind1 ] = !totalWidth
+      !colWidth = !columns[ !ind1 ].width( )
+      !colUnderline = |==========|
+      do
+         -- make underline long enough
+         break if( !colUnderline.length( ).gt( !colWidth + !colSep ) )
+         !colUnderline = !colUnderline + !colUnderline
+      enddo
+      !colUnderline = !colUnderline.subString( 1, ( !colWidth + !colSep ) )
+      !totalWidth = !totalWidth + !colUnderline.length( )
+      !columns[ !ind1 ].insert( !headerLength + 1, !colUnderline )
+   enddo
+   !colIndices.append( !totalWidth + 1 )
+
+   -- Format into a single array.
+   do !ind1 indices !columns[ 1 ]
+      !line = ||
+      do !ind2 indices !columns
+         !line = !line + !columns[ !ind2 ][ !ind1 ]
+         do
+            break if( !line.length( ).eq( !colIndices[ !ind2 + 1 ] - 1 ) )
+            !line = !line + | |
+         enddo
+      enddo
+      !report.append( !line )
+   enddo
+
+   return !report
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .createTXTHeader( ) is ARRAY
+   !user = !this.user
+   !mdb  = !this.mdb
+   !proj = !this.proj
+
+   !header     = ARRAY( )
+   !col1 = ARRAY( )
+   !col2 = ARRAY( )
+   !col3 = ARRAY( )
+   !header.append( !col1 )
+   !header.append( !col2 )
+   !header.append( !col3 )
+
+   !sourceFile = !this.sourceFile
+   !dateTime   = object DATETIME( )
+
+   !header[ 1 ].append( |SDNF Difference Report| )
+   !header[ 1 ].append( |Project: $!proj| )
+   !header[ 1 ].append( |MDB: $!mdb| )
+   !header[ 1 ].append( |User: $!user| )
+   !header[ 1 ].append( || )
+   !header[ 1 ].append( |Created: $!dateTime| )
+   !header[ 1 ].append( |Transfer version: $!this.transferVsn| )
+   !header[ 1 ].append( || )
+   !header[ 1 ].append( |Source file: $!sourceFile| )
+   !header[ 1 ].append( || )
+   !header[ 1 ].append( || )
+   do !i from 1 to !header[ 1 ].size( )
+      -- fill other columns with blank lines to keep in sync
+      !header[ 2 ].append( || )
+      !header[ 3 ].append( || )
+   enddo
+
+   !header[ 1 ].append( |SOURCE| )
+   !header[ 2 ].append( |STATUS| )
+   !header[ 3 ].append( |DESCRIPTION| )
+
+   return !header
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .asCSV( ) is ARRAY
+   !report = ARRAY( )
+
+   -- add CSV header
+   !report.appendArray( !this.createCSVHeader( ) )
+   -- process difference array
+   do !ind1 indices !this.diffArray
+      !report.append( !this.diffArray[ !ind1 ][ 1 ].itemAsCSV( ) )
+      do !ind2 indices !this.diffArray[ !ind1 ]
+         if( !this.diffArray[ !ind1 ][ !ind2 ].typeCode.gt( 0 ) )then
+            !report.append( !this.diffArray[ !ind1 ][ !ind2 ].asCSV( ) )
+         endif
+      enddo
+   enddo
+
+   return !report
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .createCSVHeader( ) is ARRAY
+   !user = !this.user
+   !mdb  = !this.mdb
+   !proj = !this.proj
+
+   !header     = ARRAY( )
+   !sourceFile = !this.sourceFile
+   !dateTime = object DATETIME( )
+
+   !header.append( |"SDNF Difference Report"| )
+   !header.append( |"Project:","$!proj"| )
+   !header.append( |"MDB:","$!mdb"| )
+   !header.append( |"User:", "$!user"| )
+   !header.append( |""| )
+   !header.append( |"Created:", "$!dateTime"| )
+   !header.append( |"Transfer version:","$!this.transferVsn"| )
+   !header.append( |""| )
+   !header.append( |"Source file:","$!sourceFile"| )
+   !header.append( |""| )
+   !header.append( |""| )
+   !header.append( |"SOURCE","STATUS","DESCRIPTION"| )
+
+   return !header
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .asXHTML( ) is ARRAY
+   !report = ARRAY( )
+
+   -- add CSV header
+   !report.appendArray( !this.createXHTMLHeader( ) )
+   -- process difference array
+   do !ind1 indices !this.diffArray
+      !report.append( !this.diffArray[ !ind1 ][ 1 ].itemAsXHTML( ) )
+      do !ind2 indices !this.diffArray[ !ind1 ]
+         if( !this.diffArray[ !ind1 ][ !ind2 ].typeCode.gt( 0 ) )then
+            !report.append( !this.diffArray[ !ind1 ][ !ind2 ].asXHTML( ) )
+         endif
+      enddo
+   enddo
+   -- add CSV footer
+   !report.appendArray( !this.createXHTMLFooter( ) )
+
+   return !report
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .createXHTMLHeader( ) is ARRAY
+   !user = !this.user
+   !mdb  = !this.mdb
+   !proj = !this.proj
+
+   !header     = ARRAY( )
+   !sourceFile = !this.sourceFile
+   !dateTime = object DATETIME( )
+
+   !header.append( |<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">| )
+   !header.append( |<head>| )
+   !header.append( |</head>| )
+   !header.append( |<body>| )
+   !header.append( |<table>| )
+   !header.append( |<tr><td><h3>SDNF Difference Report<h3></td></tr>| )
+   !header.append( |<tr><td>Project:</td><td>$!proj</td></tr>| )
+   !header.append( |<tr><td>MDB:</td><td>$!mdb</td></tr>| )
+   !header.append( |<tr><td>User:</td><td>$!user</td></tr>| )
+   !header.append( |<tr><td>Created:</td><td>$!dateTime</td></tr>| )
+   !header.append( |<tr><td>Transfer version:</td><td>$!this.transferVsn</td></tr>| )
+   !header.append( |<tr><td>Source file:</td><td>$!sourceFile</td></tr>| )
+   !header.append( |</table>| )
+   !header.append( |<table>| )
+   !header.append( |<tr align="left"><th>SOURCE</th><th>STATUS</th><th>DESCRIPTION</th>| )
+
+   return !header
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .createXHTMLFooter( ) is ARRAY
+   !reportArray = ARRAY( )
+
+   !reportArray.append( |</table>| )
+   !reportArray.append( |</body>| )
+   !reportArray.append( |</html>| )
+
+   return !reportArray
+endmethod
+
+------------------------------------------------------------------------
+
+define method .nextElement( )
+   if( !this.diffArray.size( ).gt( 0 ) )then
+      !this.nextVisibleElement( )
+   endif
+endmethod
+
+------------------------------------------------------------------------
+
+define method .prevElement( )
+   if( !this.diffArray.size( ).gt( 0 ) )then
+      !this.prevVisibleElement( )
+   endif
+endmethod
+
+------------------------------------------------------------------------
+
+define method .nextVisibleElement( !hideResolved is BOOLEAN )
+   !arrayPtr = !this.arrayPtr
+   if( !hideResolved )then
+      !start = !arrayPtr
+      do
+         !arrayPtr = !this.nextForward( !arrayPtr )
+         if( !arrayPtr.eq( !start ) )then
+            -- been round the block.
+            break
+         elseif( not !this.isItemResolved( !arrayPtr ) )then
+            -- found one
+            break
+         endif
+      enddo
+   else
+      !arrayPtr = !this.nextForward( !arrayPtr )
+   endif
+   !this.arrayPtr = !arrayPtr
+endmethod
+
+------------------------------------------------------------------------
+
+define method .prevVisibleElement( !hideResolved is BOOLEAN )
+   !arrayPtr = !this.arrayPtr
+   if( !hideResolved )then
+      !start = !arrayPtr
+      do
+         !arrayPtr = !this.nextBackward( !arrayPtr )
+         if( !arrayPtr.eq( !start ) )then
+            -- been round the block.
+            break
+         elseif( not !this.isItemResolved( !arrayPtr ) )then
+            -- found one
+            break
+         endif
+      enddo
+   else
+      !arrayPtr = !this.nextBackward( !arrayPtr )
+   endif
+   !this.arrayPtr = !arrayPtr
+endmethod
+
+------------------------------------------------------------------------
+
+define method .nextBackward( !arrayPtr is REAL ) is REAL
+   if( !this.diffArray.size( ).gt( 0 ) )then
+      !arrayPtr = !arrayPtr - 1
+      if( !arrayPtr.eq( 0 ) )then
+         -- wrap around
+         !arrayPtr = !this.diffArray.size( )
+      endif
+   endif
+   return !arrayPtr
+endmethod
+
+------------------------------------------------------------------------
+
+define method .nextForward( !arrayPtr is REAL ) is REAL
+   if( !this.diffArray.size( ).gt( 0 ) )then
+      !arrayPtr = !arrayPtr + 1
+      if( !arrayPtr.gt( !this.diffArray.size( ) ) )then
+         -- wrap around
+         !arrayPtr = 1
+      endif
+   endif
+   return !arrayPtr
+endmethod
+
+------------------------------------------------------------------------
+
+define method .firstElement( )
+   if( !this.diffArray.size( ).gt( 0 ) )then
+      !this.arrayPtr = 1
+   endif
+endmethod
+
+------------------------------------------------------------------------
+
+define method .lastElement( )
+   if( !this.diffArray.size( ).gt( 0 ) )then
+      !this.arrayPtr = !this.diffArray.size( )
+   endif
+endmethod
+
+------------------------------------------------------------------------
+
+define method .isItemResolved( !ptr is REAL ) is BOOLEAN
+   !isResolved = true
+   if( !this.diffArray.set( ) and $
+       !this.diffArray[ !ptr ].set( ) and $
+       !this.diffArray[ !ptr ].size( ).gt( 0 ) ) then
+      do !i indices !this.diffArray[ !ptr ]
+         if( !this.diffArray[ !ptr ][ !i ].isVisible( ) and $
+             !this.diffArray[ !ptr ][ !i ].accept.eq( 0 ) )then
+            !isResolved = false
+            break
+         endif
+      enddo
+   endif
+
+   return !isResolved
+endmethod
+
+------------------------------------------------------------------------
+
+define method .getList( ) is ARRAY
+
+   !ptr = !this.arrayPtr
+   !rows = ARRAY( )
+
+   if( !this.diffArray.set( ) and $
+       !this.diffArray[ !ptr ].set( ) and $
+       !this.diffArray[ !ptr ].size( ).gt( 0 ) ) then
+      do !i indices !this.diffArray[ !ptr ]
+         if( !this.diffArray[ !ptr ][ !i ].isVisible( ) )then
+            !row = ARRAY( )
+            !row.appendArray( !this.diffArray[ !ptr ][ !i ].listEntry( ) )
+            !rows.append( !row )
+         endif
+      enddo
+   endif
+
+   return !rows
+endmethod
+
+------------------------------------------------------------------------
+
+define method .getTitle( ) is STRING
+
+   !textData    = !this.getTextData( )
+   if( !textData.size( ).gt( 0 ) )then
+      !target    = !textData[ 1 ]
+      !itemIndex = !textData[ 2 ]
+      !itemCount = !textData[ 3 ]
+      if( !target.badref( ) )then
+         !name = ||
+      else
+         !name = !target.attribute( |NAME| )
+      endif
+      !title = |Element | + !itemIndex.string( ) + | of | + !itemCount.string( ) + |: | + !name
+   else
+      !title = |No element|
+   endif
+   return !title
+endmethod
+
+------------------------------------------------------------------------
+
+define method .getTextData( ) is ARRAY
+   !textData = ARRAY( )
+   !ptr = !this.arrayPtr
+   if( !ptr.neq( 0 ) )then
+      !textData.append( !this.diffArray[ !ptr ][ 1 ].target )
+      !textData.append( !ptr )
+      !textData.append( !this.diffArray.size( ) )
+   endif
+   return !textData
+endmethod
+
+------------------------------------------------------------------------
+
+define method .getGraphicData( ) is ARRAY
+   !graphicData = ARRAY( )
+   !ptr = !this.arrayPtr
+   if( !ptr.neq( 0 ) )then
+      !graphicData.append( !this.diffArray[ !ptr ][ 1 ].source )
+      !graphicData.append( !this.diffArray[ !ptr ][ 1 ].target )
+      !graphicData.append( !this.diffArray[ !ptr ][ 1 ].colour )
+   endif
+   return !graphicData
+endmethod
+
+------------------------------------------------------------------------
+
+define method .proc( !choice is STRING, !oper is STRING, !selection is REAL )
+
+   !ptr = !this.arrayPtr
+   if( !choice.eq( |THIS| ) )then
+      !this.diffArray[ !ptr ][ !selection ].proc( !oper )
+   elseif( !choice.eq( |ELEMENT| ) )then
+      do !index indices !this.diffArray[ !ptr ]
+         !this.diffArray[ !ptr ][ !index ].proc( !oper )
+      enddo
+   elseif( !choice.eq( |TYPE| ) )then
+      !type = !this.diffArray[ !ptr ][ !selection ].typeCode
+      do !ind1 indices !this.diffArray
+         do !ind2 indices !this.diffArray[ !ind1 ]
+            if( !type.eq( !this.diffArray[ !ind1 ][ !ind2 ].typeCode ) )then
+               !this.diffArray[ !ind1 ][ !ind2 ].proc( !oper )
+            endif
+         enddo
+      enddo
+   elseif( !choice.eq( |ALL| ) )then
+      do !ind1 indices !this.diffArray
+         do !ind2 indices !this.diffArray[ !ind1 ]
+            !this.diffArray[ !ind1 ][ !ind2 ].proc( !oper )
+         enddo
+      enddo
+   endif
+
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .getHeader( )is ARRAY
+   !header = ARRAY()
+   !header.append( |Acc/Rej| )
+   !header.append( |Description| )
+   if( !!sdnfDebug )then
+      !header.append( |Type Code| )
+      !header.append( |Command| )
+   endif
+   return !header
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .appendElement( !diffArray is ARRAY )
+   !this.diffArray.append( !diffArray )
+   !this.arrayPtr = 1
+endmethod
+
+--------------------------------------------------------------------------------
+
+define method .getElementCount( ) is REAL
+   return !this.diffArray.size( )
+endmethod
