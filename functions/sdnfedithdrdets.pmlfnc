@@ -1,0 +1,57 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfedithdrdets.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+--
+-- Description:
+--   Sets !!sdnfViewExpFile form flags allowing user to edit SDNF Header
+--   details stored in a SITE element.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Source of header data - not used yet
+--
+-- Return:
+--   [Data Type]   [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfEditHdrDets( !dummySource is STRING )
+
+  -- Set the Form Gadgets active
+  !!sdnfViewExpFile.vFirm.active       = true
+  !!sdnfViewExpFile.vClient.active     = true
+  !!sdnfViewExpFile.vStructure.active  = true
+  !!sdnfViewExpFile.vProject.active    = true
+  !!sdnfViewExpFile.vRevision.active   = true
+  !!sdnfViewExpFile.vTransfer.active   = true
+  !!sdnfViewExpFile.vIssue.active      = true
+  !!sdnfViewExpFile.vDesigncode.active = true
+  !!sdnfViewExpFile.vTarget.active     = true
+  !!sdnfViewExpFile.vModelNr.active    = true
+
+  !!sdnfViewExpFile.apply.active       = true
+  !!sdnfViewExpFile.edit.active        = false
+
+endfunction
+
+------------------------------------------------------------------------

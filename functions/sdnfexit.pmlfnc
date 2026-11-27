@@ -1,0 +1,376 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfexit.pmlfnc
+--   Type:          Function Definition
+--   Group:         Interfaces
+--   Keyword:       SDNF
+--   Module:        Design
+--   Replaces:
+--
+-- Author:          D.Wilson
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+-- Description:
+--   Leaves Steel Detailing Neutral File Import Export System tidying up
+--   the global variables.
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type] [Description]
+--    None
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfExit( )
+
+  -- Save Work
+  SAVEWORK
+
+  -- Kill Main Forms known to the SDNFIMPEXP interface
+  kill !!sdnfExport
+  handle( 61,125 )( 61,115 )
+    -- Form not found
+  endhandle
+  var !!sdnfExpData delete
+  kill !!sdnfImport
+  handle( 61,125 )( 61,115 )
+    -- Form not found
+  endhandle
+  var !!sdnfImpData delete
+  kill !!sdnfViewExpFile
+  handle( 61,125 )( 61,115 )
+    -- Form not found
+  endhandle
+  kill !!sdnfViewFile
+  handle( 61,125 )( 61,115 )
+    -- Form not found
+  endhandle
+  kill !!sdnfViewImpFile
+  handle( 61,125 )( 61,115 )
+    -- Form not found
+  endhandle
+  kill !!sdnfExpInfo
+  handle( 61,125 )( 61,115 )
+    -- Form not found
+  endhandle
+  kill !!sdnfExpRunInf
+  handle( 61,125 )( 61,115 )
+    -- Form not found
+  endhandle
+  kill !!sdnfTargInfo
+  handle( 61,125 )( 61,115 )
+    -- Form not found
+  endhandle
+  kill !!sdnfImpInfo
+  handle( 61,125 )( 61,115 )
+    -- Form not found
+  endhandle
+  kill !!sdnfImpRunInf
+  handle( 61,125 )( 61,115 )
+    -- Form not found
+  endhandle
+  kill !!sdnfSourInfo
+  handle( 61,125 )( 61,115 )
+    -- Form not found
+  endhandle
+  kill !!sdnfHighlighter
+  handle( 61,125 )( 61,115 )
+    -- Form not found
+  endhandle
+  kill !!sdnfSysConfigFrm
+  handle( 61,125 )( 61,115 )
+    -- Form not found
+  endhandle
+  kill !!sdnfAddPairFrm
+  handle( 61,125 )( 61,115 )
+    -- Form not found
+  endhandle
+
+  -- Delete Upgrade Data
+  call !!sdnfRemCPData( )
+  call !!sdnfRemPspeData( )
+
+
+  -- Delete System variables
+  var !!sdnfSDNFVersion   delete
+  var !!sdnfModelType     delete
+  var !!sdnfModelTypes    delete
+  var !!sdnfTTY           delete
+  var !!sdnfVerFile       delete
+  var !!sdnfDefProgram    delete
+  var !!sdnfThisProg      delete
+  var !!sdnfExportProgram delete
+  var !!sdnfImportProgram delete
+
+
+  var !!sdnfVersion       delete
+  var !!sdnfVersionDate   delete
+  var !!sdnfProduct       delete
+  var !!sdnfShortProduct  delete
+  var !!sdnfLongVersion   delete
+  var !!sdnfCopyright     delete
+  var !!sdnfUnique        delete
+  var !!sdnfImpExp        delete
+  var !!sdnfMain          delete
+  var !!sdnfWork          delete
+  var !!sdnfMDB           delete
+  var !!sdnfUser          delete
+  var !!sdnfSearchStart   delete
+  var !!sdnfInBin         delete
+  var !!sdnfOutBin        delete
+  var !!sdnfProj          delete
+  var !!sdnfRefSite       delete
+  var !!sdnfOrigFrmw      delete
+  var !!sdnfPrefix        delete
+  var !!sdnfCataNameList  delete
+  var !!sdnfCataRefList   delete
+  var !!sdnfExtProgList   delete
+  var !!sdnfExtProgAbbr   delete
+  var !!sdnfExpHeader     delete
+  var !!sdnfSeparator     delete
+  var !!sdnfCSVFlag       delete
+  var !!sdnfWRT           delete
+  var !!sdnfMaxNameLen    delete
+  var !!sdnfSpaceSep      delete
+  var !!sdnfBlockSep      delete
+  var !!sdnfCommaSep      delete
+  var !!sdnfMatSep        delete
+  var !!sdnfProfSep       delete
+  var !!sdnfOriSep        delete
+  var !!sdnfUniSep        delete
+  var !!sdnfDebug         delete
+  var !!sdnfSUStatus      delete
+  var !!sdnfMapDir        delete
+  var !!sdnfSeparators    delete
+
+  -- Delete Severity variables
+  var !!sdnfSevConfirm    delete
+  var !!sdnfSevError      delete
+  var !!sdnfSevFatal      delete
+  var !!sdnfSevOK         delete
+  var !!sdnfSevQuestion   delete
+  var !!sdnfSevWarn       delete
+  var !!sdnfSevMes        delete
+
+
+  -- Delete Error variables
+  var !!sdnfErrBadEleTyp  delete
+  var !!sdnfErrBadMap     delete
+  var !!sdnfErrBadObject  delete
+  var !!sdnfErrComplete   delete
+  var !!sdnfErrConnWOLM   delete
+  var !!sdnfErrFatal      delete
+  var !!sdnfErrFileExist  delete
+  var !!sdnfErrInExtProg  delete
+  var !!sdnfErrIsExpFile  delete
+  var !!sdnfErrNSDNFFile  delete
+  var !!sdnfErrNoConfig   delete
+  var !!sdnfErrNoExpItem  delete
+  var !!sdnfErrNoFile     delete
+  var !!sdnfErrNoImpFile  delete
+  var !!sdnfErrNoImpItem  delete
+  var !!sdnfErrNoInFile   delete
+  var !!sdnfErrNoMapFile  delete
+  var !!sdnfErrNoMat      delete
+  var !!sdnfErrNoOutFile  delete
+  var !!sdnfErrNoPlines   delete
+  var !!sdnfErrNoStlCats  delete
+  var !!sdnfErrNoUDA      delete
+  var !!sdnfErrNotMapFil  delete
+  var !!sdnfErrOK         delete
+  var !!sdnfErrPSDead     delete
+  var !!sdnfErrSPDead     delete
+  var !!sdnfErrUnknownOS  delete
+  var !!sdnfErrNoExpWorl  delete
+  var !!sdnfErrInternErr  delete
+  var !!sdnfErrBadDBPos   delete
+  var !!sdnfErrCompDone   delete
+  var !!sdnfErrCompFail   delete
+  var !!sdnfErrNoAutoDet  delete
+  var !!sdnfErrNoIntMpLs  delete
+  var !!sdnfErrNoOwnStru  delete
+  var !!sdnfErrNoStoreId  delete
+  var !!sdnfErrNoMpFrSel  delete
+  var !!sdnfErrIllTraLet  delete
+  var !!sdnfErrNodTraLet  delete
+  var !!sdnfErrZerLenMem  delete
+  var !!sdnfErrUnsupVers  delete
+  var !!sdnfErrNoMPAtAll  delete
+  var !!sdnfErrOnBrowser  delete
+  var !!sdnfErrNoRWAcces  delete
+  var !!sdnfErrSavMrgFil  delete
+  var !!sdnfErrNoAltSys   delete
+  var !!sdnfErrMrgFrmFil  delete
+  var !!sdnfErrBadDate    delete
+  var !!sdnfErrBadVers    delete
+  var !!sdnfErrLongFiller delete
+  var !!sdnfErrNoHighlig  delete
+  var !!sdnfErrMes        delete
+  var !!sdnfErrBadLoads   delete
+  var !!sdnfErrBadModNum  delete
+  var !!sdnfErrUserMess   delete
+  var !!sdnfErrBadFilVsn  delete
+  var !!sdnfErrBadModTyp  delete
+  var !!sdnfErrStDiffDbs  delete
+  var !!sdnfErrMacNoExist delete
+  var !!sdnfErrObjNoExist delete
+  var !!sdnfErrProgError  delete
+  var !!sdnfErrBadFileSiz delete
+  var !!sdnfBadStorageArea delete
+
+  -- Delete Query variables
+  var !!sdnfQueContinue     delete
+  var !!sdnfQueInstall      delete
+  var !!sdnfQueNone         delete
+  var !!sdnfQueOverwrite    delete
+  var !!sdnfQueViewLog      delete
+  var !!sdnfQueMerge        delete
+  var !!sdnfQueSave         delete
+  var !!sdnfQueDelete       delete
+  var !!sdnfQueMes          delete
+  var !!sdnfQueLoadDfltMaps delete
+
+  -- Delete Operating System variables
+  var !!sdnfOSRemove      delete
+  var !!sdnfImpConv       delete
+  var !!sdnfExpConv       delete
+  var !!sdnfPathSeparatr  delete
+  var !!sdnfExeSfx        delete
+  var !!sdnfCopy          delete
+
+
+  -- Delete version specific variables
+  var !!sdnfFncSfx        delete
+  var !!sdnfObjSfx        delete
+  var !!sdnfFrmSfx        delete
+
+
+  -- Delete Change colour variables
+  var !!sdnfColAdded      delete
+  var !!sdnfColChanged    delete
+  var !!sdnfColDeleted    delete
+  var !!sdnfColDuplicate  delete
+  var !!sdnfColExported   delete
+  var !!sdnfColDefault    delete
+
+
+  -- Delete Comparison Variables
+  var !!sdnfLinAttrJusl  delete
+  var !!sdnfLinAttrHold  delete
+  var !!sdnfLinAttrPspe  delete
+  var !!sdnfLinAttrSpre  delete
+  var !!sdnfLinAttrMatr  delete
+  var !!sdnfLinAttrBang  delete
+  var !!sdnfLinAttrPoss  delete
+  var !!sdnfLinAttrPose  delete
+  var !!sdnfLinAttrSrel  delete
+  var !!sdnfLinAttrErel  delete
+  var !!sdnfLinAttrFrty  delete
+  var !!sdnfLinAttrFrth  delete
+  var !!sdnfLinAttrFrde  delete
+  var !!sdnfLinAttrFrst  delete
+  var !!sdnfLinAttrFren  delete
+  var !!sdnfLinAttrYdir  delete
+  var !!sdnfLinAttrPoin  delete
+  var !!sdnfPlaAttrJusl  delete
+  var !!sdnfPlaAttrHold  delete
+  var !!sdnfPlaAttrPspe  delete
+  var !!sdnfPlaAttrThic  delete
+  var !!sdnfPlaAttrMatr  delete
+  var !!sdnfPlaAttrPos   delete
+  var !!sdnfPlaAttrFrde  delete
+  var !!sdnfPlaAttrFrth  delete
+  var !!sdnfPlaAttrFrty  delete
+  var !!sdnfPlaAttrOri   delete
+  var !!sdnfLinMemAttr   delete
+  var !!sdnfPlateAttr    delete
+  var !!sdnfDiffReport   delete
+  var !!sdnfAddedItem    delete
+  var !!sdnfDeletedItem  delete
+
+  -- Delete Reference lists
+  var !!sdnfMatDescList   delete
+  var !!sdnfMatRefList    delete
+  var !!sdnfFileVersions  delete
+
+  var !!sdnfMarkSep       delete
+  var !!sdnfModelNr       delete
+
+  -- Delete User/Run variables
+  var !!sdnfMaxFileSize   delete
+  var !!sdnfConfigObj     delete
+  var !!sdnfChangedObj    delete
+  var !!sdnfDeletedObj    delete
+  var !!sdnfAddedObj      delete
+  var !!sdnfAddedObjArea  delete
+  var !!sdnfDeadObjArea   delete
+  var !!sdnfUnhitchAll    delete
+  var !!sdnfSessAddedObj  delete
+  var !!sdnfDistTol       delete
+  var !!sdnfMinTol        delete
+  var !!sdnfWaitTime      delete
+  var !!sdnfNoOfTries     delete
+  var !!sdnfOrigSite      delete
+  var !!sdnfNoUnconnMem   delete
+  var !!sdnfVersionList   delete
+  var !!sdnfVerListLen    delete
+  var !!sdnfPreExpMac     delete
+  var !!sdnfPostExpMac    delete
+  var !!sdnfPreImpMac     delete
+  var !!sdnfPostImpMac    delete
+  var !!sdnfMaterialMac   delete
+  var !!sdnfIgnoreMatl    delete
+  var !!sdnfProfMapRef    delete
+  var !!sdnfProfMapRefs   delete
+  var !!sdnfTestRun       delete
+  var !!sdnfOpCount       delete
+  var !!sdnfTotalOpcount  delete
+  var !!sdnfMarkVerify    delete
+  var !!sdnfDay           delete
+  var !!sdnfMonth         delete
+  var !!sdnfYear          delete
+  var !!sdnfEMarkMode     delete
+  var !!sdnfEMarkModes    delete
+
+
+  -- Delete User definable mapping table lists
+  var !!sdnfMaxMapLen     delete
+  -- Loop to delete user definable mapping lists
+  do !map values !!sdnfMapList
+    -- Get handle on each Map
+    !mapHandle = |$!map|
+    var $!mapHandle         delete
+  enddo
+  var !!sdnfMapList         delete
+
+  var !!sdnfExtProgEquList  delete
+  var !!sdnfBriefHdr        delete
+  var !!sdnfSCTNtoGENSEC    delete
+  var !!sdnfRebuildGensec   delete
+  var !!sdnfConfigFileName  delete
+
+  -- Object export counts
+  var !!sdnfExp10Cnt        delete
+  var !!sdnfExp20Cnt        delete
+  var !!sdnfExp22Cnt        delete
+  var !!sdnfExp40Cnt        delete
+  var !!sdnfExp60Cnt        delete
+
+  -- remove Pline rule
+  !!ruleStore.pLine.remove(|SDNF Plines|)
+  handle ANY
+  endhandle
+
+  var !!sdnfInitialised     delete
+
+endfunction
+
+------------------------------------------------------------------------

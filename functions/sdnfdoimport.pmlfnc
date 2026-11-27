@@ -1,0 +1,610 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfdoimport.pmlfnc
+--   Type:          Function Definition
+--   Group:         Interfaces
+--   Keyword:       SDNF
+--   Module:        Design
+--   Replaces:
+--
+-- Author:          D.Wilson
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   SDNFImport form callback (formerly sdnfimport.pmlfnc)
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]   [Description]
+--   SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfDoImport( ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  if( !!sdnfDebug )then
+    clock init all
+  endif
+
+--  -- UNITS
+--  UNITS SUSPEND
+--  handle any
+--   -- Illegal syntax
+--  endhandle
+
+  -- Set system units
+  var !origUnits units
+  mm dist
+  mm bore
+  units degrees
+  handle ANY
+    -- Illegal syntax
+  endhandle
+
+  trace off
+  !debug = | |
+  !processFail = false
+
+  -- Save starting point
+  !origin   = ( ref )
+  !unusedTtype = ( type )
+  !!sdnfPrompt(|$!!sdnfShortProduct Import: Initiated.|)
+
+  !initProgress = STRING( )
+  !incProgress = STRING( )
+  !!sdnfSetProgress( !initProgress, !incProgress )
+
+  -- File name components
+  var !unique  unique
+  var !unusedDate    clock date
+  var !unusedTime    clock time
+  var !unusedHost    host
+  var !unusedLogin   login
+
+  -- Construct filenames
+  !workDir = !!SDNFWork
+  !workDir = !workDir.replace( |\\|, |\| )
+  !mac    = |.mac|
+  !sem    = |.sem|
+  !log    = |.log|
+  !bat    = |.bat|
+  !sta    = |.sta|
+  !mrg    = |.mrg|
+  !prefix          = |$!workDir| + |$!!sdnfPathSeparatr| + |SDNF$!unique|
+  !macroFile       = |$!prefix$!mac|
+  !semaphoreFile   = |$!prefix$!sem|
+  !statusFile      = |$!prefix| + |s2p$!sta|
+  !logFile         = |$!prefix$!log|
+  !batFile         = |$!prefix$!bat|
+  !mrgFile         = |$!prefix$!mrg|
+
+  if( not !!sdnfImpdata.fileVersion.unset( ) )then
+    !fileVersion = !!sdnfImpdata.fileVersion
+  else
+    -- No storage area supplied
+    !error.severity = !!sdnfSevError
+    !error.status   = !!sdnfErrBadFilVsn
+    !error.query    = !!sdnfQueNone
+    !!sdnfError( !error )
+    golabel /Finished
+  endif
+
+  if( not !!sdnfImpdata.modelType.unset( ) )then
+    !modelType = !!sdnfImpdata.modelType
+  else
+    -- No storage area supplied
+    !error.severity = !!sdnfSevError
+    !error.status   = !!sdnfErrBadModTyp
+    !error.query    = !!sdnfQueNone
+    !!sdnfError( !error )
+    golabel /Finished
+  endif
+
+  if( !!sdnfImpdata.mainFunc eq |FILEMERGE| )then
+    -- Saved under a different prefix
+    !mrgFile = !mrgFile.replace( |SDNF$!unique|, |FNDS$!unique|, 1, 1 )
+    !file = !mrgFile
+  else
+    -- Check we have somewhere to put the input
+    !store = !!sdnfImpdata.store.string( )
+    if( !store.length( ) eq 0 or $
+        !!sdnfImpdata.store.badref( ) ) then
+      -- No storage area supplied
+      !error.severity = !!sdnfSevError
+      !error.status   = !!sdnfErrNoStoreID
+      !error.query    = !!sdnfQueNone
+      !!sdnfError( !error )
+      golabel /Finished
+    endif
+    -- special treatment if storage area is empty - should be quicker
+    !emptyStore = false
+    if( !!sdnfImpdata.store.mCount( ).eq( 0 ) and $
+        !!sdnfImpdata.store.type.eq( |SITE| ) )then
+       !emptyStore = true
+    endif
+
+    -- Check we have set input file
+    !file = !!sdnfImpdata.file
+    if( !file.length( ) eq 0 ) then
+      -- No input filename supplied
+      !error.severity = !!sdnfSevError
+      !error.status   = !!sdnfErrNoInFile
+      !error.query    = !!sdnfQueNone
+      !!sdnfError( !error )
+      golabel /Finished
+    endif
+
+    -- Convert input file to target format
+    if( !!sdnfImpConv.length( ) neq 0 )then
+      !command = |$!!sdnfImpConv $!file $!file|
+      syscom |$!command|
+    endif
+  endif
+
+  -- Construct suggested log file name
+  !dotCount = !file.occurs( |.| )
+  if( !dotCount eq 0 )then
+    -- Append .log to name
+    !saveFile = !file + |.log|
+  else
+    -- Replace last bit by |.log|
+    !suffix = |.| + !file.part( ( !dotCount + 1 ), |.| )
+    !saveFile = !file.before( !suffix ) + |.log|
+  endif
+
+  if( !!sdnfImpdata.mainFunc eq |FILEMERGE| )then
+    -- Skip all the difficult bit, but produce a dummy status file
+    !statusArray = ARRAY( )
+    !statusArray.append( |0| )
+    !dFile1 = object FILE( !statusFile )
+    !dFile1.writeFile( |OVERWRITE|, !statusArray )
+    !statusArray[ 1 ] = |Merged data from file.|
+    !dFile2 = object FILE( !logFile )
+    !dFile2.writeFile( |OVERWRITE|, !statusArray )
+    golabel /StartProcessing
+  endif
+
+  -- Check that something stands a chance of being input
+  if( not !!sdnfImpdata.plate and $
+      not !!sdnfImpdata.linMem and $
+      not !!sdnfImpdata.arcMem ) then
+    -- No elements to import
+    !error.severity = !!sdnfSevWarn
+    !error.status   = !!sdnfErrNoImpItem
+    !error.query    = !!sdnfQueNone
+    !!sdnfError( !error )
+    golabel /Finished
+  endif
+
+ -- Check we have suitable Mapping Files
+  !mapFile = ||
+  !matFile = ||
+  !oriFile = ||
+  !uniFile = ||
+  !source  = !!sdnfImpdata.source.upcase( )
+  !error = !!sdnfgetmapfiles( !!sdnfImpdata, |IMPORT|, !source, !mapFile, !matFile, !oriFile, !uniFile )
+  if( !error.status neq !!sdnfErrOK )then
+    -- Handle error
+    !!sdnfError( !error )
+    golabel /Finished
+  endif
+
+  -- Call external program
+  !packets = ARRAY( )
+  if( !!sdnfImpdata.linMem ) then
+    !packets[ 10 ] = |PKT: 10|
+  endif
+  if( !!sdnfImpdata.plate ) then
+    !packets[ 20 ] = |PKT: 20|
+  endif
+  if( !!sdnfImpdata.hole ) then
+    !packets[ 22 ] = |PKT: 22|
+  endif
+  if( !!sdnfImpdata.arcMem ) then
+    !packets[ 60 ] = |PKT: 60|
+  endif
+
+  -- Generate argument file
+  !table = |!!sdnf| + !!sdnfProj + |StdMap|
+  -- Try to see if this array exists
+  !test = $!table
+  handle( 2,751 )
+    -- No it doesn't - construct a general one
+    !table = |!!sdnfAny| + |StdMap|
+    !test = $!table
+    handle( 2,751 )
+      -- Give up
+      !error.severity = !!sdnfSevError
+      !error.status   = !!sdnfErrNoMapFile
+      !error.query    = !!sdnfQueNone
+      !!sdnfError( !error )
+      golabel /Finished
+    endhandle
+  endhandle
+  !stdFile = $!table[ 1 ]
+  !stdFile = !stdFile.before( |*| )
+  !specMode = !!sdnfImpdata.specMode
+  !features = !!sdnfImpdata.features
+
+  -- Create Batch Command file
+  !mapFile = !!sdnfExpandEnv( !mapFile )
+  !mapFile = !!sdnfConvFileName( !mapFile )
+  !matFile = !!sdnfExpandEnv( !matFile )
+  !matFile = !!sdnfConvFileName( !matFile )
+  !file    = !!sdnfExpandEnv( !file )
+  !file    = !!sdnfConvFileName( !file )
+  !stdFile = !!sdnfExpandEnv( !stdFile )
+  !stdFile = !!sdnfConvFileName( !stdFile )
+  !oriFile = !!sdnfExpandEnv( !oriFile )
+  !oriFile = !!sdnfConvFileName( !oriFile )
+  !uniFile = !!sdnfExpandEnv( !uniFile )
+  !uniFile = !!sdnfConvFileName( !uniFile )
+
+  !batFileF = object FILE( !batFile )
+  !batFileF.open( |OVERWRITE| )
+  !batFileF.writeRecord( |SOU: $!file| )
+  !batFileF.writeRecord( |MAP: $!mapFile| )
+  !batFileF.writeRecord( |MAT: $!matFile| )
+  !batFileF.writeRecord( |STD: $!stdFile| )
+  !batFileF.writeRecord( |ORI: $!oriFile| )
+  if( !uniFile.length( ).gt( 0 ) )then
+    !batFileF.writeRecord( |UNI: $!uniFile| )
+  endif
+  -- this feature variable is a set of | separated things, e.g. |UNICODE|PLOO|
+  !batFileF.writeRecord( 'FEA: $!features' )
+  !batFileF.writeRecord( |MOD: $!specMode| )
+  !batFileF.writeRecord( |MAC: $!macroFile| )
+  !batFileF.writeRecord( |LOG: $!logFile| )
+  !batFileF.writeRecord( |STA: $!statusFile| )
+  !batFileF.writeRecord( |SEM: $!semaphoreFile| )
+  !batFileF.writeRecord( |PSP: $!!sdnfProfSep| )
+  !batFileF.writeRecord( |MSP: $!!sdnfMatSep| )
+  !batFileF.writeRecord( |OSP: $!!sdnfOriSep| )
+--  !batFileF.writeRecord( |SEP: '$!!sdnfSeparator'| )
+  !batFileF.writeRecord( |MKS: '$!!sdnfMarkSep'| )
+  !batFileF.writeRecord( |VER: $!fileVersion| )
+  !batFileF.writeRecord( |NOD: $!modelType| )
+  !batFileF.writeRecord( |MDN: $!!sdnfModelNr| )
+
+   !packetIndices = !packets.indices( )
+   if( !packetIndices.size( ).gt( 0 ) )then
+      do !index indices !packetIndices
+         !val = !packets[ !packetIndices[ !index ] ]
+         !batFileF.writeRecord( |$!val| )
+      enddo
+   endif
+
+  -- For tracing/debug add next argument
+  -- !debug = |1|
+  !batFileF.close( )
+
+  -- Check semaphore file does not exist - if it does delete it
+  !semFile = object FILE( !semaphoreFile )
+  if( !semFile.exists( ) )then
+    !semFile.deleteFile( )
+  endif
+
+  !!sdnfPrompt(|$!!sdnfShortProduct Import: Executing external program.|)
+  $!initProgress
+  !command = |""$!!sdnfInBin| + |$!!sdnfPathSeparatr| + !!sdnfImportProgram + |$!!sdnfExeSfx" "$!batFile" $!debug"|
+  syscom |$!command|
+
+  -- Hang around for a bit until semaphore file appears
+  !tryCount = 0
+  !semFile = object FILE( !semaphoreFile )
+  !staFile = object FILE( !statusFile )
+  label /Loop
+  if( not !semFile.exists( ) )then
+    -- Semaphore file not there yet
+    pause $!!sdnfWaitTime
+    -- Look for status file
+    !tryCount = !tryCount + 1
+    if( not !staFile.exists( ) )then
+       -- Not there yet
+       golabel /tryAgain
+    endif
+    !line = !staFile.readRecord( )
+    if( !line.unset( ) )then
+       -- reached End of file, go round again
+       golabel /tryAgain
+    endif
+    if( |$!line| neq |0| ) then
+      !line = !staFile.readRecord( )
+      !staFile.close( )
+      !error.severity = !!sdnfSevError
+      !error.status   = !!sdnfErrUserMess
+      !error.query    = !!sdnfQueNone
+      !error.message  = |$!!sdnfShortProduct Import: $!line|
+      !!sdnfError( !error )
+      golabel /DoneProcessing
+    endif
+    !staFile.close( )
+
+    label /tryAgain
+    if( !tryCount gt !!sdnfNoOfTries )then
+      !error.severity = !!sdnfSevConfirm
+      !error.status   = !!sdnfErrSPDead
+      !error.query    = !!sdnfQueContinue
+      !error.default  = |NO|
+      !reply = !!sdnfError( !error )
+      if( !reply eq |YES| )then
+        -- Try again
+        !tryCount = 0
+        -- Go round again
+        golabel /Loop
+      elseif( !reply eq |NO| )then
+        -- Finish
+        !processFail = true
+        golabel /DoneProcessing
+      endif
+    else
+      -- Go round again
+      golabel /Loop
+    endif
+  endif
+  -- Delete semaphore file
+  !semFile.deleteFile( )
+
+  -- Check status file
+  label /StartProcessing
+
+  -- temporary link to difference handler
+  !diffArray = ARRAY( )
+  !traRev = ( :SDNFTRRVNO of $!!sdnfConfigObj )
+  !!sdnfDiffReport = object SDNFDIFFREPOBJ( !diffArray, !file, !traRev )
+  if( !!sdnfImpdata.reviewDiffs )then
+     pml load form !!sdnfDiffHandler
+  endif
+
+  !staFile = object FILE( !statusFile )
+  !staFile.open( |READ| )
+
+  !logFileF = object FILE( !logFile )
+  !logFileF.open( |APPEND| )
+
+  -- Execute User Defined pre-Import Macro
+  if( !!sdnfPreImpMac.length( ) gt 0 )then
+    !!sdnfPrompt(|$!!sdnfShortProduct Import: Executing User Defined pre-Import Macro $!!sdnfPreImpMac .|)
+    call !!$!!sdnfPreImpMac( )
+    handle any
+      if( !!error.text.match( |PML:| ) ne 0 )then
+        -- I hope it's just that the pml macro doesn't exist
+        !logFileF.writeRecord( |(Error) - User macro $!!sdnfPreImpMac not found.| )
+      else
+        !logFileF.writeRecord( |(Error) - Error in user macro $!!sdnfPreImpMac .| )
+        !logFileF.writeRecord( |        - $!!error.text .| )
+      endif
+    endhandle
+  endif
+  !line = !staFile.readRecord( )
+  if( |$!line| eq |0| ) then
+    -- Close status file - ok so far
+    !staFile.close( )
+    if( !!sdnfImpdata.mainFunc eq |FILEMERGE| )then
+      !error.severity = !!sdnfSevConfirm
+      !error.status   = !!sdnfErrMrgFrmFil
+      !error.query    = !!sdnfQueMerge
+      !error.default  = |YES|
+      !reply = !!sdnfError( !error )
+      if( !reply eq |YES| )then
+        -- Read the macro in
+        call !!sdnfMergeDB( !mrgFile, !logFileF, !!sdnfImpdata.viewMode )
+        if( not !!sdnfDebug )then
+        -- Delete merge file - can't use it again
+          !command = |$!!sdnfOSRemove $!mrgFile|
+          syscom |$!command|
+          -- Delete reference site anyway
+          $!!sdnfRefSite
+          handle (2, 109)
+            --reference not available
+             !error.severity = !!sdnfSevError
+             !error.status   = !!sdnfErrUserMess
+             !error.query    = !!sdnfQueNone
+             !error.message  = |Reference site not found: a) Site has been deleted; b) Site not yet created by Compare operation; c) Merge operation already performed.|
+             !!sdnfError( !error )
+          elsehandle none
+          delete SITE
+          endhandle
+        endif
+      endif
+    else
+      if( not !!sdnfImpdata.mapVerify )then
+        -- Import file
+        !!sdnfPrompt(|$!!sdnfShortProduct Import: Importing $!macroFile .|)
+        $!initProgress
+        if( !emptyStore )then
+          -- bypass compare/merge process as we are importing into an empty area
+          !error = !!sdnfOmitCompMerge( !macroFile, !logFileF, !!sdnfImpdata.viewMode )
+          if( !error.status neq !!sdnfErrOK )then
+             !!sdnfError( !error )
+          else
+             !logFileF.writeRecord( || )
+             !logFileF.writeRecord( |Empty storage area $!store .  Compare and Merge operations bypassed.| )
+          endif
+        else
+          -- into existing site
+          !error = !!sdnfProcess( !macroFile, !logFileF, !!sdnfImpdata.viewMode )
+        endif
+        if( !error.status eq !!sdnfErrOK )then
+          -- Successful import
+          if( !!sdnfImpdata.markVerify eq |NONE| )then
+            if( not !emptyStore )then
+              !!sdnfPrompt(|$!!sdnfShortProduct Import: Inspecting imported model.|)
+              $!initProgress
+              !error = !!sdnfCompareMerge( !logFileF, !mrgFile, !!sdnfImpdata.viewMode, $
+                !!sdnfImpdata.linMemAttr, !!sdnfImpdata.plateAttr )
+
+              -- Display difference handler
+              if( !!sdnfImpdata.reviewDiffs )then
+                 !!sdnfDiffHandler.showForm( !!sdnfDiffReport )
+              endif
+            endif
+          else
+            -- Checking for Duplicate Mark Numbers
+            !!sdnfPrompt(|$!!sdnfShortProduct Import: Checking for duplicate Mark Numbers.|)
+            $!initProgress
+            !error = !!sdnfCheckMarkNos( !logFileF, !!sdnfImpdata.viewMode, !!sdnfImpdata.markVerify )
+          endif
+        endif
+      endif
+    endif
+  else
+    -- Error
+    !line = !staFile.readRecord( )
+    !staFile.close( )
+    !error.severity = !!sdnfSevError
+    !error.status   = !!sdnfErrUserMess
+    !error.query    = !!sdnfQueNone
+    !error.message  = |$!!sdnfShortProduct Import: $!line|
+    !!sdnfError( !error )
+  endif
+
+  !logFileF.close( )
+
+  -- Delete status file
+  !staFile.deleteFile( )
+
+  -- Done processing
+  label /DoneProcessing
+
+  -- Execute User Defined post-Import Macro
+  if( !!sdnfPostImpMac.length( ) gt 0 )then
+    -- Re-open Import Logfile
+    !logFileF.open( |APPEND| )
+    !!sdnfPrompt(|$!!sdnfShortProduct Import: Executing User Defined post-Import Macro $!!sdnfPostImpMac .|)
+    call !!$!!sdnfPostImpMac( )
+    handle any
+      if( !!error.text.match( |PML:| ) ne 0 )then
+        -- I hope it's just that the pml macro doesn't exist
+        !logFileF.writeRecord( |(Error) - User macro $!!sdnfPostImpMac not found.| )
+      else
+        !logFileF.writeRecord( |(Error) - Error in user macro $!!sdnfPostImpMac .| )
+        !logFileF.writeRecord( |        - $!!error.text .| )
+      endif
+    endhandle
+    -- Re-close logfile
+    !logFileF.close( )
+  endif
+
+  -- Append Files used
+  !logFileF = object FILE( !logFile )
+  !logFileF.open( |APPEND| )
+    !logFileF.writeRecord( || )
+    !logFileF.writeRecord( |Files used...| )
+    !logFileF.writeRecord( |=============| )
+    if( !!sdnfImpdata.mainFunc eq |FILEMERGE| )then
+      -- Read the macro in
+      !logFileF.writeRecord( |Merge command file      : $!mrgFile| )
+    else
+      !logFileF.writeRecord( |Input file              : $!file| )
+      !logFileF.writeRecord( |Profile Mapping file    : $!mapFile| )
+      !logFileF.writeRecord( |Material Mapping file   : $!matFile| )
+      !logFileF.writeRecord( |Standards Table file    : $!stdFile| )
+      !logFileF.writeRecord( |Profile Orientation file: $!oriFile| )
+      !logFileF.writeRecord( |Unicode Conversion file    : $!uniFile| )
+    endif
+      !logFileF.writeRecord( || )
+    if( !processFail )then
+      !!sdnfprocesserror( !logFileF )
+    endif
+  !logFileF.close( )
+  $!initProgress
+
+  -- Do we want to have a look at the log file
+  !!sdnfPrompt(|$!!sdnfShortProduct Import: Process complete.  Please inspect log file.|)
+  $!initProgress
+  if( !!sdnfImpdata.viewLog )then
+    !error.severity = !!sdnfSevConfirm
+    !error.status   = !!sdnfErrComplete
+    !error.query    = !!sdnfQueViewLog
+    !error.default  = |NO|
+    !reply = !!sdnfError( !error )
+    if( !reply eq |YES| )then
+      -- Look at it
+      call !!sdnfShowViewFile( !logFile, !!sdnfImpdata.viewMode, !saveFile )
+      !error.severity = !!sdnfSevOK
+      !error.status   = !!sdnfErrOK
+      !error.query    = !!sdnfQueNone
+    endif
+  endif
+
+
+  -- Finished completely
+  label /Finished
+
+  -- double check to close files
+  !logFileF.close( )
+  handle any
+  endhandle
+
+  -- do we have a name to move the logfile too (mainly for tty)
+  if( defined(!logFileF) and not !!sdnfImpdata.logFile.empty()) then
+    !logFileF.move(!!sdnfImpdata.logFile)
+    if(!!sdnfImpdata.testing )then
+      -- copy over the Macro and Merge files too
+      if(defined(!macroFile))then
+        !macFileF = object FILE( !macroFile )
+        if(!macFileF.exists())then
+          !macFileF.copy(!!sdnfImpdata.logFile.replace(|.log|,||,-1,1) & !mac)
+        endif
+      endif
+      if(defined(!mrgFile))then
+        !mrgFileF = object FILE( !mrgFile )
+        if(!mrgFileF.exists())then
+          !mrgFileF.copy(!!sdnfImpdata.logFile.replace(|.log|,||,-1,1) & !mrg)
+        endif
+      endif
+    endif
+  endif
+
+-- Delete some files left over
+  if( not !!sdnfDebug )then
+    !command = |$!!sdnfOSRemove $!prefix*|
+    syscom |$!command|
+  endif
+
+  -- Restore original state
+  !!sdnfPrompt(|$!!sdnfShortProduct Import: Process completed.|)
+  $!initProgress
+
+  $!origUnits
+
+--  -- UNITS
+--  UNITS REINSTATE
+--  handle any
+--   -- Illegal syntax
+--  endhandle
+
+  trace on
+  $!origin
+  handle( 2,107 )
+    -- Probably deleted item under our feet
+    WORL
+  endhandle
+
+  !!sdnfStopProgress()
+  if( !!sdnfDebug )then
+    clock read all
+  endif
+
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

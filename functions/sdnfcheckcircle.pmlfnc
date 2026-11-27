@@ -1,0 +1,133 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfcheckcircle.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         02/12/2009 15:20:45
+--
+--
+-- Description:
+--   Detects circular plate/hole boundary
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      ARRAY      Vertex position array
+--    2   R      ARRAY      Vertex type array
+
+--
+-- Return:
+--   [Data Type]  [Description]
+--    BOOLEAN      T/F if circular
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfcheckcircle( !elemType is STRING, !newPosArray is ARRAY, !newTypArray is ARRAY ) is BOOLEAN
+
+   !isCircle = false
+
+   -- either the points have type code 4 - imported already from SDNF file
+   -- or there are 4 different vertices (at corners), all with FRAD equal to half the distance between successive points
+   !pointCount = !!ce.mcount( )
+   if( !pointCount.eq( 4 ) or !pointCount.eq( 5 ) ) then
+
+      -- check point 5 is same as point 1
+      if( !pointCount.eq( 5 ) ) then
+         !pt1 = pos of $!elemType 1 $!!sdnfWRT
+         !pt5 = pos of $!elemType 5 $!!sdnfWRT
+         if( !pt1.distance( !pt5 ).gt( !!sdnfDistTol ) )then
+            return !isCircle
+         endif
+      endif
+
+      -- see if any points have zero FRAD
+      var !points coll all $!elemType with ( abs( FRAD ) lt $!!sdnfDistTol ) for CE
+      if( !points.size( ).gt( 0 ) )then
+         -- not a circle
+         return !isCircle
+      endif
+
+      -- process the points
+     !frads = ARRAY( )
+     !pt1 = pos of $!elemType 1 $!!sdnfWRT
+     !pt2 = pos of $!elemType 2 $!!sdnfWRT
+     !pt3 = pos of $!elemType 3 $!!sdnfWRT
+     !pt4 = pos of $!elemType 4 $!!sdnfWRT
+
+      var !points coll all $!elemType with ( DESP 1 eq 4 ) for CE
+      if( !points.size( ).eq( 4 ) )then
+         -- a circle
+         !isCircle = true
+         var !frad FRAD of $!elemType 1
+         !frads.append( !frad )
+      else
+         -- do some geometrical checks
+         var !frads append eval ( FRAD ) for all $!elemType for CE
+         !frads = !frads.sortUnique( )
+         if( !frads.size( ).gt( 1 ) )then
+            -- check they are all the same (ish)
+            !frad = !frads[ 1 ].real( )
+            do !i from 2 to !frads.size( )
+               !test = abs( !frad - !frads[ !i ].real( ) )
+               if( !test gt !!sdnfDistTol )then
+                  return !isCircle
+               endif
+            enddo
+         endif
+
+
+         -- check diagonals are same length and orthogonal
+         !lengthComp = !pt1.distance( !pt3 ) - !pt2.distance( !pt4 )
+         if( abs( !lengthComp ) gt !!sdnfDistTol )then
+            return !isCircle
+         endif
+         !dir1 = !pt1.direction( !pt3 )
+         !dir2 = !pt2.direction( !pt4 )
+         !diagComp = !dir1.dot( !dir2 )
+         if( abs( !diagComp ) gt !!sdnfMinTol )then
+            return !isCircle
+         endif
+
+         -- check distance between successive points is (2.0*FRAD)
+         !lengthComp = !frads[ 1 ].real( ) * 2.0
+
+         if( ( abs( !pt1.distance( !pt2 ) - !lengthComp ) lt !!sdnfDistTol ) and $
+             ( abs( !pt2.distance( !pt3 ) - !lengthComp ) lt !!sdnfDistTol ) and $
+             ( abs( !pt3.distance( !pt4 ) - !lengthComp ) lt !!sdnfDistTol ) and $
+             ( abs( !pt4.distance( !pt1 ) - !lengthComp ) lt !!sdnfDistTol ) )then
+            -- it's a circle
+            !isCircle = true
+         endif
+      endif
+   endif
+
+   !newPosArray.clear( )
+   !newTypArray.clear( )
+   if( !isCircle )then
+      -- it's a circle - return centre point and radius
+      !line1 = object LINE( !pt1, !pt3 )
+      !line2 = object LINE( !pt2, !pt4 )
+      !centre = !line1.intersection( !line2 )
+      !newPosArray.append( !centre )
+      !newTypArray.append( !frads[ 1 ].real( ) )
+   endif
+
+   return !isCircle
+
+endfunction
+
+------------------------------------------------------------------------

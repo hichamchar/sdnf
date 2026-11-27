@@ -1,0 +1,594 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfcompplate.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+--
+-- Description:
+--   Compares and possibly merges a Plate/Panel entity.
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfCompPlate( !type is STRING, !in is STRING, $
+   !owner is STRING, !source is STRING, !target is STRING, $
+   !mergeFile is FILE, !logFile is FILE, $
+   !messageMode is STRING, !plateAttr is ARRAY ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Set initial status
+  !start = ( ref )
+   !oriTol = 0.00001
+  !startCount = !!sdnfOpCount
+  !posMemberTypes = |PFIT CMPF|
+  !negMemberTypes = |NBOX NCYL NCON NDIS NPYR NRTO NCTO NSNO NSLC|
+  !posMemList = ARRAY( )
+  !negMemList = ARRAY( )
+
+  -- Set local variables to collect result of comparison
+  !result = ARRAY( )
+  !result.append( | $!type $!target $!in $!owner| )
+  !lVertCha = '  N'
+  !lVertCnt = '  N'
+  !lJust    = '  N'
+  !lHeig    = '  N'
+  !lMgrade  = '  N'
+  !lPspec   = '  N'
+  !lHold    = '  N'
+  !lMatr    = '  N'
+  !lFrth    = '  N'
+  !lFrde    = '  N'
+  !lFrty    = '  N'
+  !lOri     = '  N'
+  !lPos     = '  N'
+
+  -- Compare and sort the Loops
+  call !!sdnfSortLoop( !source, !target )
+
+  -- Go to source entity
+  $!source
+  !sPos    = ( pos $!!sdnfWRT )
+  !sOri    = ( ori $!!sdnfWRT )
+  !sMatr   = ( Matref )
+  !sHold   = ( :SDNFHOLD )
+  !sPspec  = ( :SDNFPSPEC )
+  !sMgrade = ( :SDNFMGRADE )
+  !sIDate  = ( :SDNFIDATE )
+  !sITime  = ( :SDNFITIME )
+  !sGtype  = ( Gtype )
+  !sCDate  = ( :SDNFCDATE )
+  !sCTime  = ( :SDNFCTIME )
+  !sMDate  = ( :SDNFMDATE )
+  !sMTime  = ( :SDNFMTIME )
+  !sFireTy    = ( FIRE )
+  !sFireTh    = ( :SDNFFTHICK )
+  !sFireDesc  = ( :SDNFFDESC )
+
+  -- pick up incoming NXTRs
+  var !negNewMemList collect all ( NXTR ) for CE
+  var !negNewMemPos append eval ( pos $!!sdnfWRT ) for all ( NXTR ) for CE
+  var !negNewMemOri append eval ( ori $!!sdnfWRT ) for all ( NXTR ) for CE
+
+  -- Try to go to target entity
+  $!target
+  !tPos    = ( pos $!!sdnfWRT )
+  !tOri    = ( ori $!!sdnfWRT )
+  !tMatr   = ( Matref )
+  !tHold   = ( :SDNFHOLD )
+  !tPspec  = ( :SDNFPSPEC )
+  !tMgrade = ( :SDNFMGRADE )
+  !tCDate  = ( :SDNFCDATE )
+  !tCTime  = ( :SDNFCTIME )
+  !tMDate  = ( :SDNFMDATE )
+  !tMTime  = ( :SDNFMTIME )
+  !tFireTy    = ( FIRE )
+  !tFireTh    = ( :SDNFFTHICK )
+  !tFireDesc  = ( :SDNFFDESC )
+  !unusedTGtype  = ( Gtype )
+
+  -- Compare attributes
+  !mergeFile.writeRecord( |$!target| )
+  var !sOffDist cons dist $!sPos to $!tPos
+  !rDist = !sOffDist.real( )
+
+      -- We need to relocate all members (except PLOO) after merging
+      !posOrigMemPos = ARRAY( )
+      !posOrigMemOri = ARRAY( )
+      var !posMemList collect all ( $!posMemberTypes ) for CE
+      var !posOrigMemPos append eval ( pos $!!sdnfWRT ) for all ( $!posMemberTypes ) for CE
+      var !posOrigMemOri append eval ( ori $!!sdnfWRT ) for all ( $!posMemberTypes ) for CE
+      !negOrigMemPos = ARRAY( )
+      !negOrigMemOri = ARRAY( )
+      var !negMemList collect all ( $!negMemberTypes ) for CE
+      var !negOrigMemPos append eval ( pos $!!sdnfWRT ) for all ( $!negMemberTypes ) for CE
+      var !negOrigMemOri append eval ( ori $!!sdnfWRT ) for all ( $!negMemberTypes ) for CE
+
+  -- Compare main attributes
+  if( !plateAttr[ !!sdnfPlaAttrPos ] )then
+      var !sDist cons dist $!sPos to $!tPos
+      !rDist = !sDist.real( )
+      if( !rDist gt !!sdnfDistTol )then
+          !lPos = '  Y'
+          !mergeFile.writeRecord( |POS  $!sPos| )
+          !result.append( |   Position '$!sPos' changed from '$!tPos'| )
+          !!sdnfOpCount = !!sdnfOpCount + 1
+      endif
+  endif
+
+  !reversedNormal = false
+  if( !plateAttr[ !!sdnfPlaAttrOri ] )then
+      if( abs( 1.0 - abs( !sOri.yDir( ).dot( !tOri.yDir( ) ) ) ) gt !oriTol and $
+          abs( 1.0 - abs( !sOri.zDir( ).dot( !tOri.zDir( ) ) ) ) gt !oriTol )then
+--      if( !sOri neq !tOri )then
+      !mergeFile.writeRecord( |ORI   $!sOri| )
+      !result.append( |     Ori '$!sOri' changed from '$!tOri'| )
+      !lOri = '  Y'
+      !!sdnfOpCount = !!sdnfOpCount + 1
+    endif
+    -- test if panel normal has reversed - important for PFIT and CMPF
+    if( !sOri.zDir( ).dot( !tOri.zDir( ) ).lt( 0 ) )then
+       !reversedNormal = true
+    endif
+  endif
+
+  if( !plateAttr[ !!sdnfPlaAttrHold ] )then
+    if( !sHold neq !tHold )then
+      !mergeFile.writeRecord( |:SDNFHOLD   $!sHold| )
+      !result.append( |     :SDNFHold '$!sHold' changed from '$!tHold'| )
+      !lHold = '  Y'
+      !!sdnfOpCount = !!sdnfOpCount + 1
+    endif
+  endif
+
+  if( !plateAttr[ !!sdnfPlaAttrPspe ] )then
+    if( !sPspec neq !tPspec )then
+      !mergeFile.writeRecord( |:SDNFPSPEC  $!sPspec| )
+      !result.append( |     :SDNFPspec '$!sPspec' changed from '$!tPspec'| )
+      !lPspec = '  Y'
+      !!sdnfOpCount = !!sdnfOpCount + 1
+    endif
+  endif
+
+  if( !plateAttr[ !!sdnfPlaAttrMatr ] )then
+    if( not !!sdnfIgnoreMatl )then
+      if( !sMatr neq !tMatr )then
+              !lMatr = '  Y'
+              !sMatrN = |nulref|
+              !tMatrN = |nulref|
+              !sMatrN = !sMatr.attribute( |NAME| )
+              handle ANY
+              endhandle
+              !tMatrN = !tMatr.attribute( |NAME| )
+              handle ANY
+              endhandle
+              !mergeFile.writeRecord( |matr $!sMatr| )
+              !result.append( |     Matr '$!sMatrN' changed from '$!tMatrN'| )
+
+        !!sdnfOpCount = !!sdnfOpCount + 1
+      endif
+    endif
+
+    if( !sMgrade.upcase( ) neq !tMgrade.upcase( ) )then
+      !mergeFile.writeRecord( |:SDNFMGRADE '$!sMgrade'| )
+      !result.append( |     Mgrade '$!sMgrade' changed from '$!tMgrade' | )
+      !lMgrade = '  Y'
+      !!sdnfOpCount = !!sdnfOpCount + 1
+    endif
+  endif
+
+  -- Fire flags
+  if( !plateAttr[ !!sdnfPlaAttrFrty ] )then
+    if( !sFireTy neq !tFireTy )then
+      !mergeFile.writeRecord( |FIRE  $!sFireTy| )
+      !result.append( |     FIRE '$!sFireTy' changed from '$!tFireTy'| )
+      !lFrty = '  Y'
+      !!sdnfOpCount = !!sdnfOpCount + 1
+    endif
+  endif
+
+  if( !plateAttr[ !!sdnfPlaAttrFrth ] )then
+    !dFireTh = abs( !sFireTh - !tFireTh )
+    if( !dFireTh.gt( !!sdnfDistTol ) )then
+      !mergeFile.writeRecord( |:SDNFFTHICK  $!sFireTh| )
+      !result.append( |     :SDNFFTHICK '$!sFireTh' changed from '$!tFireTh'| )
+      !lFrth = '  Y'
+      !!sdnfOpCount = !!sdnfOpCount + 1
+    endif
+  endif
+
+  if( !plateAttr[ !!sdnfPlaAttrFrde ] )then
+    if( !sFireDesc neq !tFireDesc )then
+      !mergeFile.writeRecord( |:SDNFFDESC  $!sFireDesc| )
+      !result.append( |     :SDNFFDESC '$!sFireDesc' changed from '$!tFireDesc'| )
+      !lFrde = '  Y'
+      !!sdnfOpCount = !!sdnfOpCount + 1
+    endif
+  endif
+
+   -- "no questions asked" attributes
+   -- Creation date and time really should not change!
+   if( !sCDate neq !tCDate )then
+      !mergeFile.writeRecord( |:SDNFCDATE  '$!sCDate'| )
+   endif
+   if( !sCTime neq !tCTime )then
+      !mergeFile.writeRecord( |:SDNFCTIME  '$!sCTime'| )
+   endif
+   -- this really only records changes outside of the AVEVA System,
+   -- but the actual changes are shown in the other attributes
+   if( !sMDate neq !tMDate )then
+      !mergeFile.writeRecord( |:SDNFMDATE  '$!sMDate'| )
+   endif
+   if( !sMTime neq !tMTime )then
+      !mergeFile.writeRecord( |:SDNFMTIME  '$!sMTime'| )
+   endif
+
+
+  -- Finished Panel - do the Panel Loop
+--  label /FinishedPane
+  -- Go to source entity
+  $!source
+  PLOO 1
+  !sHeig = ( Heig )
+  !sJust = ( Sjus )
+  do !sjustIndex from 1 to 3
+    if( !!sdnfCPlPkeys[ !sjustIndex ].match( !sJust ) neq 0 )then
+      break
+    endif
+  enddo
+
+  -- Go to target entity
+  $!target
+  PLOO 1
+  !mergeFile.writeRecord( |PLOO 1| )
+  !tHeig = ( Heig )
+  !tJust = ( Sjus )
+  do !tjustIndex from 1 to 3
+    if( !!sdnfCPlPkeys[ !tjustIndex ].match( !tJust ) neq 0 )then
+      break
+    endif
+  enddo
+
+  -- Compare attributes
+  if( !plateAttr[ !!sdnfPlaAttrThic ] )then
+    !dHeig = abs( !sHeig - !tHeig )
+    if( !dHeig.gt( !!sdnfDistTol ) )then
+         !lHeig = '  Y'
+      !mergeFile.writeRecord( |Heig $!sHeig| )
+      !result.append( |     Heig '$!sHeig' changed from '$!tHeig'| )
+
+      !!sdnfOpCount = !!sdnfOpCount + 1
+    endif
+  endif
+
+  if( !plateAttr[ !!sdnfPlaAttrJusl ] )then
+    if( !sjustIndex neq !tjustIndex )then
+      !tJustTemp = !tJust
+      !sJustTemp = !sJust
+      -- fiddle the justification if plane normal has changed
+      -- [U|D]? [TOP|CENT|BOTT]
+      if( !reversedNormal )then
+        !jusDir   = ||
+        !jusPlane = |CENT|
+        if( !sJustTemp.match( |D| ).eq( 1 ) )then
+           !jusDir = |U|
+        elseif( !sJustTemp.match( |U| ).eq( 1 ) )then
+           !jusDir = |D|
+        endif
+        if( !sJustTemp.match( |TOP| ).gt( 0 ) )then
+           !jusPlane = |BOTT|
+        endif
+        if( !sJustTemp.match( |BOT| ).gt( 0 ) )then
+           !jusPlane = |TOP|
+        endif
+        !sJustTemp = !jusDir + !jusPlane
+      endif
+      if( !sJustTemp.match( !tJustTemp ).eq( 0 ) )then
+         !lJust = '  Y'
+         !mergeFile.writeRecord( |Sjus $!sJustTemp| )
+         !result.append( |     Just '$!sJustTemp' changed from '$!tJustTemp'| )
+
+         !!sdnfOpCount = !!sdnfOpCount + 1
+      endif
+    endif
+  endif
+
+  -- get starting count of PLOOs
+  $!target
+
+--  Transfer new holes as PLOOs and NXTRs
+  !holeTypes = ARRAY( )
+  !holeTypes.append( |PLOO| )
+  !holeTypes.append( |NXTR| )
+  !vertTypes = ARRAY( )
+  !vertTypes.append( |PAVE| )
+  !vertTypes.append( |VERT| )
+  !holeCount = ARRAY( )
+  do !ht values !holeTypes
+    $!source
+    var !val mem $!ht count
+    !sHtCount = !val.real( )
+    $!target
+    var !val mem $!ht count
+    !tHtCount = !val.real( )
+    !holeCount.append( !tHtCount )
+    -- transfer new holes
+    if( !sHtCount.gt( !tHtCount ) )then
+      do !hIndex from !tHtCount + 1 to !sHtCount
+        $!source
+        $!ht $!hIndex
+        !ref = ( ref )
+        !mergeFile.writeRecord( |$!target| )
+        !mergeFile.writeRecord( |LAST $!ht| )
+        !mergeFile.writeRecord( |NEW $!ht COPY $!ref| )
+        -- sort vertex positions
+      enddo
+    endif
+  enddo
+
+  -- transfer all NXTR holes - possibly covered by the above - keep in case
+--  do !negMemIndex indices !negNewMemList
+--    !negMem    = !negNewMemList[ !negMemIndex ]
+--    !negMemPos = !negNewMemPos[ !negMemIndex ]
+--    !negMemOri = !negNewMemOri[ !negMemIndex ]
+--    $!negMem
+--    !ht = type
+--    !mergeFile.writeRecord( |$!target| )
+--    !mergeFile.writeRecord( |LAST| )
+--    !mergeFile.writeRecord( |NEW $!ht COPY $!negMem| )
+--    !mergeFile.writeRecord( |at $!negMemPos $!!sdnfWRT| )
+--    !mergeFile.writeRecord( |ori $!negMemOri $!!sdnfWRT| )
+--  enddo
+
+  do !hIndex indices !holeTypes
+
+    -- Finished loops - do the Vertices
+    !loopCount = !holeCount[ !hIndex ]
+    !loopType  = !holeTypes[ !hIndex ]
+    !vertType  = !vertTypes[ !hIndex ]
+
+    !changeLevel = ||
+    if( !loopType.eq( |NXTR| ) )then
+      !changeLevel = |LOOP 1|
+    endif
+
+    do !loop from 1 to !loopCount
+
+      $!source
+      $!loopType $!loop
+      handle( 2,113 )
+        -- list exhausted
+        $!target
+        $!loopType $!loop
+        !ref = ( ref )
+        !mergeFile.writeRecord( |$!ref| )
+        !mergeFile.writeRecord( |DELETE $!loopType| )
+        !holeCount[ !hIndex ] = !holeCount[ !hIndex ] - 1
+        skip
+      endhandle
+
+      $!changeLevel
+      var !sVertCount mem $!vertType count
+      !sourceLoop = ( ref )
+
+      $!target
+      $!loopType $!loop
+      $!changeLevel
+      var !tVertCount mem $!vertType count
+      !targetLoop = ( ref )
+
+      -- Transfer vertex position
+      -- Vertices may be used for dimensions
+      -- Loop through old vertices resetting position
+      do !i from 1
+        $!vertType $!i
+        handle( 2,113 )
+          -- No more target vertices
+          break
+        endhandle
+
+        !test = (pos of $!vertType $!i of $!sourceLoop)
+        handle( 2,113 )
+          -- No more source points - delete the rest of the target points
+          END
+          do !j from $!i
+            $!vertType $!j
+            handle( 2,113 )
+              -- No more target PAVEs
+              break
+            endhandle
+            -- Delete it
+            !thisVert = ( ref )
+            !mergeFile.writeRecord( |$!thisVert| )
+            !mergeFile.writeRecord( |delete $!vertType| )
+          enddo
+          break
+        endhandle
+        !thisVert = ( ref )
+        !mergeFile.writeRecord( |$!thisVert| )
+        !mergeFile.writeRecord( |at $!vertType $!i of $!sourceLoop| )
+        !frad = (frad of $!vertType $!i of $!sourceLoop)
+        !mergeFile.writeRecord( |FRAD $!frad| )
+        -- Climb to loop
+        END
+      enddo
+
+      -- Create new ones at the end
+      !mergeFile.writeRecord( |last $!vertType| )
+      do !j from $!i to $!sVertCount
+        -- Go backwards?
+        !test = (pos of $!vertType $!j of $!sourceLoop)
+        handle( 2,113 )
+          -- No more to create
+          break
+        endhandle
+        !mergeFile.writeRecord( |new $!vertType at $!vertType $!j of $!sourceLoop| )
+        !frad = (frad of $!vertType $!j of $!sourceLoop)
+        !mergeFile.writeRecord( |FRAD $!frad| )
+      enddo
+
+      -- Go to target entity
+      $!target
+      $!loopType $!loop
+      $!changeLevel
+      var !tVertCount mem $!vertType count
+
+      -- Compare each vertex
+      if( !plateAttr[ !!sdnfPlaAttrPos ] )then
+        do !i from 1 to $!sVertCount
+          !sPos  = ( pos of $!vertType $!i of $!sourceLoop $!!sdnfWRT )
+          !sFrad = ( frad of $!vertType $!i of $!sourceLoop $!!sdnfWRT )
+          !tPos  = ( pos of $!vertType $!i of $!targetLoop $!!sdnfWRT )
+          handle( 2,113 )
+            -- source has more points than the target?
+            break
+          endhandle
+          !tFrad = ( frad of $!vertType $!i of $!targetLoop $!!sdnfWRT )
+
+          var !sDist cons dist $!sPos to $!tPos
+          !rDist = !sDist.real( )
+          if( !rDist gt !!sdnfDistTol )then
+            !result.append( |     Vertex $!i '$!sPos' changed from '$!tPos'| )
+            !lVertCha = '  Y'
+            !!sdnfOpCount = !!sdnfOpCount + 1
+          endif
+
+          !dFrad = abs( !sFrad - !tFrad )
+          if( !dFrad.gt( !!sdnfDistTol ) )then
+            !result.append( |     Vertex $!i - Fradius '$!sFrad' changed from '$!tFrad'| )
+            !lVertCha = '  Y'
+            !!sdnfOpCount = !!sdnfOpCount + 1
+          endif
+        enddo
+      endif
+
+      if( $!sVertCount neq $!tVertCount )then
+        !result.append( |     Vertex count '$!sVertCount' changed from '$!tVertCount'| )
+        !lVertCnt = '  Y'
+        !!sdnfOpCount = !!sdnfOpCount + 1
+        -- Probably not worth carrying on here
+      endif
+    enddo
+  enddo
+
+
+  -- Done it all
+  -- If we have noticed a difference highlight it in the Design
+  $!target
+  !mergeFile.writeRecord( |$!target| )
+  if( !!sdnfOpCount neq !startCount )then
+      -- Item changed - use SITE incremented revision numbers
+      !revNo = ( :SDNFREVNO of $!!sdnfConfigObj )
+      !revNo = ( !revNo + 1 )
+      !mergeFile.writeRecord( |:SDNFREVNO ( $!revNo )| )
+      -- Update Transfer number, though Site has not been incremented yet
+      !traNo = ( :SDNFTRANO of $!!sdnfConfigObj )
+      !mergeFile.writeRecord( |:SDNFTRANO ( $!traNo )| )
+      -- Build text version
+      !trrvNo = !!sdnfVersionList.substring( !traNo, 1 ) + |.| + |$!revNo|
+      !mergeFile.writeRecord( |:SDNFTRRVNO  '$!trrvNo'| )
+      -- Bring across Import date and time
+      !mergeFile.writeRecord( |:SDNFIDATE  '$!sIDate'| )
+      !mergeFile.writeRecord( |:SDNFITIME  '$!sITime'| )
+
+      -- Try GTYPE
+      !tempGtype = ( GTYPE )
+      !mergeFile.writeRecord( |GTYPE $!sGtype| )
+      GTYPE $!sGtype
+      handle any
+        -- Probably unset value
+        !mergeFile.writeRecord( |GTYPE PANE| )
+      endhandle
+      GTYPE $!tempGtype
+      handle any
+        -- Probably unset value
+        GTYPE unset
+      endhandle
+
+      -- Set status on Panel
+      !mergeFile.writeRecord( |:SDNFSTATUS 'CHANGED'| )
+
+      -- Relocate all members
+      do !i index !posMemList
+        $!posMemList[ $!i ]
+        !mergeFile.writeRecord( |$!posMemList[ $!i ]| )
+        !mergeFile.writeRecord( |at $!posOrigMemPos[ $!i ] $!!sdnfWRT| )
+        !oYdir = !posOrigMemOri[ !i ].before( |and| ).after( |is| )
+        !ori = ( ori $!!sdnfWRT )
+        !nYdir = !ori.yDir( )
+        pin 1 at E0 $!!sdnfWRT dir $!nYdir dist 10000
+        pin 2 at E0 $!!sdnfWRT
+        pin 3 at E0 $!!sdnfWRT dir $!oYdir $!!sdnfWRT dist 10000
+        var !ang cons ang pin 1 to pin 2 to pin 3
+        !bang = ( bang )
+        !bang = ( $!bang - $!ang )
+        -- Reduce to within +/- 180 degrees
+        do
+          if( !bang le 180 )then
+            break
+          endif
+          !bang = !bang - 180
+        enddo
+        do
+          if( !bang ge -180 )then
+            break
+          endif
+          !bang = !bang + 180
+        enddo
+        -- Go and set it
+        !mergeFile.writeRecord( |bang $!bang| )
+      enddo
+
+      do !i index !negMemList
+        !mergeFile.writeRecord( |$!negMemList[ $!i ]| )
+        !mergeFile.writeRecord( |at $!negOrigMemPos[ $!i ] $!!sdnfWRT| )
+        !yDir = !negOrigMemOri[ !i ].before( |and| )
+        !zDir = !negOrigMemOri[ !i ].after( |and| )
+        !mergeFile.writeRecord( |ori $!yDir $!!sdnfWRT and $!zDir $!!sdnfWRT| )
+      enddo
+
+      -- There's something different
+      if( not !!sdnftty ) then
+        enhance $!target colour $!!sdnfColChanged
+        !mergeFile.writeRecord( |enhance $!target colour $!!sdnfColChanged| )
+      endif
+      !!sdnfChangedObj.append( $!target )
+      -- Add changes to log file - format depends on mode(Brief or Verbose)
+      if( !messageMode eq |FULL| )then
+        do !line values !result
+          !logFile.writeRecord( |$!line| )
+        enddo
+      else
+        !logFile.writeRecord( |PLATE  $!target   C $!lJust $!lHold $!lPspec $!lHeig $!lMgrade $!lPos $!lOri $!lVertCnt $!lVertCha $!lFrth $!lFrde $!lFrty| )
+      endif
+  endif
+
+  -- Finished
+--  label /Finished
+  -- Return to start
+  $!start
+  pin 1 off
+  pin 2 off
+  pin 3 off
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

@@ -1,0 +1,159 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfcomparemerge.pmlfnc
+--   Type:          Function Definition
+--   Group:         Interfaces
+--   Keyword:       SDNF
+--   Module:        Design
+--   Replaces:
+--
+-- Author:          D.Wilson
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+-- Description:
+--   Manages the Compare and Merge options.
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Log file name
+--    2   R      STRING      Merge Command file name
+--    3   R      STRING      Message mode [BRIEF|FULL]
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfCompareMerge( !logFileF is FILE, !mrgFile is STRING, !messageMode is STRING, $
+    !linMemAttr is ARRAY, !plateAttr is ARRAY ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Set local variables
+  !origin     = ( ref )
+  trace off
+  WORL
+
+  -- Get Form variables as to what to do with the data
+  !compare = false
+  !merge = false
+  if( !!sdnfImpdata.mainFunc eq |COMPARE| )then
+    !compare = true
+  elseif( !!sdnfImpdata.mainFunc eq |MERGE| )then
+    !merge = true
+  endif
+
+  -- Merge Command File
+  !mrgFileF = object FILE( !mrgFile )
+  !mrgFileF.open( |OVERWRITE| )
+  if( !!sdnfDebug )then
+    !mrgFileF.writeRecord( |$$R6| )
+  endif
+
+  !savedMrgFile = false
+  if( !compare )then
+
+    -- Replace SCTNs with GENSECs
+    if( !!sdnfSCTNtoGENSEC )then
+      !!sdnfreplacesctn( true )
+    endif
+
+    -- Go and compare models
+    call !!sdnfCompDB( !mrgFileF, !logFileF, !messageMode, !linMemAttr, !plateAttr )
+    -- Close Merge Command file
+    if( !!sdnfDebug )then
+      !mrgFileF.writeRecord( |$$R0| )
+    endif
+    !mrgFileF.close( )
+
+    if( not !!sdnftty) then
+      -- Update graphics
+      refresh
+    endif
+
+    if( not !!sdnfImpdata.reviewDiffs )then
+       -- Go ahead and merge?  Do not offer chance to merge if we are reviewing differences
+       !error.severity = !!sdnfSevConfirm
+       !error.status   = !!sdnfErrCompDone
+       !error.query    = !!sdnfQueMerge
+       !error.default  = |NO|
+       !reply = !!sdnfError( !error )
+       -- Manage reply
+       if( !reply eq |YES| )then
+         -- Merge models
+         call !!sdnfMergeDB( !mrgFile, !logFileF, !messageMode )
+       else
+         -- Save Merge file
+         !error.severity = !!sdnfSevConfirm
+         !error.status   = !!sdnfErrSavMrgFil
+         !error.query    = !!sdnfQueSave
+         !error.default  = |YES|
+         !reply = !!sdnfError( !error )
+         if( !reply eq |YES| )then
+           -- Save it per this session
+           !savedMrgFile = true
+           -- Saved under a different prefix
+           var !unique  unique
+           !newFile = !mrgFile.replace( |SDNF$!unique|, |FNDS$!unique|, 1, 1 )
+           call !!sdnfSaveMrgFile( !mrgFile, !newFile )
+         endif
+       endif
+    endif
+  elseif( !merge )then
+    -- Replace new SCTNs with GENSECs
+    if( !!sdnfSCTNtoGENSEC )then
+      !!sdnfreplacesctn( true )
+    endif
+
+    -- Just go ahead and merge them
+    call !!sdnfCompDB( !mrgFileF, !logFileF, !messageMode, !linMemAttr, !plateAttr )
+    -- Close Merge Command file
+    if( !!sdnfDebug )then
+      !mrgFileF.writeRecord( |$$R0| )
+    endif
+    !mrgFileF.close( )
+
+    -- Go and Merge it all
+    call !!sdnfMergeDB( !mrgFile, !logFileF, !messageMode )
+  endif
+
+  -- Need to clean up the mess, but don't delete reference site if
+  -- merge command file saved as we need it later on
+  if( !savedMrgFile or !!sdnfImpdata.reviewDiffs )then
+    -- Keep it whatever
+--    golabel /Finished
+  else
+    -- Delete Reference SITE (on request)
+    call !!sdnfImpDelRefSit( !!sdnfImpdata.saveModel )
+  endif
+
+  if( not !!sdnftty) then
+    -- Update graphics
+    refresh
+  endif
+
+  -- Restore original units
+  !origin
+  trace on
+  -- Reset error flag
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Done
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

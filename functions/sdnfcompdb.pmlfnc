@@ -1,0 +1,452 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfcompdb.pmlfnc
+--   Type:          Function Definition
+--   Group:         Interfaces
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+-- Description:
+--   Loops through Target and Reference data structures comparing
+--   and merging as necessary.
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    2   R      STRING      Message mode [BRIEF|FULL]
+--    3   R      ARRAY of BOOLEAN Attribute comparison list for Linear Members
+--    4   R      ARRAY of BOOLEAN Attribute comparison list for Plates
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfCompDB( !mergeFile is FILE, !logFile is FILE, !messageMode is STRING, $
+                              !linMemAttr is ARRAY, !plateAttr is ARRAY ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  !initProgress = STRING( )
+  !incProgress = STRING( )
+  !!sdnfSetProgress( !initProgress, !incProgress )
+
+  -- Set initial status
+  !origin = ( ref )
+
+  -- Minor operation list
+  !minorOpList = ARRAY( )
+  !minorOpList.append( |CHANGES| )
+  !minorOpList.append( |ADDITIONS| )
+  !minorOpList.append( |DELETIONS| )
+
+  -- Collect all SCTNs, PANEs not forgetting the AddedObjArea
+  !origSctnRef = ARRAY( )
+  !origPaneRef = ARRAY( )
+  !origSctnMark = ARRAY( )
+  !origPaneMark = ARRAY( )
+  !refSctnRef  = ARRAY( )
+  !refPaneRef  = ARRAY( )
+  !refSctnMark = ARRAY( )
+  !refPaneMark = ARRAY( )
+
+  -- Does the original Site still exist - may not if we import bypassing the compare/merge process first time.
+  if( !!sdnfOrigSite.badRef( ) )then
+    -- Set error flag
+    !error.severity = !!sdnfSevError
+    !error.status   = !!sdnfErrCompFail
+    !error.query    = !!sdnfQueNone
+    !unusedReply = !!sdnfError( !error )
+    golabel /Finished
+  endif
+
+  -- Yes, we do the next bit twice for each array to keep the original
+  -- Ref and Mark arrays in step with each other as an incoming item
+  -- may be identified by either its :SDNFMARK or :SDNFEMARK value.
+  var !origSctnRef append eval ( ref ) for all SCTN for $!!sdnfOrigSite
+  var !origSctnRef append eval ( ref ) for all GENSEC for $!!sdnfOrigSite
+  var !origSctnRef append eval ( ref ) for all SCTN for $!!sdnfOrigSite
+  var !origSctnRef append eval ( ref ) for all GENSEC for $!!sdnfOrigSite
+  var !origPaneRef append eval ( ref ) for all PANE for $!!sdnfOrigSite
+  var !origPaneRef append eval ( ref ) for all PANE for $!!sdnfOrigSite
+  var !origSctnMark append eval ( :SDNFMARK ) for all SCTN for $!!sdnfOrigSite
+  var !origSctnMark append eval ( :SDNFMARK ) for all GENSEC for $!!sdnfOrigSite
+  var !origSctnMark append eval ( :SDNFEMARK ) for all SCTN for $!!sdnfOrigSite
+  var !origSctnMark append eval ( :SDNFEMARK ) for all GENSEC for $!!sdnfOrigSite
+  var !origPaneMark append eval ( :SDNFMARK ) for all PANE for $!!sdnfOrigSite
+  var !origPaneMark append eval ( :SDNFEMARK ) for all PANE for $!!sdnfOrigSite
+
+  -- After the Comparison, Reference items may be in either RefSite or
+  -- AddedObjArea, so we must pick them up from both places.
+  var !refSctnRef append eval ( ref ) for all SCTN for $!!sdnfRefSite
+  var !refSctnRef append eval ( ref ) for all GENSEC for $!!sdnfRefSite
+  var !refSctnRef append eval ( ref ) for all SCTN for $!!sdnfAddedObjArea
+  var !refSctnRef append eval ( ref ) for all GENSEC for $!!sdnfAddedObjArea
+  var !refPaneRef append eval ( ref ) for all PANE for $!!sdnfRefSite
+  var !refPaneRef append eval ( ref ) for all PANE for $!!sdnfAddedObjArea
+  var !refSctnMark append eval ( :SDNFEMARK ) for all SCTN for $!!sdnfRefSite
+  var !refSctnMark append eval ( :SDNFEMARK ) for all GENSEC for $!!sdnfRefSite
+  var !refSctnMark append eval ( :SDNFEMARK ) for all SCTN for $!!sdnfAddedObjArea
+  var !refSctnMark append eval ( :SDNFEMARK ) for all GENSEC for $!!sdnfAddedObjArea
+  var !refPaneMark append eval ( :SDNFEMARK ) for all PANE for $!!sdnfRefSite
+  var !refPaneMark append eval ( :SDNFEMARK ) for all PANE for $!!sdnfAddedObjArea
+
+  -- Convert :SDNFEMARK to refnos
+  do !i index !origSctnMark
+    !origSctnMark[ !i ] = |=| + !origSctnMark[ !i ]
+  enddo
+  do !i index !origPaneMark
+    !origPaneMark[ !i ] = |=| + !origPaneMark[ !i ]
+  enddo
+  do !i index !refSctnMark
+    !refSctnMark[ !i ] = |=| + !refSctnMark[ !i ]
+  enddo
+  do !i index !refPaneMark
+    !refPaneMark[ !i ] = |=| + !refPaneMark[ !i ]
+  enddo
+
+  -- sort original lists to speed up searching
+  -- !origSctnRef <-> !origSctnMark
+  !sortedIndices = !origSctnMark.sortedIndices( )
+  !origSctnMark.reIndex( !sortedIndices )
+  !origSctnRef.reIndex( !sortedIndices )
+  -- !origPaneRef <-> !origPaneMark
+  !sortedIndices = !origPaneMark.sortedIndices( )
+  !origPaneMark.reIndex( !sortedIndices )
+  !origPaneRef.reIndex( !sortedIndices )
+  -- !refSctnRef <-> !refSctnMark
+  !sortedIndices = !refSctnMark.sortedIndices( )
+  !refSctnMark.reIndex( !sortedIndices )
+  !refSctnRef.reIndex( !sortedIndices )
+  -- !refPaneRef <-> !refPaneMark
+  !sortedIndices = !refPaneMark.sortedIndices( )
+  !refPaneMark.reIndex( !sortedIndices )
+  !refPaneRef.reIndex( !sortedIndices )
+
+  -- Loop for each minorOperation
+  !!sdnfTotalOpCount = ( 0 )
+  do !minorOperation values !minorOpList
+
+    -- Set global variables
+    !!sdnfOpCount = ( 0 )
+    var !sctnList delete
+    var !otherSctnList delete
+    var !paneList delete
+    var !otherPaneList delete
+    !sctnList = ARRAY( )
+    !otherSctnList = ARRAY( )
+    !paneList = ARRAY( )
+    !otherPaneList = ARRAY( )
+    !start      = |$!!sdnfRefSite|
+
+    -- Start depends on whether we are comparing additions or deletions
+    if( !minorOperation eq |CHANGES| )then
+      do !i index !refSctnMark
+--         !test = !origSctnMark.findFirst( !refSctnMark[ !i ] )
+         !test = !!sdnfBinarySearch( !origSctnMark, !refSctnMark[ !i ] )
+         if( !test.set( ) )then
+           -- Is in both lists
+           !sctnList.append( !origSctnRef[ !test ] )
+           !otherSctnList.append( !refSctnRef[ !i ] )
+         endif
+      enddo
+      do !i index !refPaneMark
+--         !test = !origPaneMark.findFirst( !refPaneMark[ !i ] )
+         !test = !!sdnfBinarySearch( !origPaneMark, !refPaneMark[ !i ] )
+         if( !test.set( ) )then
+           -- Is in both lists
+           !paneList.append( !origPaneRef[ !test ] )
+           !otherPaneList.append( !refPaneRef[ !i ] )
+         endif
+      enddo
+    elseif( !minorOperation eq |ADDITIONS| )then
+      do !i index !refSctnMark
+--         !test = !origSctnMark.findFirst( !refSctnMark[ !i ] )
+         !test = !!sdnfBinarySearch( !origSctnMark, !refSctnMark[ !i ] )
+         if( !test.unset( ) )then
+           -- Is in new list, but not in old one
+           !sctnList.append( !refSctnRef[ !i ] )
+         endif
+      enddo
+      do !i index !refPaneMark
+--         !test = !origPaneMark.findFirst( !refPaneMark[ !i ] )
+         !test = !!sdnfBinarySearch( !origPaneMark, !refPaneMark[ !i ] )
+         if( !test.unset( ) )then
+           -- Is in new list, but not in old one
+           !paneList.append( !refPaneRef[ !i ] )
+         endif
+      enddo
+    elseif( !minorOperation eq |DELETIONS| )then
+      !start      = |$!!sdnfOrigSite|
+      do !i index !origSctnMark
+--         !test = !refSctnMark.findFirst( !origSctnMark[ !i ] )
+         !test = !!sdnfBinarySearch( !refSctnMark, !origSctnMark[ !i ] )
+         if( !test.unset( ) )then
+           -- Is in old list, but not in new
+           !sctnList.append( !origSctnRef[ !i ] )
+         endif
+      enddo
+      do !i index !origPaneMark
+--         !test = !refPaneMark.findFirst( !origPaneMark[ !i ] )
+         !test = !!sdnfBinarySearch( !refPaneMark, !origPaneMark[ !i ] )
+         if( !test.unset( ) )then
+           -- Is in old list, but not in new
+           !paneList.append( !origPaneRef[ !i ] )
+         endif
+      enddo
+    endif
+
+    -- Find the list of which there are two entries
+    if( !minorOperation eq |DELETIONS| )then
+
+      -- Sort SCTNs
+      !dupArray = ARRAY( )
+      !indexList = !sctnList.sortedIndices( )
+      !prev = ||
+      do !i values !indexList
+        !this = !sctnList[ !i ]
+        if( !this eq !prev )then
+          !dupArray.append( !sctnList[ !i ] )
+        endif
+        !prev = !this
+      enddo
+      !sctnList = !dupArray
+
+      -- Sort PANEs
+      !dupArray = ARRAY( )
+      !indexList = !paneList.sortedIndices( )
+      !prev = ||
+      do !i values !indexList
+        !this = !paneList[ !i ]
+        if( !this eq !prev )then
+          !dupArray.append( !paneList[ !i ] )
+        endif
+        !prev = !this
+      enddo
+      !paneList = !dupArray
+
+    endif
+
+    !in           = |in|
+    !prName       = ( fullname of $!!sdnfOrigSite )
+
+    -- Go to Start
+    $!start
+    handle( 2,109 )
+      -- Does not exist - for some reason
+      !logFile.writeRecord( || )
+      !logFile.writeRecord( | Element $!start does not exist| )
+      !logFile.writeRecord( || )
+      -- Set error flag
+      !error.severity = !!sdnfSevError
+      !error.status   = !!sdnfErrCompFail
+      !error.query    = !!sdnfQueNone
+      !!sdnfError( !error )
+      golabel /Finished
+    endhandle
+
+    -- Write header
+    if( !messageMode eq |FULL| )then
+      !logFile.writeRecord( || )
+      !logFile.writeRecord( || )
+      !logFile.writeRecord( |$!minorOperation to mapped entities in $!prName| )
+      !logFile.writeRecord( || )
+    endif
+
+    !sdnfType = |MEMBER|
+    !lc       = ( 0 )
+    !tlc      = !sctnList.size( )
+    do !i index !sctnList
+      !lc = !lc + 1
+      !ref = |$!sctnList[ $!i ]|
+      if( !minorOperation eq |CHANGES| )then
+        -- Compare item more closely
+        !otherRef = |$!otherSctnList[ $!i ]|
+        !!sdnfCompLinMem( !sdnfType, !in, !prName, !otherRef, !ref, !mergeFile, !logFile, !messageMode, !linMemAttr )
+      else
+        skip if( !ref.dbref( ).type neq |SCTN| )
+        if( !minorOperation eq |ADDITIONS| )then
+          !!sdnfConvPlines( !ref )
+          !!sdnfAddItem( !ref, !mergeFile, !logFile, !messageMode )
+        elseif( !minorOperation eq |DELETIONS| )then
+          !!sdnfDeleteItem( !ref, !mergeFile, !logFile, !messageMode )
+        endif
+      endif
+      -- Progress report
+      !promptMessage = |$!!sdnfShortProduct Import: Packet 10 (Linear Members) - COMPARE - $!minorOperation|
+      !!sdnfUpdateProgress( !lc, !tlc, !incProgress, !promptMessage )
+    enddo
+
+    !sdnfType = |PANE|
+    !pc       = ( 0 )
+    !tpc      = !paneList.size( )
+    do !i index !paneList
+      !ref = |$!paneList[ $!i ]|
+      if( !minorOperation eq |CHANGES| )then
+        -- Compare item more closely
+        !otherRef = |$!otherPaneList[ $!i ]|
+        !!sdnfCompPlate( !sdnfType, !in, !prName, !otherRef, !ref, !mergeFile, !logFile, !messageMode, !plateAttr )
+      elseif( !minorOperation eq |ADDITIONS| )then
+        !!sdnfAddItem( !ref, !mergeFile, !logFile, !messageMode )
+      elseif( !minorOperation eq |DELETIONS| )then
+        !!sdnfDeleteItem( !ref, !mergeFile, !logFile, !messageMode )
+      endif
+      -- Progress report
+      !pc = !pc + 1
+      !promptMessage = |$!!sdnfShortProduct Import: Packet 20 (Plates) - COMPARE - $!minorOperation|
+      !!sdnfUpdateProgress( !pc, !tpc, !incProgress, !promptMessage )
+    enddo
+
+    !sdnfType = |MEMBER|
+    !lc       = ( 0 )
+    !tlc      = !sctnList.size( )
+    do !i index !sctnList
+      !lc = !lc + 1
+      !ref = |$!sctnList[ $!i ]|
+      if( !minorOperation eq |CHANGES| )then
+        -- Compare item more closely
+        !otherRef = |$!otherSctnList[ $!i ]|
+        !!sdnfCompCurMem( !sdnfType, !in, !prName, !otherRef, !ref, !mergeFile, !logFile, !messageMode, !linMemAttr )
+      else
+        skip if( !ref.dbref( ).type neq |GENSEC| )
+        if( !minorOperation eq |ADDITIONS| )then
+          !!sdnfConvPlines( !ref )
+          !!sdnfAddItem( !ref, !mergeFile, !logFile, !messageMode )
+        elseif( !minorOperation eq |DELETIONS| )then
+          !!sdnfDeleteItem( !ref, !mergeFile, !logFile, !messageMode )
+        endif
+      endif
+      -- Progress report
+      !promptMessage = |$!!sdnfShortProduct Import: Packet 60 (Curved Members) - COMPARE - $!minorOperation|
+      !!sdnfUpdateProgress( !lc, !tlc, !incProgress, !promptMessage )
+    enddo
+
+    -- Print result summary
+    if( !messageMode eq |FULL| )then
+      !logFile.writeRecord( |===========================| )
+      !logFile.writeRecord( |$!minorOperation >>>> $!!sdnfOpCount detected| )
+    endif
+    !!sdnfTotalOpCount = ( !!sdnfTotalOpCount + !!sdnfOpCount )
+
+  enddo
+
+  -- Now incorporate all the additions
+  -- Update Transfer details
+  !traNo = ( :SDNFTRANO of $!!sdnfConfigObj )
+  !revNo = ( :SDNFREVNO of $!!sdnfConfigObj + 1 )
+  -- Build text version
+  !trrvNo = !!sdnfVersionList.substring( !traNo, 1 ) + |.| + |$!revNo|
+  !mergeFile.writeRecord( |$!!sdnfConfigObj| )
+  if( !!sdnfTotalOpCount gt 0 )then
+    !mergeFile.writeRecord( |:SDNFREVNO  ( $!revNo )| )
+    !mergeFile.writeRecord( |:SDNFTRRVNO  '$!trrvNo'| )
+    -- Update header details
+    call !!sdnfMergeHdr( !mergeFile, |$!!sdnfRefSite|, |$!!sdnfOrigSite| )
+  endif
+
+  -- Transfer all those new items from holding area
+  -- Only proceed if there are new items
+  !struName = !!sdnfAddedObjArea + |/| + !trrvNo.trim( )
+  !struName = !!sdnfValidateName( !struName )
+  if( !!sdnfAddedObj.size( ) gt 0 )then
+    !mergeFile.writeRecord( |$!!sdnfOrigSite| )
+    $!!sdnfOrigSite
+    !type = ( type )
+    if( !type eq |SITE| )then
+      !mergeFile.writeRecord( |NEW ZONE| )
+    endif
+    !mergeFile.writeRecord( |NEW STRU $!struName| )
+    !mergeFile.writeRecord( |at E 0 $!!sdnfWRT| )
+    !mergeFile.writeRecord( |ori Y is N $!!sdnfWRT and Z is U $!!sdnfWRT| )
+    if( !!sdnfImpdata.sortMode )then
+      -- Sort into FRMW according to :SDNFMgrade
+      !mergeFile.writeRecord( |!targetStru = ( ref )| )
+      !mergeFile.writeRecord( |call !!sdnfSortNewItems( $$!targetStru )| )
+    else
+      -- Just transfer the lot without sorting
+      !mergeFile.writeRecord( |new FRMW copy FRMW 1 of $!!sdnfSessAddedObj| )
+      !mergeFile.writeRecord( |rem ce add ce col $!!sdnfColAdded| )
+      !mergeFile.writeRecord( |FRMW 1 of $!!sdnfSessAddedObj| )
+      !mergeFile.writeRecord( |delete FRMW| )
+      handle( 2,113 )
+        -- Nothing added
+      endhandle
+    endif
+  endif
+
+  -- Shuffle deleted items to dead area
+  !struName = !!sdnfDeadObjArea + |/| + !trrvNo.trim( )
+  if( !!sdnfDeletedObj.size( ) gt 0 )then
+
+    -- Check we have a dead object area
+    $!!sdnfDeadObjArea
+    handle( 2,109 )
+      -- Dead object area does not exist
+      !error = !!sdnfMakeDeadArea( )
+    endhandle
+
+    var !iDate CLOCK DATE
+    var !iTime CLOCK TIME
+    !mergeFile.writeRecord( |ZONE 1 of $!!sdnfDeadObjArea| )
+    !mergeFile.writeRecord( |NEW STRU $!struName| )
+    !mergeFile.writeRecord( |at E 0 $!!sdnfWRT| )
+    !mergeFile.writeRecord( |ori Y is N $!!sdnfWRT and Z is U $!!sdnfWRT| )
+    call !!sdnfMergeHdr( !mergeFile, |$!!sdnfRefSite|, |$!struName| )
+    !mergeFile.writeRecord( |$!struName| )
+    !mergeFile.writeRecord( |NEW FRMW| )
+    !mergeFile.writeRecord( |!ref = ( ref )| )
+    do !val values !!sdnfDeletedObj
+      !mergeFile.writeRecord( |$!val| )
+      !mergeFile.writeRecord( |!pos = ( pos $!!sdnfWRT )| )
+      !mergeFile.writeRecord( |!ori = ( ori $!!sdnfWRT )| )
+      !mergeFile.writeRecord( |$$!ref| )
+      !mergeFile.writeRecord( |include $!val| )
+      !mergeFile.writeRecord( |$!val| )
+
+      -- If this is deleted, the IDATE and ITIME variables will not have been set
+      !mergeFile.writeRecord( |:SDNFIDATE '$!iDate'| )
+      !mergeFile.writeRecord( |:SDNFITIME '$!iTime'| )
+
+      -- If necessary, unhitch it
+      if( !!sdnfUnhitchAll )then
+        !type = ( type of $!val )
+        if( !type eq |SCTN| )then
+          !mergeFile.writeRecord( |jois nulref| )
+          !mergeFile.writeRecord( |joie nulref| )
+        elseif( !type eq |PANE| )then
+        endif
+      endif
+
+      !mergeFile.writeRecord( |at $$!pos| )
+      -- this fails in debug mode for SCTN
+      !mergeFile.writeRecord( |ori $$!ori| )
+
+    enddo
+  endif
+
+  -- Return to base
+  !mergeFile.writeRecord( |$!!sdnfOrigSite| )
+
+  -- Finished
+  label /Finished
+  $!origin
+  !!sdnfStopProgress()
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

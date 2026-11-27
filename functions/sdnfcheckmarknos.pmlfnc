@@ -1,0 +1,121 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfcheckmarknos.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+--
+-- Description:
+--   Checks for duplicate EMARK numbers in either the whole project
+--   or the added items only.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Logfile name
+--    2   R      STRING      Output message mode
+--    3   R      STRING      Mark checking mode
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfCheckMarkNos( !logFileF is FILE, !messageMode is STRING, !markMode is STRING ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Set initial status
+  !origin = ( ref )
+
+  -- Work out where we get the things to check from
+  if( !markMode eq |NEW| )then
+    -- Use Import Reference Site
+    !source = !!sdnfRefSite
+  elseif( !markMode eq |GLOBAL| )then
+    -- Use World
+    !source = |WORL|
+  endif
+
+  !prName = ( NAME of $!source )
+  -- Collect all SCTNs, PANEs
+  !refList  = ARRAY( )
+  !markList = ARRAY( )
+  var !refList append eval ( ref ) for all ( SCTN GENSEC PANE ) for $!source
+  var !markList append eval ( :SDNFEMARK ) for all ( SCTN GENSEC PANE ) for $!source
+
+  -- Sort the lists now but don't remove duplicates
+  !indices = !markList.sortedIndices( )
+  !markList.reIndex( !indices )
+  !refList.reIndex( !indices )
+
+  -- Write header
+  if( !messageMode eq |FULL| )then
+    !logFileF.writeRecord( || )
+    !logFileF.writeRecord( || )
+    !logFileF.writeRecord( |Checking $!markMode Duplicate Mark Numbers in $!prName| )
+    !logFileF.writeRecord( || )
+  endif
+
+  -- Scoot down arrays checking for duplicates
+  !duplicates = ( 0 )
+  !prevMark = ||
+  do !i index !markList
+    -- See if this has been imported, ignore if not
+    !imported = !refList[ !i ].dBRef( ).attribute( |:SDNFEMARK| )
+    if( ( !markList[ !i ] eq !prevMark ) and $
+        !imported neq || )then
+      -- Duplicate found
+      !duplicates = !duplicates + 1
+      !prevRef = !refList[ ( !i - 1 ) ]
+      !thisRef = !refList[ !i ]
+      !thisMark = !markList[ !i ]
+      !unusedPrevType = !prevRef.dBRef( ).attribute( |TYPE| )
+      !unusedThisType = !thisRef.dBRef( ).attribute( |TYPE| )
+      !logFileF.writeRecord( |Mark Number ( $!thisMark ) found on $!prevRef| )
+      !logFileF.writeRecord( |                           and $!thisRef| )
+    endif
+    -- Go on to next
+    !prevMark = !markList[ !i ]
+  enddo
+
+  -- Print result summary
+  if( !messageMode eq |FULL| )then
+    !logFileF.writeRecord( |===========================| )
+    !logFileF.writeRecord( |$!markMode Duplicate Mark Numbers >>>> $!duplicates detected| )
+  endif
+
+  -- Delete Reference SITE (on request)
+  call !!sdnfImpDelRefSit( !!sdnfImpdata.saveModel )
+
+  -- Finished
+  $!origin
+  handle( 2, 107 )
+    -- we've probably removed the carpet from under ourselves
+  endhandle
+
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

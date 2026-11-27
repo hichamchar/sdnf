@@ -1,0 +1,70 @@
+--  Author:          Undefined
+--  Created:         Tue Oct  2 12:11:40 2012
+
+--
+--  Description:     --   Searches a sorted array for a value.-- Autoname-- Storage Area-- Specification-- Material--
+--
+----------------------------------------------------------------------
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfbinarysearch.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Description:
+--   Searches a sorted array for a value.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]   [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfBinarySearch( !valueArray is ARRAY, !key is ANY ) is REAL
+
+   !result = REAL( )
+
+   if( !valueArray.size( ).gt( 0 ) )then
+      !top    = 1
+      !bottom = !valueArray.size( ) + 1
+
+      !loopCount = 1
+      do
+         break if( !loopCount.gt( 50 ) )
+         !mid    = int( ( !top + !bottom ) / 2 )
+         if( !valueArray[ !mid ].eq( !key ) )then
+            !result = !mid
+            break
+         elseif( !valueArray[ !mid ].lt( !key ) )then
+            -- in lower half
+            !top = !mid
+         else
+            -- in upper half
+            !bottom = !mid
+         endif
+         !loopCount = !loopCount + 1
+      enddo
+
+   endif
+   return !result
+
+endfunction
+
+------------------------------------------------------------------------

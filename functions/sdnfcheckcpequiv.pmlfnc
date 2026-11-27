@@ -1,0 +1,33 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfcheckcpequiv.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         07/05/2010 14:38:52
+--
+-- Description:
+--    Checks Cardinal Point equivalence
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfcheckcpequiv( !cPoint1 is STRING, !cPoint2 is STRING ) is BOOLEAN
+
+   -- Pline Equivalences
+   do !equivalence values !!sdnfCPBMEQUIV
+      if( !equivalence.match( !cPoint1 ).gt( 0 ) and !equivalence.match( !cPoint2 ).gt( 0 ) )then
+         return true
+      endif
+   enddo
+
+   -- Not found
+   return false
+
+endfunction

@@ -1,0 +1,53 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfbrowsererror.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Manages error in File Browser form.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    NONE
+--
+-- Return:
+--   [Data Type]   [Description]
+--    NONE
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfBrowserError( )
+
+  -- Reset !!CDSFILE variable
+  call !!sdnfResetCDSFILE( )
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevError
+  !error.status   = !!sdnfErrOnBrowser
+  !error.query    = !!sdnfQueNone
+
+  -- Manage Error
+  !unusedReply = !!sdnfError( !error )
+
+endfunction
+
+------------------------------------------------------------------------

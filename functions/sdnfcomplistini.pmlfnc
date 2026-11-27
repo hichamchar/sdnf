@@ -1,0 +1,77 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfcomplistini.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Initialises the Attribute Comparison List form.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]  [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfCompListIni( )
+
+  -- Set Member Data
+  !!sdnfCompList.linMemAttr   = !!sdnfImpRunInf.linMemAttr
+  !!sdnfCompList.plateAttr    = !!sdnfImpRunInf.plateAttr
+
+  -- Initialise choices for Linear Members
+  !!sdnfCompList.jusl1.val = !!sdnfCompList.linMemAttr[ $!!sdnfLinAttrJusl ]
+  !!sdnfCompList.hold1.val = !!sdnfCompList.linMemAttr[ $!!sdnfLinAttrHold ]
+  !!sdnfCompList.pspe1.val = !!sdnfCompList.linMemAttr[ $!!sdnfLinAttrPspe ]
+  !!sdnfCompList.spre1.val = !!sdnfCompList.linMemAttr[ $!!sdnfLinAttrSpre ]
+  !!sdnfCompList.matr1.val = !!sdnfCompList.linMemAttr[ $!!sdnfLinAttrMatr ]
+  !!sdnfCompList.bang1.val = !!sdnfCompList.linMemAttr[ $!!sdnfLinAttrBang ]
+  !!sdnfCompList.poss1.val = !!sdnfCompList.linMemAttr[ $!!sdnfLinAttrPoss ]
+  !!sdnfCompList.pose1.val = !!sdnfCompList.linMemAttr[ $!!sdnfLinAttrPose ]
+  !!sdnfCompList.srel1.val = !!sdnfCompList.linMemAttr[ $!!sdnfLinAttrSrel ]
+  !!sdnfCompList.erel1.val = !!sdnfCompList.linMemAttr[ $!!sdnfLinAttrErel ]
+  !!sdnfCompList.fpth1.val = !!sdnfCompList.linMemAttr[ $!!sdnfLinAttrFrth ]
+  !!sdnfCompList.fpde1.val = !!sdnfCompList.linMemAttr[ $!!sdnfLinAttrFrde ]
+  !!sdnfCompList.fpty1.val = !!sdnfCompList.linMemAttr[ $!!sdnfLinAttrFrty ]
+  !!sdnfCompList.fpst1.val = !!sdnfCompList.linMemAttr[ $!!sdnfLinAttrFrst ]
+  !!sdnfCompList.fpen1.val = !!sdnfCompList.linMemAttr[ $!!sdnfLinAttrFren ]
+  !!sdnfCompList.ydir1.val = !!sdnfCompList.linMemAttr[ $!!sdnfLinAttrYdir ]
+  !!sdnfCompList.poin1.val = !!sdnfCompList.linMemAttr[ $!!sdnfLinAttrPoin ]
+
+
+  -- Initialise choices for Plates
+  !!sdnfCompList.jusl2.val  = !!sdnfCompList.plateAttr[ $!!sdnfPlaAttrJusl ]
+  !!sdnfCompList.hold2.val  = !!sdnfCompList.plateAttr[ $!!sdnfPlaAttrHold ]
+  !!sdnfCompList.pspe2.val  = !!sdnfCompList.plateAttr[ $!!sdnfPlaAttrPspe ]
+  !!sdnfCompList.thic2.val  = !!sdnfCompList.plateAttr[ $!!sdnfPlaAttrThic ]
+  !!sdnfCompList.matr2.val  = !!sdnfCompList.plateAttr[ $!!sdnfPlaAttrMatr ]
+  !!sdnfCompList.pos2.val   = !!sdnfCompList.plateAttr[ $!!sdnfPlaAttrPos ]
+  !!sdnfCompList.ori2.val   = !!sdnfCompList.plateAttr[ $!!sdnfPlaAttrOri ]
+  !!sdnfCompList.fpth2.val  = !!sdnfCompList.plateAttr[ $!!sdnfPlaAttrFrth ]
+  !!sdnfCompList.fpde2.val  = !!sdnfCompList.plateAttr[ $!!sdnfPlaAttrFrde ]
+  !!sdnfCompList.fpty2.val  = !!sdnfCompList.plateAttr[ $!!sdnfPlaAttrFrty ]
+
+endfunction
+
+------------------------------------------------------------------------

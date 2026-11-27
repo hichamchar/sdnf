@@ -1,0 +1,118 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnferror.pmlfnc
+--   Type:          Function Definition
+--   Group:         Interfaces
+--   Keyword:       SDNF
+--   Module:        Design
+--   Replaces:
+--
+-- Author:          D.Wilson
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+-- Description:
+--   Manages errors in SDNF system according to Severity.
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type]   [Description]
+--    1   R      SDNFERROROBJ  Error object
+--
+-- Return:
+--   [Data Type]   [Description]
+--    STRING        Possible response to questions asked of the user.
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfError( !error is SDNFERROROBJ ) is STRING
+
+  -- Initialise response
+  !reply = |SUCCESS|
+
+  -- Get severity descriptor
+  !severity = !!sdnfSevMes[ !error.severity ]
+  handle( 2,752 )
+    -- Unknown severity code
+    !severity = |Unknown severity code ( $!error.severity ).|
+  endhandle
+
+  -- Get status message
+  if( !error.status eq !!sdnfErrUserMess )then
+    -- User message
+    !status = !error.message
+  else
+    !status  = !!sdnfErrMes[ !error.status ]
+    handle( 2,752 )
+      -- Unknown error code
+      !status = |Unknown status code ( $!error.status ).|
+    endhandle
+  endif
+
+  -- Get query descriptor
+  !query = !!sdnfQueMes[ !error.query ]
+  handle( 2,752 )
+    -- Unknown query code
+    !query = |Unknown query code ( $!error.query ).|
+  endhandle
+
+  -- Build message
+  !message = |$!!sdnfShortProduct ($!severity) - | + !status + |  | + !query
+
+  -- Manage error
+  if(!!sdnftty OR !error.severity eq !!sdnfSevInfo)then
+     write(!message)
+     if( !error.severity eq !!sdnfSevConfirm OR !error.severity eq !!sdnfSevQuestion )then
+       write( |---> $!error.default| )
+       !reply = !error.default
+     endif
+  else
+    if( !error.severity eq !!sdnfSevOK )then
+      !reply = !!alert.message( |$!message| )
+    elseif( !error.severity eq !!sdnfSevWarn )then
+      !reply = !!alert.warning( |$!message| )
+    elseif( !error.severity eq !!sdnfSevConfirm )then
+      !reply = !!alert.confirm( |$!message| )
+    elseif( !error.severity eq !!sdnfSevQuestion )then
+      !reply = !!alert.question( |$!message| )
+    elseif( !error.severity eq !!sdnfSevError OR !error.severity eq !!sdnfSevFatal )then
+      !reply = !!alert.error( |$!message| )
+    else
+      -- Don't know
+      !reply = |FAIL|
+    endif
+  endif
+
+  if( !error.severity eq !!sdnfSevFatal )then
+    -- Exit system
+    !errmes = !!sdnfErrMes[ !!sdnfErrFatal ]
+    return error $!!sdnfSevFatal |$!errmes|
+  endif
+
+
+   if( !!sdnfDebug )then
+      -- provoke a crash to output callback
+      Syntax error
+      handle any
+         do !line values !!error.callstack
+            write( !line )
+         enddo
+      endhandle
+      -- close any hand tracing there may be
+      $r0
+--      !!sdnfDebug = false
+      alp log end
+      handle any
+      endhandle
+   endif
+
+  -- Finished
+  return !reply
+
+endfunction
+
+------------------------------------------------------------------------

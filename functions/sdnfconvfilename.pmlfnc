@@ -1,0 +1,56 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfconvfilename.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Converts file name according to operating system requirements.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Input string
+--
+-- Return:
+--   [Data Type]   [Description]
+--    STRING        Output string
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfConvFileName( !iString is STRING ) is STRING
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Initialise
+  !oString = !iString
+
+  -- Convert tree name to WINDOWS form
+  !oString = !iString.replace( '/', '\' )
+
+  -- Finished
+  return !oString
+
+endfunction
+
+------------------------------------------------------------------------

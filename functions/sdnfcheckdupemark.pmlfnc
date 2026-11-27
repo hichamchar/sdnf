@@ -1,0 +1,68 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfcheckdupemark.pmlfnc
+--   Type:          Function Definition
+--   Group:         Interfaces
+--   Keyword:       SDNF
+--   Module:        Design
+--   Replaces:
+--
+-- Author:          D.Wilson
+-- Created:         10/03/2010 09:46:27
+--
+-- Description: Checks if duplicate :SDNFEMARKS are used, ignoring unset ones.
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]  [Description]
+--    BOOLEAN     T/F
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfcheckdupemark( !exportList is ARRAY ) is BOOLEAN
+
+   !start = !!ce
+   !markList = ARRAY( )
+   do !item values !exportList
+      $!item
+      handle any
+         -- Bad reference in export list - try putting a slash
+         !item = |/| + !item
+         $!item
+         handle any
+            -- Don't know this thing
+            skip
+         endhandle
+      endhandle
+      var !markList append eval ( :SDNFEMARK ) for all ( SCTN GENSEC PANE ) for $!item
+   enddo
+   !!ce = !start
+
+   -- remove all unset / zero length ones as these will not have been exported yet.
+   !newMarkList = ARRAY( )
+   do !i index !markList
+      if( not( !markList[ !i ].unset( ) or $
+               !markList[ !i ].length( ).eq( 0 ) or $
+               !markList[ !i ].occurs( |unset| ).eq( 1 ) ) )then
+         !newMarkList.append( !markList[ !i ] )
+      endif
+   enddo
+   !markList = !newMarkList
+
+   -- compare before/after array sizes.  If different, there are duplicates.
+   !origSize  = !markList.size( )
+   !markList  = !markList.sortUnique( )
+   !finalSize = !markList.size( )
+
+   return ( !origSize.neq( !finalSize ) )
+
+endfunction

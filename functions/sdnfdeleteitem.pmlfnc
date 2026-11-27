@@ -1,0 +1,87 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfdeleteitem.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+--
+-- Description:
+--   Transfers a deleted item to a holding area.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Source of comparison
+--    2   R      STRING      Message mode
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfDeleteItem( !source is STRING, !mergeFile is FILE, !logFile is FILE, !messageMode is STRING ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Set initial status
+  !start = ( ref )
+  !type = ( type of $!source )
+  if( !type eq |SCTN| or !type eq |GENSEC| )then
+    !sdnfType = |LINMEM|
+    !argList = |   D   N   N   N   N   N   N   N   N   N   N   N   N   N   N   N|
+    -- if there are any CURVE elements "guess" that the GENSEC is a CURMEM
+    var !curList coll all CURVE for ce
+    if( !curList.size( ).gt( 0 ) )then
+      !sdnfType = |CURMEM|
+    endif
+  else
+    !sdnfType = |PLATE |
+    !argList = |   D   N   N   N   N   N   N   N   N   N   N   N   N|
+  endif
+
+  -- This item has been deleted
+    -- Transfer to Deleted area
+    !!sdnfDeletedObj.append( !source )
+    if( !messageMode eq |FULL| )then
+      !logFile.writeRecord( | $!sdnfType $!source has been deleted.| )
+    else
+      !logFile.writeRecord( |$!sdnfType $!source$!argList| )
+    endif
+    -- Record deletion
+    !!sdnfOpCount = !!sdnfOpCount + 1
+--  Write Merging instructions
+    -- Set status
+    !mergeFile.writeRecord( |$!source| )
+    !mergeFile.writeRecord( |:SDNFSTATUS 'DELETED'| )
+    if( not !!sdnftty ) then
+      enhance $!source colour $!!sdnfColDeleted
+      !mergeFile.writeRecord( |enhance $!source colour $!!sdnfColDeleted| )
+    endif
+
+  -- Return to start
+  $!start
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

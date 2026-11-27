@@ -1,0 +1,108 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfadditem.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+--
+-- Description:
+--   Notes and possibly merges an added item.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Source of comparison
+--    2   R      STRING      Message mode
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfAddItem( !source is STRING, !mergeFile is FILE, !logFile is FILE, !messageMode is STRING ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Set initial status
+  !start = ( ref )
+
+  !sdnfType = STRING( )
+  !argList  = STRING( )
+  !!sdnfGetAddedMemDets( !source.dbref( ), !sdnfType, !argList )
+
+  -- This item has been added
+    -- Transfer to Added area
+    $!!sdnfSessAddedObj
+    FRMW 1
+    handle( 2,113 )
+      -- Framework does not exist
+      NEW FRMW
+    endhandle
+    include $!source
+    handle( 41,224 )( 2,166 )
+      -- Already included
+      golabel /AlreadyIncluded
+    elsehandle (2,852)
+      -- Reference data and target site are in different databases
+      !error.severity = !!sdnfSevError
+      !error.status   = !!sdnfErrSTDiffDbs
+      !error.query    = !!sdnfQueNone
+      return error
+    endhandle
+    !!sdnfAddedObj.append( ( ref of $!source ) )
+    label /AlreadyIncluded
+    if( !messageMode eq |FULL| )then
+      !logFile.writeRecord( | $!sdnfType $!source has been added.| )
+    else
+      !logFile.writeRecord( |$!sdnfType $!source$!argList| )
+    endif
+    -- Record addition
+    !!sdnfOpCount = !!sdnfOpCount + 1
+
+    -- Write Merging instructions
+    !mergeFile.writeRecord( |$!source| )
+    -- Item added - use which $!!sdnfConfigObj incremented revision numbers
+    !revNo = ( :SDNFREVNO of $!!sdnfConfigObj + 1 )
+    !mergeFile.writeRecord( |:SDNFREVNO ( $!revNo )| )
+    -- Update Transfer number, though Site has not been incremented yet
+    !traNo = ( :SDNFTRANO of $!!sdnfConfigObj )
+    !mergeFile.writeRecord( |:SDNFTRANO ( $!traNo )| )
+    -- Build text version
+    !trrvNo = !!sdnfVersionList.substring( !traNo, 1 ) + |.| + |$!revNo|
+    !mergeFile.writeRecord( |:SDNFTRRVNO  '$!trrvNo'| )
+    -- Set status
+    !mergeFile.writeRecord( |:SDNFSTATUS 'ADDED'| )
+
+  -- There's something different
+  if( not !!sdnftty ) then
+    enhance $!source colour $!!sdnfColAdded
+    !mergeFile.writeRecord( |enhance $!source colour $!!sdnfColAdded| )
+  endif
+
+  -- Return to start
+  $!start
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

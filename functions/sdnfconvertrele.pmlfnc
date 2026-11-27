@@ -1,0 +1,87 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfconvertrele.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+--
+-- Description:
+--   Converts encoded release value into required input string.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      REAL        Encoded release value
+--
+-- Return:
+--   [Data Type]   [Description]
+--    STRING        Equivalent string
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfConvertRele( !releases is REAL ) is STRING
+
+  -- Initialisation
+  !releaseString = ||
+
+  -- The hundreds tells us how many releases are set
+  !noSet = int( !releases / 100 )
+
+  -- Have we got any to extract?
+  if( !noSet neq 0 )then
+    !bits = !releases
+    !bits = !bits - ( !noSet * 100 )
+    !noRetrieved = 0
+    -- Get the individual Bits
+    if( !bits ge 32 )then
+      !releaseString = | RZ| + !releaseString
+      !noRetrieved = !noRetrieved + 1
+      !bits = !bits - 32
+    endif
+    if( !bits ge 16 )then
+      !releaseString = | RY| + !releaseString
+      !noRetrieved = !noRetrieved + 1
+      !bits = !bits - 16
+    endif
+    if( !bits ge 8 )then
+      !releaseString = | RX| + !releaseString
+      !noRetrieved = !noRetrieved + 1
+      !bits = !bits - 8
+    endif
+    if( !bits ge 4 )then
+      !releaseString = | DZ| + !releaseString
+      !noRetrieved = !noRetrieved + 1
+      !bits = !bits - 4
+    endif
+    if( !bits ge 2 )then
+      !releaseString = | DY| + !releaseString
+      !noRetrieved = !noRetrieved + 1
+      !bits = !bits - 2
+    endif
+    if( !bits gt 0 )then
+      !releaseString = | DX| + !releaseString
+      !noRetrieved = !noRetrieved + 1
+    endif
+
+    -- Could check that we have retrieved the right number of flags
+  endif
+
+  -- Finished
+  return !releaseString
+
+endfunction

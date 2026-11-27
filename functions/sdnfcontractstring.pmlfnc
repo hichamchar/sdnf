@@ -1,0 +1,73 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfcontractstring.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         28 November 2003
+--
+--
+-- Description:
+--   Ensures a string is within stated number of characters
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   RW     STRING      string
+--    2   R      REAL        max string length
+--    3   R      STRING      filler
+--
+-- Return:
+--   [Data Type]   [Description]
+--    STRING        name
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfContractString( !string is STRING, !charCount is REAL, !filler is STRING ) is STRING
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  !newString = !string
+
+  -- check the filler isn't too long to allow for at least 1 character before and after the truncated string
+  if( ( !filler.length( ) + 2 ) gt !charCount )then
+    -- Filler is too long
+    !error.severity = !!sdnfSevFatal
+    !error.status   = !!sdnfErrLongFiller
+    !unusedReply = !!sdnfError( !error )
+  else
+    if( !string.length( ) gt !charCount )then
+      -- truncate it
+      !length = !string.length( )
+      !usableLength = ( !charCount - !filler.length( ) )
+      !newLength = ( !usableLength + 1 ) / 2
+      !newLength = !newLength.int( )
+      !newString = !string.substring( 1, !newLength ) + $
+        !filler + $
+        !string.substring( ( !length - ( !usableLength - !newLength ) + 1 ), !length )
+    endif
+  endif
+
+  -- Finished
+  return !newString
+
+endfunction
+
+------------------------------------------------------------------------

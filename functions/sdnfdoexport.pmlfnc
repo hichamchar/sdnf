@@ -1,0 +1,1030 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfdoexport.pmlfnc
+--   Type:          Function Definition
+--   Group:         Interfaces
+--   Keyword:       SDNF
+--   Module:        Design
+--   Replaces:
+--
+-- Author:          D.Wilson
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+-- Description:
+--   Form callback function. (formerly sdnfexport.pmlfnc)
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]  [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfDoExport( ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  if( !!sdnfDebug )then
+    clock init all
+  endif
+
+--  -- UNITS
+--  UNITS SUSPEND
+--  handle any
+--   -- Illegal syntax
+--  endhandle
+
+  -- Set system units
+  var !origUnits units
+  mm dist
+  mm bore
+  units degrees
+  handle ANY
+    -- Illegal syntax
+  endhandle
+
+  trace off
+  !debug = | |
+
+  -- Object export counts
+  !!sdnfExp10Cnt = 0
+  !!sdnfExp20Cnt = 0
+  !!sdnfExp22Cnt = 0
+  !!sdnfExp40Cnt = 0
+  !!sdnfExp60Cnt = 0
+
+  -- Save starting point
+  !origin   = ( ref )
+  !unusedType = ( type )
+  !!sdnfPrompt(|$!!sdnfShortProduct Export: Initiated.|)
+
+  !initProgress = STRING( )
+  !incProgress = STRING( )
+  !!sdnfSetProgress( !initProgress, !incProgress )
+
+  -- Tidy up Deleted and Added areas
+  !transferNo = ( -1 )
+  !revNo = ( -1 )
+  !!sdnfGetExportHWM( !transferNo, !revNo )
+  !!sdnfUpdExportHWM( !transferNo, !revNo )
+  !!sdnfAddedObj.delete( )
+  handle( 2,751 )
+    -- Variable does not exist
+  endhandle
+  !!sdnfAddedObj = ARRAY( )
+  !!sdnfDeletedObj.delete( )
+  handle( 2,751 )
+    -- Variable does not exist
+  endhandle
+  !!sdnfDeletedObj = ARRAY( )
+
+  -- Return to start
+  $!origin
+
+  -- File name components
+  var !unique  unique
+  var !date    clock date
+  var !time    clock time
+  var !unusedHost    host
+  var !unusedLogin   login
+
+  -- Construct filenames
+  !workDir = !!SDNFWork
+  !ext    = |.ext|
+  !sem    = |.sem|
+  !log    = |.log|
+  !hdr    = |.hdr|
+  !bat    = |.bat|
+  !sta    = |.sta|
+  !ver    = |.ver|
+  !prefix          = |$!workDir| + |$!!sdnfPathSeparatr| + |SDNF$!unique|
+  !extractFile     = |$!prefix$!ext|
+  !semaphoreFile   = |$!prefix$!sem|
+  !statusFile      = |$!prefix| + |p2s$!sta|
+  !logFile         = |$!prefix$!log|
+  !headerFile      = |$!prefix$!hdr|
+  !batFile         = |$!prefix$!bat|
+
+  -- Set up file for managing export version attributes
+  !verFile         = |$!prefix$!ver|
+  !!sdnfVerFile.close( )
+  handle any
+  endhandle
+  !!sdnfVerFile = object FILE( !verFile )
+  !!sdnfVerFile.open( |OVERWRITE| )
+
+  -- Is this for real?
+  !!sdnfTestRun = !!sdnfExpdata.testRun
+
+  -- Check we have set output file
+  !file = !!sdnfExpdata.file
+  if( !file.length( ) eq 0 ) then
+    -- No output filename supplied
+    !error.severity = !!sdnfSevError
+    !error.status   = !!sdnfErrNoOutFile
+    !!sdnfError( !error )
+    golabel /Finished
+  endif
+
+  if( not !!sdnfExpdata.fileVersion.unset( ) )then
+    !fileVersion = !!sdnfExpdata.fileVersion
+  else
+    -- No storage area supplied
+    !error.severity = !!sdnfSevError
+    !error.status   = !!sdnfErrBadFilVsn
+    !!sdnfError( !error )
+    golabel /Finished
+  endif
+
+  if( not !!sdnfExpdata.modelType.unset( ) )then
+    !modelType = !!sdnfExpdata.modelType
+  else
+    -- No storage area supplied
+    !error.severity = !!sdnfSevError
+    !error.status   = !!sdnfErrBadModTyp
+    !!sdnfError( !error )
+    golabel /Finished
+  endif
+
+  -- Check we can still overwrite this if it exists
+  !mode = |READ|
+  !outFileF = object FILE( !file )
+  if( not !outFileF.exists( ) )then
+    -- File does not exist
+    !mode = |WRITE|
+    golabel /OKFile
+  endif
+
+  if( !!sdnfExpdata.fileMode eq |UNKNOWN| )then
+    !error.severity = !!sdnfSevConfirm
+    !error.status   = !!sdnfErrFileExist
+    !error.query    = !!sdnfQueOverwrite
+    !error.default  = |NO|
+    !reply = !!sdnfError( !error )
+    if( !reply eq |YES| )then
+      -- Overwrite
+      !mode = |OVERWRITE|
+    elseif( !reply eq |NO| )then
+      -- Finish
+      golabel /Finished
+    endif
+  endif
+  label /OKFile
+  !!sdnfExpdata.fileMode = !mode
+
+  -- Construct suggested log file name
+  !dotCount = !file.occurs( |.| )
+  if( !dotCount eq 0 )then
+    -- Append .log to name
+    !saveFile = !file + |.log|
+  else
+    -- Replace last bit by |.log|
+    !suffix = |.| + !file.part( ( !dotCount + 1 ), |.| )
+    !saveFile = !file.before( !suffix ) + |.log|
+  endif
+
+  -- Check that something stands a chance of being output
+  if( not !!sdnfExpdata.plate and $
+      not !!sdnfExpdata.linMem and $
+      not !!sdnfExpdata.arcMem ) then
+    -- No elements to export
+    !error.severity = !!sdnfSevWarn
+    !error.status   = !!sdnfErrNoExpItem
+    !error.query    = !!sdnfQueNone
+    !!sdnfError( !error )
+    golabel /Finished
+  endif
+
+  -- Check we have suitable Mapping Files
+  !mapFile = ||
+  !matFile = ||
+  !oriFile = ||
+  !uniFile = ||
+  !target  = !!sdnfExpdata.target.upcase( )
+  !error = !!sdnfgetmapfiles( !!sdnfExpdata, |EXPORT|, !target, !mapFile, !matFile, !oriFile, !uniFile )
+  if( !error.status neq !!sdnfErrOK )then
+    -- Handle error
+    !!sdnfError( !error )
+    golabel /Finished
+  endif
+
+  -- Open Export Logfile
+  !logFileF = object FILE( !logFile )
+  !logFileF.open( |OVERWRITE| )
+
+  -- Execute User Defined pre-Export Macro
+  if( !!sdnfPreExpMac.length( ) gt 0 )then
+    !!sdnfPrompt(|$!!sdnfShortProduct Export: Executing User Defined pre-Export Macro $!!sdnfPreExpMac .|)
+    call !!$!!sdnfPreExpMac( )
+    handle any
+      if( !!error.text.match( |PML:| ) ne 0 )then
+        -- I hope it's just that the pml macro doesn't exist
+        !logFileF.writeRecord( |(Error) - User macro $!!sdnfPreExpMac not found.| )
+      else
+        !logFileF.writeRecord( |(Error) - Error in user macro $!!sdnfPreExpMac .| )
+        !logFileF.writeRecord( |        - $!!error.text .| )
+      endif
+    endhandle
+  endif
+
+  -- Go down Export list building unique sets of Linear Members, Plates
+  --   and Connections
+  !!sdnfPrompt(|$!!sdnfShortProduct Export: Preparing lists of items for export.|)
+  !linMemArray = ARRAY( )
+  !plateArray  = ARRAY( )
+  !connArray   = ARRAY( )
+  !siteArray   = ARRAY( )
+
+  do !itemT values !!sdnfExpdata.expList
+    !item = !itemT
+    $!item
+    handle any
+      !item = |/| + !item
+      $!item
+       handle any
+         -- Bad reference in export list
+         skip
+       endhandle
+    endhandle
+
+    -- Build SCTN list
+    -- Clear arrays if necessary
+    if( !!sdnfExpdata.linMem or !!sdnfExpdata.arcMem ) then
+      var !temp collect all ( SCTN GENSEC ) for $!item
+      !temp1 = !temp
+      !result = ARRAY( )
+
+      do !sctn values !temp1
+        -- Filter out excluded items
+        $!sctn
+        !exclude = ( :SDNFEXCLUDE )
+        if( not !exclude )then
+          -- Build up SJOI/PJOI list
+          if( !!sdnfExpdata.endConn ) then
+            !endCount = 0
+            !conn = ( JOIS )
+            if( not !conn.badref( ) )then
+              !connArray.append( flnm of $!conn )
+              !endCount = !endCount + 1
+            endif
+            !conn = ( JOIE )
+            if( not !conn.badref( ) )then
+              !connArray.append( flnm of $!conn )
+              !endCount = !endCount + 1
+            endif
+            if( !endCount eq 0 )then
+              -- Section not connected
+--              !name = ( FLNM )
+              -- Connection error messages suppressed as they could swamp the other messages.
+              if( !!sdnfNoUnconnMem )then
+--                !result.append( |(Error) - $!name - Unconnected Linear Member - removed from Export list.| )
+--                !briefResult = |(Error) - Unconnected Linear Member(s) - removed from Export list.|
+                !temp.remove( !temp.findFirst( !sctn ) )
+              else
+--                !result.append( |(Warning) - $!name - Unconnected Linear Member.| )
+--                !briefResult = |(Warning) - Unconnected Linear Member(s).|
+              endif
+            endif
+          endif
+        else
+          -- Remove from the list
+          !temp.remove( !temp.findFirst( !sctn ) )
+        endif
+      enddo
+      !linMemArray.appendArray( !temp )
+
+      -- Write errors
+      if( !result.size( ) gt 0 )then
+        if( !!sdnfExpdata.viewMode eq |FULL| )then
+          do !line values !result
+            !logFileF.writeRecord( |$!line| )
+          enddo
+        else
+--          !logFileF.writeRecord( |$!briefResult| )
+        endif
+      endif
+    endif
+
+    -- Build PANE list
+    if( !!sdnfExpdata.plate ) then
+      var !temp collect all PANE for $!item
+      !temp1 = !temp
+      !result = ARRAY( )
+      do !pane values !temp1
+        -- Filter excluded items
+        $!pane
+        !exclude = ( :SDNFEXCLUDE )
+        if( !exclude )then
+          -- Remove from the list
+          !temp.remove( !temp.findFirst( !pane ) )
+        endif
+      enddo
+      !plateArray.appendArray( !temp )
+    endif
+  enddo
+
+  -- Clean up arrays
+--   !plateArray.unique( )
+--   !linMemArray.unique( )
+--   !connArray.unique( )
+
+  -- Old var syntax suspected of being faster!
+  var !ind sort unique !plateArray
+  !temp = !plateArray
+  !plateArray = ARRAY( )
+  do !i index !ind
+    !pos = !ind[ !i ].real( )
+    !plateArray[ !i ] = !temp[ !pos ]
+  enddo
+  var !ind sort unique !linMemArray
+  !temp = !linMemArray
+  !linMemArray = ARRAY( )
+  do !i index !ind
+    !pos = !ind[ !i ].real( )
+    !linMemArray[ !i ] = !temp[ !pos ]
+  enddo
+  !curMemArray = !linMemArray
+  var !ind sort unique !connArray
+  !temp = !connArray
+  !connArray = ARRAY( )
+  do !i index !ind
+    !pos = !ind[ !i ].real( )
+    !connArray[ !i ] = !temp[ !pos ]
+  enddo
+  -- End of old var syntax
+
+  -- Initial counts of Packet objects
+  !linMemCount  = !linMemArray.size( )
+  !plateCount   = !plateArray.size( )
+  !connectCount = !connArray.size( )
+
+  -- Check we have something to export
+  !toDoCount = !linMemArray.size( ) + !plateArray.size( )
+  if( !toDoCount eq 0 )then
+    -- No elements to export
+    !error.severity = !!sdnfSevWarn
+    !error.status   = !!sdnfErrNoExpItem
+    !error.query    = !!sdnfQueNone
+    !!sdnfError( !error )
+    golabel /Finished
+  endif
+
+  -- Create extraction file ($!extractFile) in work directory
+  !!sdnfPrompt(|$!!sdnfShortProduct Export: Preparing extract file.|)
+  !extFile = object FILE( !extractFile )
+  !extFile.open( |OVERWRITE| )
+
+  -- Get Transfer/Revision details
+  $!!sdnfConfigObj
+  !traNo = ( :SDNFTRANO + 1 )
+  if( !traNo gt $!!sdnfVerListLen )then
+    -- Reset traNo
+    !traNo = 2
+  endif
+  -- Increment Transfer Nr
+  if( not !!sdnfTestRun )then
+    :SDNFTRANO ( $!traNo )
+    -- Reset Revision Nr.
+    :SDNFREVNO ( 0 )
+    -- Build text version
+    !trrvNo = !!sdnfVersionList.substring( !traNo, 1 ) + |.0|
+    :SDNFTRRVNO  |$!trrvNo|
+    -- Copy in Export list
+    :SDNFELIST default
+    do !i index !!sdnfExpdata.expList.dText
+      !ref = !!sdnfExpdata.expList.dText[ $!i ].dbref( )
+      :SDNFELIST num $!i $!ref
+      handle any
+        -- Wrong item type
+      endhandle
+    enddo
+  endif
+
+  -- Return to base
+  same
+
+  -- Output data for Header
+  $!!sdnfExpHeader
+  !firm      = ( :SDNFEFID )
+  !client    = ( :SDNFCLID )
+  !structure = ( :SDNFSTID )
+  !project   = ( :SDNFPRID )
+  !revision  = ( $!traNo - 1 )
+  !code      = ( :SDNFDECODE )
+  !target    = ( :SDNFTARGET )
+
+  -- Get model number for later use
+  !!sdnfModelNr = ( :SDNFMODNR )
+
+  !exportProgName = !!sdnfExportProgram.upCase()
+  !extFile.writeRecord( |PDMS2SDNF| )
+  !extFile.writeRecord( |  FIRM: $!firm| )
+  !extFile.writeRecord( |  CLIENT: $!client| )
+  !extFile.writeRecord( |  STRUCTURE: $!structure| )
+  !extFile.writeRecord( |  PROJECT: $!project| )
+  !extFile.writeRecord( |  DATE: $!date| )
+  !extFile.writeRecord( |  TIME: $!time| )
+  !extFile.writeRecord( |  REVISION: $!revision| )
+  !extFile.writeRecord( |  ISSUE: $!!sdnfExpdata.source| )
+  !extFile.writeRecord( |  CODE: $!code| )
+  !extFile.writeRecord( |  LOADS: 0| )
+--  !extFile.writeRecord( |  PACKET10: $!linMemCount| )
+--  !extFile.writeRecord( |  PACKET20: $!plateCount| )
+--  !extFile.writeRecord( |  PACKET40: $!connectCount| )
+
+  !markMode = !!sdnfExpdata.markMode
+  if( !!sdnfcheckdupemark( !!sdnfExpdata.expList ) )then
+     -- use internal ref nos
+    !logFileF.writeRecord( |(Warning) - Duplicate external mark numbers found.  Using AVEVA database reference nos.| )
+    !logFileF.writeRecord( || )
+    !markMode = |INTERNAL|
+  endif
+
+  var !units units
+  !unitsA = !units.split( )
+  !unitD = !unitsA[ 3 ].upcase( )
+  !extFile.writeRecord( |  UNITS: $!unitD| )
+  !extFile.writeRecord( |ENDHEADER| )
+
+  -- List Linear members - Packet 10
+  !objectIndex = ( 1 )
+  !lc          = ( 0 )
+  !tlc         = !linMemCount
+  if( !!sdnfExpdata.linMem )then
+    $!initProgress
+    do !i index !linMemArray
+      -- Export it
+      !item = !linMemArray[ !i ]
+      !siteArray.append( ref of SITE of $!item )
+      !error = !!sdnfExpLinMem( !objectIndex, !item, !extFile, !logFileF, $
+        !!sdnfExpdata.viewMode, !markMode )
+      handle any
+         write( |$!!error.text| )
+         write( |$!!error.line| )
+      endhandle
+      if( !error.status eq !!sdnfErrOK )then
+        -- Output
+      else
+        -- Not output
+        !linMemArray[ !i ] = |nulref|
+        !linMemCount = !linMemCount - 1
+        !objectIndex = !objectIndex - 1
+      endif
+      !objectIndex = !objectIndex + 1
+      !lc = !lc + 1
+      !promptMessage = |$!!sdnfShortProduct Export: Packet 10 (Linear Members)|
+      !!sdnfUpdateProgress( !lc, !tlc, !incProgress, !promptMessage )
+    enddo
+    !linMemCount = !objectIndex - 1
+  endif
+
+  -- List Plates - Packet 20
+  !pc  = ( 0 )
+  !tpc = !plateCount
+  !holesCount   = ( 0 )
+  !holesIdStart = !objectIndex
+  if( !!sdnfExpdata.plate ) then
+    !plateRefArr = ARRAY()
+    !plateIDArr  = ARRAY()
+    $!initProgress
+    do !i index !plateArray
+      -- Export it
+      !item = !plateArray[ !i ]
+      !siteArray.append( ref of SITE of $!item )
+      !error = !!sdnfExpPlate( !objectIndex, !item, !extFile, !logFileF, $
+        !!sdnfExpdata.viewMode, !markMode )
+      handle any
+      endhandle
+      if( !error.status eq !!sdnfErrOK )then
+        -- Output
+       !plateRefArr.append( !item )
+       !plateIDArr.append( !objectIndex )
+      else
+        -- Not output
+        !plateArray[ !i ] = |nulref|
+        !plateCount = !plateCount - 1
+      endif
+      !objectIndex = !objectIndex + 1
+      !pc = !pc + 1
+      !promptMessage = |$!!sdnfShortProduct Export: Packet 20 (Plates)|
+      !!sdnfUpdateProgress( !pc, !tpc, !incProgress, !promptMessage )
+    enddo
+
+    -- Holes - Packet 22
+   !pc  = ( 0 )
+   !holesIdStart = !objectIndex
+   if( !!sdnfExpdata.holes ) then
+      $!initProgress
+      do !i index !plateArray
+         -- Export it - this list has already been "purified" by the above process
+         !item = !plateArray[ !i ]
+         skip if( !item.eq( |nulref| ) )
+         !error = !!sdnfExpHole( !objectIndex, !item, !extFile, !logFileF, $
+                  !!sdnfExpdata.viewMode, !plateRefArr, !plateIDArr )
+         handle any
+         endhandle
+         if( !error.status eq !!sdnfErrOK )then
+           -- Output
+         endif
+         !pc = !pc + 1
+         !promptMessage = |$!!sdnfShortProduct Export: Packet 22 (Holes)|
+         !!sdnfUpdateProgress( !pc, !tpc, !incProgress, !promptMessage )
+      enddo
+   endif
+  endif
+  !holesCount   = !objectIndex - !holesIdStart
+
+  -- List Connections - Packet 40
+  !cc  = ( 0 )
+  !tcc = !connectCount
+  if( !!sdnfExpdata.endConn and !!sdnfExpdata.linMem ) then
+    $!initProgress
+
+    do !item values !connArray
+      -- Export it
+      !siteArray.append( ref of SITE of $!item )
+      !error = !!sdnfExpConn( !linMemArray, !objectIndex, !item, !extFile, !logFileF, $
+        !!sdnfExpdata.viewMode )
+      handle any
+      endhandle
+      if( !error.status eq !!sdnfErrOK )then
+        -- Output
+      else
+        -- Not output
+        !connectCount = !connectCount - 1
+      endif
+      !objectIndex = !objectIndex + 1
+      !cc = !cc + 1
+      !promptMessage = |$!!sdnfShortProduct Export: Packet 40 (End Connections)|
+      !!sdnfUpdateProgress( !cc, !tcc, !incProgress, !promptMessage )
+    enddo
+  endif
+
+  -- List Curved members - Packet 60
+  !lc            = ( 0 )
+  !tcc           = !curMemArray.size( )
+  !curMemIdStart = !objectIndex
+  !curMemCount   = ( 0 )
+--  if( true )then
+  if( !!sdnfExpdata.arcMem )then
+    $!initProgress
+    do !i index !curMemArray
+      -- Export it
+      !lc = !lc + 1
+      !item = !curMemArray[ !i ]
+      !itemRef = !item.dbref( )
+      if( !itemRef.type.eq( |GENSEC| ) )then
+         !siteArray.append( ref of SITE of $!item )
+         !error = !!sdnfExpCurMem( !objectIndex, !item, !extFile, !logFileF, $
+           !!sdnfExpdata.viewMode, !markMode )
+         handle any
+         endhandle
+         if( !error.status eq !!sdnfErrOK )then
+           -- Output
+         else
+           -- Not output
+           !curMemArray[ !i ] = |nulref|
+           !objectIndex = !objectIndex - 1
+         endif
+         !objectIndex = !objectIndex + 1
+         !promptMessage = |$!!sdnfShortProduct Export: Packet 60 (Curved Members)|
+         !!sdnfUpdateProgress( !lc, !tcc, !incProgress, !promptMessage )
+      else
+          -- not a GENSEC
+      endif
+    enddo
+    if( !curMemArray.size( ).gt( 0 ) )then
+       !!sdnfUpdateProgress( !lc, !tcc, !incProgress, !promptMessage )
+    endif
+    !curMemCount = !objectIndex - !curMemIdStart
+  endif
+
+  -- Finished writing extract file
+  !extFile.writeRecord( |ENDFILE| )
+  !extFile.close( )
+  !logFileF.close( )
+
+  -- Update Transfer Nrs on Sites
+--   !siteArray.unique( )
+  var !ind sort unique !siteArray
+  !temp = !siteArray
+  !siteArray = ARRAY( )
+  do !i index !ind
+    !pos = !ind[ !i ].real( )
+    !siteArray[ !i ] = !temp[ !pos ]
+  enddo
+
+  if( not !!sdnfTestRun )then
+    do !site values !siteArray
+      $!site
+      -- Update Transfer Nr from !!sdnfExpHeader
+--    !traNo = ( :SDNFTRANO + 1 )
+      !trrvNo = !!sdnfVersionList.substring( !traNo, 1 ) + |.0|
+      :SDNFTRANO ( $!traNo )
+      handle ANY
+         -- DB is read only
+         !!sdnfVerFile.writeRecord( |$!site| )
+         !!sdnfVerFile.writeRecord( |:SDNFTRANO ( $!traNo )| )
+         !!sdnfVerFile.writeRecord( |:SDNFREVNO ( 0 )| )
+         !!sdnfVerFile.writeRecord( |:SDNFTRRVNO  '$!trrvNo'| )
+         skip
+      endhandle
+      -- Reset Revision Nr.
+      :SDNFREVNO ( 0 )
+      -- Build text version
+      :SDNFTRRVNO  |$!trrvNo|
+    enddo
+  endif
+
+  -- Create Header to SDNF File
+  !hdrFile = object FILE( !headerFile )
+  !hdrFile.open( |OVERWRITE| )
+    !hdrFile.writeRecord( |#| )
+    !hdrFile.writeRecord( |# Target Contractor: $!target| )
+    !hdrFile.writeRecord( |#| )
+    !hdrFile.writeRecord( |# STARTTABLE PACKET| )
+    !hdrFile.writeRecord( |#   10 $!!sdnfExp10Cnt| )
+    !hdrFile.writeRecord( |#   20 $!!sdnfExp20Cnt| )
+    !hdrFile.writeRecord( |#   22 $!!sdnfExp22Cnt| )
+    !hdrFile.writeRecord( |#   40 $!!sdnfExp40Cnt| )
+    !hdrFile.writeRecord( |#   60 $!!sdnfExp60Cnt| )
+    !hdrFile.writeRecord( |# ENDTABLE| )
+    !hdrFile.writeRecord( |#| )
+
+    -- Write out User defined Mapping Tables
+    if( not !!sdnfBriefHdr )then
+      do !map values !!sdnfMapList
+        -- Get handle on each Map
+        !mapHandle = $!map
+        !hdrFile.writeRecord( |#| )
+        !line = !mapHandle[ 1 ]
+        !line1 = !line.replace( |*|, | | )
+        !tokens = !line1.split( )
+        !hdrFile.writeRecord( |# STARTTABLE $!tokens[ 2 ]| )
+        do !i index !mapHandle
+          !line = !mapHandle[ !i ].trim( )
+          if( !i ne 1 )then
+            !tokenA = !line.before( |*| )
+            -- Choose truncated string or not
+  --          !tokenB = !!sdnfTruncString( !line.after( |*| ), !!sdnfMaxMapLen )
+            !tokenB = !line.after( |*| )
+            !hdrFile.writeRecord( |#   $!tokenA $!tokenB| )
+          endif
+        enddo
+          !hdrFile.writeRecord( |# ENDTABLE| )
+          !hdrFile.writeRecord( |#| )
+      enddo
+    endif
+    !hdrFile.close( )
+
+  -- Call external program
+  !packets = ARRAY( )
+  if( !!sdnfExpdata.linMem and $
+      !linMemCount.gt( 0 ) ) then
+    !packets[ 10 ] = |PKT: 10|
+  endif
+  if( !!sdnfExpdata.plate and $
+      !plateCount.gt( 0 ) ) then
+    !packets[ 20 ] = |PKT: 20|
+  endif
+  if( !!sdnfExpdata.holes and $
+      !holesCount.gt( 0 ) ) then
+    !packets[ 22 ] = |PKT: 22|
+  endif
+  if( !!sdnfExpdata.endConn and $
+      !!sdnfExpdata.linMem and $
+      !connectCount.gt( 0 ) ) then
+    !packets[ 40 ] = |PKT: 40|
+  endif
+  if( !!sdnfExpdata.arcMem and $
+      !curMemCount.gt( 0 ) ) then
+    !packets[ 60 ] = |PKT: 60|
+  endif
+
+  -- Generate argument file
+  !table = |!!sdnf| + !!sdnfProj + |StdMap|
+  -- Try to see if this array exists
+  !test = $!table
+  handle( 2,751 )
+    -- No it doesn't - construct a general one
+    !table = |!!sdnfAny| + |StdMap|
+    !test = $!table
+    handle( 2,751 )
+      -- Give up
+      !error.severity = !!sdnfSevError
+      !error.status   = !!sdnfErrNoMapFile
+      !error.query    = !!sdnfQueNone
+      !!sdnfError( !error )
+      golabel /Finished
+    endhandle
+  endhandle
+  !stdFile = $!table[ 1 ]
+  !stdFile = !stdFile.before( |*| )
+  !specMode = !!sdnfExpdata.specMode
+  !features = !!sdnfExpdata.features
+
+  -- Generate Batch Command file
+  !mapFile = !!sdnfExpandEnv( !mapFile )
+  !mapFile = !!sdnfConvFileName( !mapFile )
+  !matFile = !!sdnfExpandEnv( !matFile )
+  !matFile = !!sdnfConvFileName( !matFile )
+  !file    = !!sdnfExpandEnv( !file )
+  !file    = !!sdnfConvFileName( !file )
+  !stdFile = !!sdnfExpandEnv( !stdFile )
+  !stdFile = !!sdnfConvFileName( !stdFile )
+  !oriFile = !!sdnfExpandEnv( !oriFile )
+  !oriFile = !!sdnfConvFileName( !oriFile )
+  !uniFile = !!sdnfExpandEnv( !uniFile )
+  !uniFile = !!sdnfConvFileName( !uniFile )
+
+  !batFileF = object FILE( !batFile )
+  !batFileF.open( |OVERWRITE| )
+    !batFileF.writeRecord( |TAR: $!file| )
+    !batFileF.writeRecord( |EXT: $!extractFile| )
+    !batFileF.writeRecord( |HDR: $!headerFile| )
+    !batFileF.writeRecord( |MAP: $!mapFile| )
+    !batFileF.writeRecord( |MAT: $!matFile| )
+    !batFileF.writeRecord( |STD: $!stdFile| )
+    !batFileF.writeRecord( |ORI: $!oriFile| )
+    if( !uniFile.length( ).gt( 0 ) )then
+      !batFileF.writeRecord( |UNI: $!uniFile| )
+    endif
+    -- this feature variable is a set of | separated things, e.g. |UNICODE|PLOO|
+    !batFileF.writeRecord( 'FEA: $!features' )
+    !batFileF.writeRecord( |MOD: $!specMode| )
+    !batFileF.writeRecord( |LOG: $!logFile| )
+    !batFileF.writeRecord( |STA: $!statusFile| )
+    !batFileF.writeRecord( |SEM: $!semaphoreFile| )
+    !batFileF.writeRecord( |PSP: $!!sdnfProfSep| )
+    !batFileF.writeRecord( |MSP: $!!sdnfMatSep| )
+    !batFileF.writeRecord( |OSP: $!!sdnfOriSep| )
+--    !batFileF.writeRecord( |SEP: '$!!sdnfSeparator'| )
+    !batFileF.writeRecord( |MKS: '$!!sdnfMarkSep'| )
+    !batFileF.writeRecord( |VER: $!fileVersion| )
+    !batFileF.writeRecord( |NOD: $!modelType| )
+    !batFileF.writeRecord( |MDN: $!!sdnfModelNr| )
+
+   !packetIndices = !packets.indices( )
+   if( !packetIndices.size( ).gt( 0 ) )then
+      do !index indices !packetIndices
+         !val = !packets[ !packetIndices[ !index ] ]
+         !batFileF.writeRecord( |$!val| )
+      enddo
+   endif
+   !batFileF.close( )
+
+  -- Check semaphore file does not exist - if it does delete it
+  !semFile = object FILE( !semaphoreFile )
+  if( !semFile.exists( ) )then
+    !semFile.deleteFile( )
+  endif
+
+  -- Check status file does not exist - if it does delete it
+  !staFile = object FILE( !statusFile )
+  if( !staFile.exists( ) )then
+    !staFile.deleteFile( )
+  endif
+
+  !!sdnfPrompt(|$!!sdnfShortProduct Export: Executing external program.|)
+  -- For tracing/debug add next argument
+  -- !debug = |1|
+  !command = |""$!!sdnfOutBin| + |$!!sdnfPathSeparatr| + !!sdnfExportProgram + |$!!sdnfExeSfx" "$!batFile" $!debug"|
+  syscom |$!command|
+
+  -- Hang around for a bit until semaphore file appears
+  !tryCount = 0
+  !processFail = false
+  !semFile = object FILE( !semaphoreFile )
+  !staFile = object FILE( !statusFile )
+  label /Loop
+  if( not !semFile.exists( ) )then
+    -- Semaphore file not there yet
+    pause $!!sdnfWaitTime
+    -- Look for status file
+    !tryCount = !tryCount + 1
+    if( not !staFile.exists( ) )then
+       -- Not there yet
+       golabel /tryAgain
+    endif
+    !line = !staFile.readRecord( )
+    if ( !line.unset( ) )then
+       -- Go round again
+       golabel /tryAgain
+    endif
+    if( |$!line| neq |0| ) then
+      !line = !staFile.readRecord( )
+      !staFile.close( )
+      !error.severity = !!sdnfSevError
+      !error.status   = !!sdnfErrUserMess
+      !error.query    = !!sdnfQueNone
+      !error.message  = |$!!sdnfShortProduct Export: $!line|
+      !!sdnfError( !error )
+      golabel /DoneProcessing
+    endif
+    !staFile.close( )
+
+    label /tryAgain
+    if( !tryCount gt !!sdnfNoOfTries )then
+      !error.severity = !!sdnfSevConfirm
+      !error.status   = !!sdnfErrPSDead
+      !error.query    = !!sdnfQueContinue
+      !error.default  = |NO|
+      !reply = !!sdnfError( !error )
+      if( !reply eq |YES| )then
+        -- Try again
+        !tryCount = 0
+        -- Go round again
+        golabel /Loop
+      elseif( !reply eq |NO| )then
+        -- Finish
+        !processFail = true
+        golabel /DoneProcessing
+      endif
+    else
+      -- Go round again
+      golabel /Loop
+    endif
+  endif
+  -- Delete semaphore file
+  !semFile.deleteFile( )
+
+  -- Check status file
+  !staFile.open( |READ| )
+  !line = !staFile.readRecord( )
+  if( |$!line| eq |0| ) then
+    -- Close status file - ok so far
+    !staFile.close( )
+    !error.severity = !!sdnfSevOK
+    !error.status   = !!sdnfErrUserMess
+    !error.query    = !!sdnfQueNone
+    !error.message  = |$!file completed|
+    !!sdnfError( !error )
+  else
+    -- Error
+    !line = !staFile.readRecord( )
+    !staFile.close( )
+    !error.severity = !!sdnfSevError
+    !error.status   = !!sdnfErrUserMess
+    !error.query    = !!sdnfQueNone
+    !error.message  = |$!!sdnfShortProduct Export: $!line|
+    !!sdnfError( !error )
+  endif
+  -- Delete status file
+  !staFile.deleteFile( )
+
+
+  -- Done processing
+  label /DoneProcessing
+
+  -- Execute User Defined post-Export Macro
+  if( !!sdnfPostExpMac.length( ) gt 0 )then
+    -- Re-open Export Logfile
+    !logFileF.open( |APPEND| )
+    !!sdnfPrompt(|$!!sdnfShortProduct Export: Executing User Defined post-Export Macro $!!sdnfPostExpMac .|)
+    call !!$!!sdnfPostExpMac( )
+    handle any
+      if( !!error.text.match( |PML:| ) ne 0 )then
+        -- I hope it's just that the pml macro doesn't exist
+        !logFileF.writeRecord( |(Error) - User macro $!!sdnfPostExpMac not found.| )
+      else
+        !logFileF.writeRecord( |(Error) - Error in user macro $!!sdnfPostExpMac .| )
+        !logFileF.writeRecord( |        - $!!error.text .| )
+      endif
+    endhandle
+    -- Re-close logfile
+    !logFileF.close( )
+  endif
+
+  -- Append Files used
+  !logFileF.open( |APPEND| )
+    !logFileF.writeRecord( || )
+    !logFileF.writeRecord( |Files used...| )
+    !logFileF.writeRecord( |=============| )
+    !logFileF.writeRecord( |Output file             : $!file| )
+    !logFileF.writeRecord( |Profile Mapping file    : $!mapFile| )
+    !logFileF.writeRecord( |Material Mapping file   : $!matFile| )
+    !logFileF.writeRecord( |Standards Table file    : $!stdFile| )
+    !logFileF.writeRecord( |Profile Orientation file: $!oriFile| )
+    !logFileF.writeRecord( |Unicode Conversion file : $!uniFile| )
+    !logFileF.writeRecord( || )
+    if( !processFail )then
+      !!sdnfprocesserror( !logFileF )
+    endif
+
+   -- close file that is created/modified if the export database is read-only
+   !!sdnfVerFile.close( )
+   if( !!sdnfVerFile.size( ).gt( 5 ) )then
+      -- not just a BOM - so copy file to new name for user
+      !newFile = !!sdnfVerFile.pathName( ) + |\updateVersionNos| + !!sdnfGetTimeStamp( ) + |.mac|
+      !command = |$!!sdnfCopy $!!sdnfVerFile $!newFile|
+      syscom |$!command|
+      !logFileF.writeRecord( || )
+      !logFileF.writeRecord( |NOTE:  The database was in read-only mode, or relevant items were not claimed.| )
+      !logFileF.writeRecord( |       To update the export version numbering, run the following macro file.| )
+      !logFileF.writeRecord( || )
+      !logFileF.writeRecord( |       $!newFile| )
+      !logFileF.writeRecord( || )
+   endif
+  !logFileF.close( )
+  $!initProgress
+
+  -- Do we want to have a look at the log file
+  !!sdnfPrompt(|$!!sdnfShortProduct Export: Process complete.  Please inspect log file.|)
+  if( !!sdnfExpdata.viewLog )then
+    !error.severity = !!sdnfSevConfirm
+    !error.status   = !!sdnfErrComplete
+    !error.query    = !!sdnfQueViewLog
+    !error.default  = |NO|
+    !reply = !!sdnfError( !error )
+    if( !reply eq |YES| )then
+      -- Look at it
+      call !!sdnfShowViewFile( !logFile, !!sdnfExpdata.viewMode, !saveFile )
+      !error.severity = !!sdnfSevOK
+      !error.status   = !!sdnfErrOK
+      !error.query    = !!sdnfQueNone
+    endif
+  endif
+
+  -- Finished completely
+  label /Finished
+
+  -- double check to close files
+  !logFileF.close( )
+  handle any
+  endhandle
+  !!sdnfVerFile.close( )
+  handle any
+  endhandle
+
+  -- do we have a name to move the logfile to? (mainly for tty)
+  if( defined(!logFileF) and not !!sdnfExpdata.logFile.empty()) then
+    !logFileF.move(!!sdnfExpdata.logFile)
+    if(!!sdnfExpdata.testing )then
+      -- copy over the EXT and HDR files too
+      if(defined(!extFile))then
+         if(!extFile.exists())then
+           !extFile.copy(!!sdnfExpdata.logFile.replace(|.log|,||,-1,1) & !ext)
+         endif
+      endif
+      if(defined(!hdrFile))then
+         if(!hdrFile.exists())then
+           !hdrFile.copy(!!sdnfExpdata.logFile.replace(|.log|,||,-1,1) & !hdr)
+         endif
+      endif
+    endif
+  endif
+
+  -- Delete some files left over
+  if( not !!sdnfDebug )then
+    !command = |$!!sdnfOSRemove $!prefix*|
+    syscom |$!command|
+  endif
+
+
+  -- Convert output file to target format
+  if( !!sdnfExpConv.length( ) neq 0 )then
+    !command = |$!!sdnfExpConv $!file $!file|
+    syscom |$!command|
+  endif
+
+  -- Reset Export Flags
+  call !!sdnfRstExpRunInf( )
+
+  -- Restore original state
+  !!sdnfPrompt(|$!!sdnfShortProduct Export: Process completed.|)
+  $!initProgress
+
+  $!origUnits
+
+--  -- UNITS
+--  UNITS REINSTATE
+--  handle any
+--   -- Illegal syntax
+--  endhandle
+
+  trace on
+  $!origin
+  !!sdnfStopProgress()
+
+  if( !!sdnfDebug )then
+    clock read all
+  endif
+
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

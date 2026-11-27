@@ -1,0 +1,463 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfcomplinmem.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+--
+-- Description:
+--   Compares and possibly merges a Linear member/Section entity.
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfCompLinMem( !type is STRING, !in is STRING, $
+   !owner is STRING, !source is STRING, !target is STRING, $
+   !mergeFile is FILE, !logFile is FILE, $
+   !messageMode is STRING, !linMemAttr is ARRAY ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Set initial status
+  !start = ( ref )
+  !!sdnfmirrorcompat( !source, !target )
+
+  !startCount = !!sdnfOpCount
+  !posMemberTypes = |SNOD FITT CMFI SPLO|
+  !negMemberTypes = |NBOX NCYL NCON NDIS NPYR NRTO NCTO NSNO NSLC|
+  !posMemList = ARRAY( )
+  !negMemList = ARRAY( )
+
+   -- Set local variables to collect results of comparison
+  !result = ARRAY( )
+  !result.append( | $!type $!target $!in $!owner| )
+  !lMgrade = '  N'
+  !lPspec  = '  N'
+  !lHold   = '  N'
+  !lMatr   = '  N'
+  !lErel   = '  N'
+  !lSrel   = '  N'
+  !lJusl   = '  N'
+  !lPose   = '  N'
+  !lPoss   = '  N'
+  !lBang   = '  N'
+  !lSpre   = '  N'
+  !lFrth   = '  N'
+  !lFrde   = '  N'
+  !lFrty   = '  N'
+  !lFrst   = '  N'
+  !lFren   = '  N'
+   !logType = |LINMEM|
+
+  -- Go to source entity
+  $!source
+
+   -- If the GENSEC has CURVE points, discount it.
+   var !curveList coll all CURVE for ce
+   var !pointList coll all POINSP for ce
+   if( !curveList.size( ).gt( 0 ) or !pointList.size( ).gt( 2 ) )then
+      -- Zig-zag
+      $!start
+      return !error
+   endif
+
+  -- Straight member - SCTN or GENSEC
+  !!sdnfConvPlines( !source )
+  !sJusl   = ( jusl )
+--  !sPoss   = ( pplin NA start $!!sdnfWRT )
+  !sPoss   = ( poss $!!sdnfWRT )
+  handle( 2,224 )
+    -- No NA pline - SPRE unset
+    !sPoss = ( poss $!!sdnfWRT )
+  endhandle
+--  !sPose   = ( pplin NA end $!!sdnfWRT )
+  !sPose   = ( pose $!!sdnfWRT )
+  handle( 2,224 )
+    -- No NA pline - SPRE unset
+    !sPose = ( pose $!!sdnfWRT )
+  endhandle
+
+  var !testDir PPLIN NA Z DIR $!!sdnfWRT
+  !sYdir = object DIRECTION( !testDir + | | + !!sdnfWRT )
+  !sSpre   = ( flnn of $!!sdnfProfMapRef )
+  handle (2,102)
+    !sSpre = |Unset|
+  endhandle
+  !sCatr   = ( catr )
+  if( !sCatr.badRef( ) )then
+    !sSpre = |$!sCatr|
+  endif
+  !sfSpre  = ( spre )
+  !sSrel   = ( Srelease )
+  !sErel   = ( Erelease )
+  !sMatr   = ( Matref )
+  !sHold   = ( :SDNFHOLD )
+  !sPspec  = ( :SDNFPSPEC )
+  !sMgrade = ( :SDNFMGRADE )
+  !sIDate  = ( :SDNFIDATE )
+  !sITime  = ( :SDNFITIME )
+  !sCDate  = ( :SDNFCDATE )
+  !sCTime  = ( :SDNFCTIME )
+  !sMDate  = ( :SDNFMDATE )
+  !sMTime  = ( :SDNFMTIME )
+  !sFireTy    = ( FIRE )
+  !sFireTh    = ( :SDNFFTHICK )
+  !sFireDesc  = ( :SDNFFDESC )
+  !sFireStart = ( :SDNFFSTART )
+  !sFireEnd   = ( :SDNFFEND )
+  !sGtype  = ( Gtype )
+
+  -- Go to target entity
+  $!target
+  !tJusl = ( jusl )
+  !targetType = type
+--  !tPoss = ( pplin NA start $!!sdnfWRT )
+  !tPoss = ( poss $!!sdnfWRT )
+  handle( 2,224 )
+    -- No NA pline - SPRE unset
+    !tPoss = ( poss $!!sdnfWRT )
+  endhandle
+--  !tPose = ( pplin NA end $!!sdnfWRT )
+  !tPose = ( pose $!!sdnfWRT )
+  handle( 2,224 )
+    -- No NA pline - SPRE unset
+    !tPose = ( pose $!!sdnfWRT )
+  endhandle
+
+  var !testDir PPLIN NA Z DIR $!!sdnfWRT
+  !tYdir = object DIRECTION( !testDir + | | + !!sdnfWRT )
+  !tSpre = ( flnn of $!!sdnfProfMapRef )
+  handle (2,102)
+      !tSpre = |Unset|
+  endhandle
+  !tCatr   = ( catr )
+  if( !tCatr.badRef( ) )then
+    !tSpre = |$!tCatr|
+  endif
+  !tSrel = ( Srelease )
+  !tErel = ( Erelease )
+  !tMatr = ( Matref )
+  !tHold = ( :SDNFHOLD )
+  !tPspec  = ( :SDNFPSPEC )
+  !tMgrade = ( :SDNFMGRADE )
+  !tCDate  = ( :SDNFCDATE )
+  !tCTime  = ( :SDNFCTIME )
+  !tMDate  = ( :SDNFMDATE )
+  !tMTime  = ( :SDNFMTIME )
+  !tFireTy    = ( FIRE )
+  !tFireTh    = ( :SDNFFTHICK )
+  !tFireDesc  = ( :SDNFFDESC )
+  !tFireStart = ( :SDNFFSTART )
+  !tFireEnd   = ( :SDNFFEND )
+
+  -- Compare attributes
+  !mergeFile.writeRecord( |$!target| )
+
+  if( !linMemAttr[ !!sdnfLinAttrSpre ] )then
+    if( !sSpre neq !tSpre )then
+      !mergeFile.writeRecord( |spre $!sfSpre| )
+      !result.append( |     Profile '$!sSpre' changed from '$!tSpre' | )
+      !lSpre = '  Y'
+      !!sdnfOpCount = !!sdnfOpCount + 1
+    endif
+  endif
+
+  if( !linMemAttr[ !!sdnfLinAttrJusl ] )then
+    if( !sJusl neq !tJusl )then
+      if( not !!sdnfcheckcpequiv( !sJusl, !tJusl ) )then
+        !mergeFile.writeRecord( |jusl $!sJusl| )
+        !result.append( |     Just '$!sJusl' changed from '$!tJusl'| )
+        !lJusl = '  Y'
+        !!sdnfOpCount = !!sdnfOpCount + 1
+      endif
+    endif
+  endif
+
+  if( !linMemAttr[ !!sdnfLinAttrBang ] )then
+    !vecDot = !sYdir.dot( !tYdir )
+    !dotDiff = abs( 1.0 - !vecDot )
+    if( !dotDiff.gt( 0.0001 ) )then
+      if( !vecDot.lt( 0.0 ) )then
+        !vecDot = max( !vecDot, -1.0 )
+      else
+        !vecDot = min( !vecDot, 1.0 )
+      endif
+      !rotation = acos( !vecDot )
+      !mergeFile.writeRecord( |ROTATE ABOUT PPLIN $!sJusl AND PPLIN NA is $!sYdir| )
+      !result.append( |     Rotation changed by | + !rotation.string( |D3| ) )
+      !lBang = '  Y'
+      !!sdnfOpCount = !!sdnfOpCount + 1
+    endif
+  endif
+
+   if( !linMemAttr[ !!sdnfLinAttrPoss ] )then
+      var !sDist cons dist $!sPoss to $!tPoss
+      !rDist = !sDist.real( )
+      if( !rDist gt !!sdnfDistTol )then
+         if( !targetType.eq( |SCTN| ) )then
+            -- We need to relocate all members (except PLOO) after merging
+            !posOrigMemPos = ARRAY( )
+            var !posMemList collect all ( $!posMemberTypes ) for CE
+            var !posOrigMemPos append eval ( der pos $!!sdnfWRT )for all ( $!posMemberTypes ) for CE
+            !negOrigMemPos = ARRAY( )
+            !negOrigMemOri = ARRAY( )
+            var !negMemList collect all ( $!negMemberTypes ) for CE
+            var !negOrigMemPos append eval ( pos $!!sdnfWRT ) for all ( $!negMemberTypes ) for CE
+            var !negOrigMemOri append eval ( ori $!!sdnfWRT ) for all ( $!negMemberTypes ) for CE
+            -- Copy attributes across and quit
+         endif
+         !mergeFile.writeRecord( |jusl $!sJusl| )
+         !mergeFile.writeRecord( |poss $!sPoss| )
+         !mergeFile.writeRecord( |pose $!sPose| )
+         !result.append( |     Start '$!sPoss' changed from '$!tPoss'| )
+         !lPoss = '  Y'
+         !!sdnfOpCount = !!sdnfOpCount + 1
+      endif
+   endif
+
+   if( !linMemAttr[ !!sdnfLinAttrPose ] )then
+      var !sDist cons dist $!sPose to $!tPose
+      !rDist = !sDist.real( )
+      if( !rDist gt !!sdnfDistTol )then
+         !mergeFile.writeRecord( |jusl $!sJusl| )
+         !mergeFile.writeRecord( |poss $!sPoss| )
+         !mergeFile.writeRecord( |pose $!sPose| )
+         !result.append( |     End '$!sPose' changed from '$!tPose'| )
+         !lPose = '  Y'
+         !!sdnfOpCount = !!sdnfOpCount + 1
+      endif
+   endif
+
+  if( !linMemAttr[ !!sdnfLinAttrSrel ] )then
+    if( !sSrel neq !tSrel )then
+      !srelString = !!sdnfConvertRele( !sSrel )
+      !trelString = !!sdnfConvertRele( !tSrel )
+         !lSrel = '  Y'
+         if( |$!sSrel| eq |0| )then
+            -- unset all
+            !srelString = |-DX -DY -DZ -RX -RY -RZ|
+         endif
+        !mergeFile.writeRecord( |srel $!srelString| )
+      !result.append( |     Srel '$!srelString' changed from '$!trelString'| )
+
+      !!sdnfOpCount = !!sdnfOpCount + 1
+    endif
+  endif
+
+  if( !linMemAttr[ !!sdnfLinAttrErel ] )then
+    if( !sErel neq !tErel )then
+      !srelString = !!sdnfConvertRele( !sErel )
+      !trelString = !!sdnfConvertRele( !tErel )
+         !lErel = '  Y'
+         if( |$!sErel| eq |0| )then
+            -- unset all
+            !srelString = |-DX -DY -DZ -RX -RY -RZ|
+         endif
+         !mergeFile.writeRecord( |erel $!srelString| )
+      !result.append( |     Erel '$!srelString' changed from '$!trelString'| )
+
+      !!sdnfOpCount = !!sdnfOpCount + 1
+    endif
+  endif
+
+  if( !linMemAttr[ !!sdnfLinAttrHold ] )then
+    if( !sHold neq !tHold )then
+      !mergeFile.writeRecord( |:SDNFHOLD   $!sHold| )
+      !result.append( |     :SDNFHold '$!sHold' changed from '$!tHold'| )
+      !lHold = '  Y'
+      !!sdnfOpCount = !!sdnfOpCount + 1
+    endif
+  endif
+
+  if( !linMemAttr[ !!sdnfLinAttrPspe ] )then
+    if( !sPspec neq !tPspec )then
+      !mergeFile.writeRecord( |:SDNFPSPEC  $!sPspec| )
+      !result.append( |     :SDNFPspec '$!sPspec' changed from '$!tPspec'| )
+      !lPspec = '  Y'
+      !!sdnfOpCount = !!sdnfOpCount + 1
+    endif
+  endif
+
+  -- Fire flags
+  if( !linMemAttr[ !!sdnfLinAttrFrty ] )then
+    if( !sFireTy neq !tFireTy )then
+      !mergeFile.writeRecord( |FIRE  $!sFireTy| )
+      !result.append( |     FIRE '$!sFireTy' changed from '$!tFireTy'| )
+      !lFrty = '  Y'
+      !!sdnfOpCount = !!sdnfOpCount + 1
+    endif
+  endif
+
+  if( !linMemAttr[ !!sdnfLinAttrFrth ] )then
+    !dFireTh = abs( !sFireTh - !tFireTh )
+    if( !dFireTh.gt( !!sdnfDistTol ) )then
+      !mergeFile.writeRecord( |:SDNFFTHICK  $!sFireTh| )
+      !result.append( |     :SDNFFTHICK '$!sFireTh' changed from '$!tFireTh'| )
+      !lFrth = '  Y'
+      !!sdnfOpCount = !!sdnfOpCount + 1
+    endif
+  endif
+
+  if( !linMemAttr[ !!sdnfLinAttrFrde ] )then
+    if( !sFireDesc neq !tFireDesc )then
+      !mergeFile.writeRecord( |:SDNFFDESC  $!sFireDesc| )
+      !result.append( |     :SDNFFDESC '$!sFireDesc' changed from '$!tFireDesc'| )
+      !lFrde = '  Y'
+      !!sdnfOpCount = !!sdnfOpCount + 1
+    endif
+  endif
+
+  if( !linMemAttr[ !!sdnfLinAttrFrst ] )then
+    !dFireStart = abs( !sFireStart - !tFireStart )
+    if( !dFireStart.gt( !!sdnfDistTol ) )then
+      !mergeFile.writeRecord( |:SDNFFSTART  $!sFireStart| )
+      !result.append( |     :SDNFFSTART '$!sFireStart' changed from '$!tFireStart'| )
+      !lFrst = '  Y'
+      !!sdnfOpCount = !!sdnfOpCount + 1
+    endif
+  endif
+
+  if( !linMemAttr[ !!sdnfLinAttrFren ] )then
+    !dFireEnd = abs( !sFireEnd - !tFireEnd )
+    if( !dFireEnd.gt( !!sdnfDistTol ) )then
+      !mergeFile.writeRecord( |:SDNFFEND  $!sFireEnd| )
+      !result.append( |     :SDNFFEND '$!sFireEnd' changed from '$!tFireEnd'| )
+      !lFren = '  Y'
+      !!sdnfOpCount = !!sdnfOpCount + 1
+    endif
+  endif
+
+  if( !linMemAttr[ !!sdnfLinAttrMatr ] )then
+    if( not !!sdnfIgnoreMatl )then
+      if( !sMatr neq !tMatr )then
+              !lMatr = '  Y'
+              !sMatrN = |nulref|
+              !tMatrN = |nulref|
+              !sMatrN = !sMatr.attribute( |NAME| )
+              handle ANY
+              endhandle
+              !tMatrN = !tMatr.attribute( |NAME| )
+              handle ANY
+              endhandle
+              !mergeFile.writeRecord( |matr $!sMatr| )
+              !result.append( |     Matr '$!sMatrN' changed from '$!tMatrN'| )
+
+        !!sdnfOpCount = !!sdnfOpCount + 1
+      endif
+    endif
+
+    if( !sMgrade.upcase( ) neq !tMgrade.upcase( ) )then
+         !lMgrade = '  Y'
+      !mergeFile.writeRecord( |:SDNFMGRADE '$!sMgrade'| )
+      !result.append( |     Mgrade '$!sMgrade' changed from '$!tMgrade'| )
+
+      !!sdnfOpCount = !!sdnfOpCount + 1
+    endif
+  endif
+   -- "no questions asked" attributes
+   -- Creation date and time really should not change!
+   if( !sCDate neq !tCDate )then
+      !mergeFile.writeRecord( |:SDNFCDATE  '$!sCDate'| )
+   endif
+   if( !sCTime neq !tCTime )then
+      !mergeFile.writeRecord( |:SDNFCTIME  '$!sCTime'| )
+   endif
+   -- this really only records changes outside of the AVEVA System,
+   -- but the actual changes are shown in the other attributes
+   if( !sMDate neq !tMDate )then
+      !mergeFile.writeRecord( |:SDNFMDATE  '$!sMDate'| )
+   endif
+   if( !sMTime neq !tMTime )then
+      !mergeFile.writeRecord( |:SDNFMTIME  '$!sMTime'| )
+   endif
+
+
+  -- If we have noticed a difference highlight it in the Design
+--  label /FinishedComp
+  $!target
+  if( !!sdnfOpCount neq !startCount )then
+      -- Item changed - use SITE incremented revision numbers
+      !revNo = ( :SDNFREVNO of $!!sdnfConfigObj )
+      !revNo = ( !revNo + 1 )
+      !mergeFile.writeRecord( |:SDNFREVNO ( $!revNo )| )
+      -- Update Transfer number, though Site has not been incremented yet
+      !traNo = ( :SDNFTRANO of $!!sdnfConfigObj )
+      !mergeFile.writeRecord( |:SDNFTRANO ( $!traNo )| )
+      -- Build text version
+      !trrvNo = !!sdnfVersionList.substring( !traNo, 1 ) + |.| + |$!revNo|
+      !mergeFile.writeRecord( |:SDNFTRRVNO  '$!trrvNo'| )
+      -- Bring across Import date and time
+      !mergeFile.writeRecord( |:SDNFIDATE  '$!sIDate'| )
+      !mergeFile.writeRecord( |:SDNFITIME  '$!sITime'| )
+
+      -- Try GTYPE
+      !tempGtype = ( GTYPE )
+      !mergeFile.writeRecord( |GTYPE $!sGtype| )
+      GTYPE $!sGtype
+      handle any
+        -- Probably unset value
+        !mergeFile.writeRecord( |GTYPE SCTN| )
+      endhandle
+      GTYPE $!tempGtype
+      handle any
+        -- Probably unset value
+        GTYPE unset
+      endhandle
+
+      -- Set status
+      !mergeFile.writeRecord( |:SDNFSTATUS 'CHANGED'| )
+
+      -- Relocate all members
+      do !i index !posMemList
+        !mergeFile.writeRecord( |$!posMemList[ $!i ]| )
+        !mergeFile.writeRecord( |zdis thro $!posOrigMemPos[ $!i ] $!!sdnfWRT| )
+      enddo
+      do !i index !negMemList
+        !mergeFile.writeRecord( |$!negMemList[ $!i ]| )
+        !mergeFile.writeRecord( |at $!negOrigMemPos[ $!i ] $!!sdnfWRT| )
+        !yDir = !negOrigMemOri[ !i ].before( |and| )
+        !zDir = !negOrigMemOri[ !i ].after( |and| )
+        !mergeFile.writeRecord( |ori $!yDir $!!sdnfWRT and $!zDir $!!sdnfWRT| )
+      enddo
+
+      -- There's something different
+      if( not !!sdnftty ) then
+        enhance $!target colour $!!sdnfColChanged
+        !mergeFile.writeRecord( |enhance $!target colour $!!sdnfColChanged| )
+      endif
+      !!sdnfChangedObj.append( $!target )
+      -- Add changes to log file - format depends on mode(Brief or Verbose)
+      if( !messageMode eq |FULL| )then
+        do !line values !result
+          !logFile.writeRecord( |$!line| )
+        enddo
+      else
+         !logFile.writeRecord( |$!logType $!target   C $!lJusl $!lHold $!lPspec $!lSpre $!lMgrade $!lBang $!lPoss $!lPose $!lSrel $!lErel $!lFrth $!lFrde $!lFrty $!lFrst $!lFren| )
+      endif
+  endif
+
+  -- Finished
+--  label /Finished
+  -- Return to start
+  $!start
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------
