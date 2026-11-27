@@ -1,0 +1,587 @@
+--    Type:          Form Definition
+--    Group:         Undefined
+--      Keyword:     Undefined
+--    Module:        Undefined
+--  Author:          Undefined
+--  Created:         Mon Jul  9 11:40:14 2012
+
+--
+--  Description:     Undefined
+--
+------------------------------------------------------------------------
+--
+-- Methods defined:
+--
+--  Method call                      Return              Description
+--  ===========                      ======              ===========
+--  addEquivToList(STRING,STRING)    -
+--  addEquivalent()                  -
+--  addProgToList(STRING,STRING)     -
+--  addProgram()                     -
+--  getFormFields()                  -
+--  getProgLists(ARRAY,ARRAY)        -
+--  initFixedArrays()                -
+--  initVariableArrays(STRING)       -
+--  initialise()                     -
+--  initialiseArrays()               -
+--  loadConfig()                     -
+--  remEquivFromList()               -
+--  remProgFromList()                -
+--  reset()                          -
+--  resetSystem()                    -
+--  saveConfig()                     -
+--  saveConfigAs()                   -
+--  selectColour(STRING)             -
+--  setColour(GADGET,REAL)           -
+--  setFormFields()                  -
+--  showForm(STRING,FORM)            -
+--  superUserFunc()                  -
+--  updateSystem()                   -
+--  validateInt(GADGET)              -
+--  validateMacro(GADGET)            -
+--  validateNameRef(GADGET)          -
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsysconfigfrm.pmlfrm
+------------------------------------------------------------------------
+
+-- Kill existing Form definition
+kill !!sdnfsysconfigfrm
+handle( 61,125 )
+   -- Form not found
+endhandle
+
+------------------------------------------------------------------------
+
+-- System Configuration form
+setup form !!sdnfsysconfigfrm
+   title      |$!!sdnfProduct - System Configuration|
+   icontitle  |OSDE|
+   initialise |!this.initialise( )|
+   path down
+
+  -- Bar menu
+  bar
+    add      |Control|    .control
+  exit
+  -- Pull down menu
+  menu .control
+    add      |Load...|    |!this.loadConfig( )|
+    add      |Save|       |!this.saveConfig( )|
+    add      |Save as...| |!this.saveConfigAs( )|
+    add sep
+    add      |Re-initialise| |!this.resetSystem( )|
+    add sep
+    add      |Exit|          |!this.hide( )|
+  exit
+
+   -- Linear Members
+   path down
+   frame .tabset TABSET 'tabset' width 50 height 10
+      frame .frame1 |Run Parameters| at 0 0 dock fill
+         para .configDet      text |Configuration Details     |
+         para .distTol        text |Distance Tolerance (mm)   |
+         para .minTol         text |Fine Tolerance (mm or deg)|
+         para .waitTime       text |Wait Time (units)         |
+         para .noOfTries      text |Number of Tries           |
+         para .maxFileSize    text |Maximum file size (lines) |
+         toggle .briefHdr     |Output Brief Header| callback ||
+
+         text   .fConfigDet    at XMAX.configDet+0.5    YMIN.configDet    callback |!this.validateNameRef( !this.fConfigDet )| width 25 is STRING
+         text   .fDistTol      at XMAX.distTol+0.5      YMIN.distTol      callback || width 5 is REAL
+         text   .fMinTol       at XMAX.minTol+0.5       YMIN.minTol       callback || width 5 is REAL
+         text   .fWaitTime     at XMAX.waitTime+0.5     YMIN.waitTime     callback |!this.validateInt( !this.fWaitTime )|  width 5 is REAL
+         text   .fNoOfTries    at XMAX.noOfTries+0.5    YMIN.noOfTries    callback |!this.validateInt( !this.fNoOfTries )| width 5 is REAL
+         text   .fMaxFileSize  at XMAX.maxFileSize+0.5  YMIN.maxFileSize  callback |!this.validateInt( !this.fMaxFileSize )| width 8 is REAL
+
+      exit
+
+      frame .frame2 |Model Parameters| at 0 0 dock fill
+         if( !!sdnfDebug )then
+            -- 1x1 invisible button to call external super-user function
+            button .superUser      at XMIN.frame2 YMIN.frame2 || $
+               pixmap height 1 width 1 callback |!this.superUserFunc( )|
+         endif
+
+         para   .modelNr        at XMIN.frame2+1 YMIN.frame2+1 text |Model Number       |
+         para   .modelType      text |End Types          |
+         toggle .noUnconnMem    |Ignore Unconnected Members| callback ||
+         toggle .ignoreMatl     |Ignore Material Errors| callback ||
+         toggle .eMarkMode      |Export Internal Reference Numbers| callback ||
+
+         text   .fModelNr     at XMAX.modelNr+0.5     YMIN.modelNr     callback |!this.validateInt( !this.fModelNr )| width 5 is REAL
+         option .fModelType   at XMAX.modelType+0.5   YMIN.modelType callback || width 3
+      exit
+
+      frame .frame3 |Display Colours| at 0 0 dock fill
+         para .colChanged     at XMIN.frame3+1 YMIN.frame3+1 text |Changed Items  |
+         para .colAdded       text |Added Items    |
+         para .colDeleted     text |Deleted Items  |
+         para .colDuplicate   text |Duplicate Items|
+         para .colExported    text |Exported Items |
+         para .colDefault     text |Default Colour |
+
+         button .colChangedBut   at XMAX.colChanged   YMIN.colChanged   |Select| $
+            callback |!this.selectColour( 'CHANGED' )|
+         button .colAddedBut     at XMAX.colAdded     YMIN.colAdded     |Select| $
+            callback |!this.selectColour( 'ADDED' )|
+         button .colDeletedBut   at XMAX.colDeleted   YMIN.colDeleted   |Select| $
+            callback |!this.selectColour( 'DELETED' )|
+         button .colDuplicateBut at XMAX.colDuplicate YMIN.colDuplicate |Select| $
+            callback |!this.selectColour( 'DUPLICATE' )|
+         button .colExportedBut  at XMAX.colExported  YMIN.colExported  |Select| $
+            callback |!this.selectColour( 'EXPORTED' )|
+         button .colDefaultBut   at XMAX.colDefault   YMIN.colDefault   |Select| $
+            callback |!this.selectColour( 'DEFAULT' )|
+      exit
+
+      frame .frame4 |Environment Parameters| at 0 0 dock fill
+         para   .programs     at XMIN.frame4+1 YMIN.frame4+1 text |Programs        |
+         para   .equivalences text |Equivalences    |
+         frame .frame4a |Mapping File Separators|
+            para   .profFileSep  text |    Profiles   |
+            para   .matFileSep   text |    Materials  |
+            para   .oriFileSep   text |    Orientation|
+            option .fProfFileSep at XMAX.profFileSep+0.5  YMIN.profFileSep callback || width 6
+            option .fMatFileSep  at XMAX.matFileSep+0.5   YMIN.matFileSep  callback || width 6
+            option .fOriFileSep  at XMAX.oriFileSep+0.5   YMIN.oriFileSep  callback || width 6
+         exit
+         para   .markSep      text |Mark Separator  |
+
+         option .fPrograms    at XMAX.programs+0.5     YMIN.programs             callback || width 15
+         button .addProgBut   at XMAX.fPrograms+1.5    YMIN.fPrograms   |Add...| callback |!this.addProgram( )|
+         button .remProgBut   at XMAX.addProgBut+1.5   YMIN.addProgBut  |Delete| callback |!this.remProgFromList( )|
+         option .fEquivs      at XMAX.equivalences+0.5 YMIN.equivalences         callback || width 15
+         button .addEquivBut  at XMAX.fEquivs+1.5      YMIN.fEquivs     |Add...| callback |!this.addEquivalent( )|
+         button .remEquivBut  at XMAX.addEquivBut+1.5  YMIN.addEquivBut |Delete| callback |!this.remEquivFromList( )|
+         text   .fMarkSep     at XMAX.markSep+0.5 YMIN.markSep                   callback || width 1 is STRING
+      exit
+
+      frame .frame5 |Macros| at 0 0 dock fill
+         para .preExpMacro    at XMIN.frame1+1 YMIN.frame1+1 text |Pre-export Macro Name |
+         para .postExpMacro   text |Post-export Macro Name|
+         para .preImpMacro    text |Pre-import Macro Name |
+         para .postImpMacro   text |Post-import Macro Name|
+         para .materialMac    text |Material Macro Name   |
+
+         text   .fPreExpMacro  at XMAX.preExpMacro+0.5  YMIN.preExpMacro  callback |!this.validateMacro( !this.fPreExpMacro )| width 20 is STRING
+         text   .fPostExpMacro at XMAX.postExpMacro+0.5 YMIN.postExpMacro callback |!this.validateMacro( !this.fPostExpMacro )| width 20 is STRING
+         text   .fPreImpMacro  at XMAX.preImpMacro+0.5  YMIN.preImpMacro  callback |!this.validateMacro( !this.fPreImpMacro )| width 20 is STRING
+         text   .fPostImpMacro at XMAX.postImpMacro+0.5 YMIN.postImpMacro callback |!this.validateMacro( !this.fPostImpMacro )| width 20 is STRING
+         text   .fMaterialMac at XMAX.materialMac+0.5 YMIN.materialMac    callback |!this.validateMacro( !this.fMaterialMac )| width 20 is STRING
+
+      exit
+   exit
+   -- Buttons
+   path right
+   button .apply  at X0 YMAX           |   OK   | callback |!this.updateSystem( )| ok
+   button .reset  at XMAX+1            | Reset  | callback |!this.reset( )|
+   button .cancel at XMAX FORM-SIZE YMAX FORM-SIZE | Cancel | cancel
+
+   -- Form member data
+   member .mode             is STRING
+   member .configFileName   is STRING
+   member .configObj        is SDNFSYSCONFIGOBJ
+   member .suFlag           is BOOLEAN
+   member .form             is FORM
+
+exit
+
+-------------------------------------------------------------------------
+
+define method .setColour( !butGadget is GADGET, !colourIndex is REAL )
+   !colourIndex          = !!colourSelect.setColour
+   !butGadget.background = !colourIndex
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .initialise( )
+
+   !this.configObj = object SDNFSYSCONFIGOBJ( )
+   !this.initialiseArrays( )
+   !this.setFormFields( )
+
+   -- set super user option
+   !this.suFlag = false
+   if( !!sdnfDebug )then
+     !this.suFlag = true
+     !this.superUser.addPixmap(!!pml.getPathName('supixmap.png'),!!pml.getPathName('supixmap.png'),'')
+     handle any
+      -- Form built before debug flag set
+     elsehandle NONE
+       !this.superUserFunc( )
+     endhandle
+   endif
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .setFormFields( )
+
+   -- Run Parameters
+   !this.fConfigDet.val       = !this.configObj.fConfigObj
+   !this.fDistTol.val        = !this.configObj.fDistTol
+   !this.fMinTol.val         = !this.configObj.fMinTol
+   !this.fWaitTime.val       = !this.configObj.fWaitTime
+   !this.fNoOfTries.val      = !this.configObj.fNoOfTries
+   !this.fMaxFileSize.val    = !this.configObj.fMaxFileSize
+   !this.briefHdr.val        = !this.configObj.briefHdr
+
+   -- Model Parameters
+   !this.fModelNr.val        = !this.configObj.fModelNr
+   !this.fModelType.select( |DTEXT|,!this.configObj.fModelType)
+   !this.noUnconnMem.val     = !this.configObj.noUnconnMem
+   !this.ignoreMatl.val      = !this.configObj.ignoreMatl
+   !this.eMarkMode.val       = !this.configObj.eMarkMode.eq( |INTERNAL| )
+
+   -- Display Colours
+   !this.colChangedBut.background   = !this.configObj.colChangedBut
+   !this.colAddedBut.background     = !this.configObj.colAddedBut
+   !this.colDeletedBut.background   = !this.configObj.colDeletedBut
+   !this.colDuplicateBut.background = !this.configObj.colDuplicateBut
+   !this.colExportedBut.background  = !this.configObj.colExportedBut
+   !this.colDefaultBut.background   = !this.configObj.colDefaultBut
+
+   -- Environment Parameters
+   !this.fPrograms.select( |RTEXT|,!this.configObj.fProgram )
+   !this.fProfFileSep.select( |DTEXT|,!this.configObj.fProfFileSep )
+   !this.fMatFileSep.select( |DTEXT|,!this.configObj.fMatFileSep )
+   !this.fOriFileSep.select( |DTEXT|, !this.configObj.fOriFileSep )
+   !this.fMarkSep.val        = !this.configObj.fMarkSep
+
+   -- Macros
+   !this.fPreExpMacro.val    = !this.configObj.fPreExpMacro
+   !this.fPostExpMacro.val   = !this.configObj.fPostExpMacro
+   !this.fPreImpMacro.val    = !this.configObj.fPreImpMacro
+   !this.fPostImpMacro.val   = !this.configObj.fPostImpMacro
+   !this.fMaterialMac.val    = !this.configObj.fMaterialMac
+
+endmethod
+
+
+-------------------------------------------------------------------------
+
+define method .getFormFields( )
+
+   -- Run Parameters
+   !this.configObj.fConfigObj = !this.fConfigDet.val
+   !this.configObj.fDistTol   = !this.fDistTol.val
+   !this.configObj.fMinTol    = !this.fMinTol.val
+   !this.configObj.fWaitTime  = !this.fWaitTime.val
+   !this.configObj.fNoOfTries = !this.fNoOfTries.val
+   !this.configObj.fMaxFileSize  = !this.fMaxFileSize.val
+   !this.configObj.briefHdr   = !this.briefHdr.val
+
+   -- Model Parameters
+   !this.configObj.fModelNr     = !this.fModelNr.val
+   !this.configObj.fModelType   = !this.fModelType.selection( |DTEXT| )
+   !this.configObj.noUnconnMem  = !this.noUnconnMem.val
+   !this.configObj.ignoreMatl   = !this.ignoreMatl.val
+   !this.configObj.eMarkMode    = |EXTERNAL|
+   if( !this.eMarkMode.val )then
+      !this.configObj.eMarkMode = |INTERNAL|
+   endif
+
+   -- Display Colours
+   !this.configObj.colChangedBut   = !this.colChangedBut.background
+   !this.configObj.colAddedBut     = !this.colAddedBut.background
+   !this.configObj.colDeletedBut   = !this.colDeletedBut.background
+   !this.configObj.colDuplicateBut = !this.colDuplicateBut.background
+   !this.configObj.colExportedBut  = !this.colExportedBut.background
+   !this.configObj.colDefaultBut   = !this.colDefaultBut.background
+
+   -- Environment Parameters
+   !this.configObj.fProgram     = !this.fPrograms.selection( |RTEXT| )
+   !this.configObj.fProfFileSep = !this.fProfFileSep.selection( |DTEXT| )
+   !this.configObj.fMatFileSep  = !this.fMatFileSep.selection( |DTEXT| )
+   !this.configObj.fOriFileSep  = !this.fOriFileSep.selection( |DTEXT| )
+   !this.configObj.fMarkSep     = !this.fMarkSep.val
+
+   -- Macros
+   !this.configObj.fPreExpMacro  = !this.fPreExpMacro.val
+   !this.configObj.fPostExpMacro = !this.fPostExpMacro.val
+   !this.configObj.fPreImpMacro  = !this.fPreImpMacro.val
+   !this.configObj.fPostImpMacro = !this.fPostImpMacro.val
+   !this.configObj.fMaterialMac  = !this.fMaterialMac.val
+
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .initialiseArrays( )
+
+   !this.initFixedArrays( )
+   !this.initVariableArrays( |GLOBAL| )
+
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .loadConfig( )
+   -- sets the import file
+   !!sdnffilebrowser( !!sdnfSearchStart, !!sdnfShortProduct + |.xml|, |$!!sdnfShortProduct - File Browser|, true, $
+      |!!cdsFile = !!fileBrowser.file.name( )|, || )
+   !this.configObj.load( !!cdsFile )
+   if( !this.configObj.loadSuccess )then
+      !this.configObj.copyToGlobal( )
+      !this.configFileName = !this.configObj.fileName
+      !this.initialiseArrays( )
+      !this.setFormFields( )
+   endif
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .saveConfig( )
+   !this.getFormFields( )
+   !this.configObj.save( !this.configObj.fileName, |OVERWRITE| )
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .saveConfigAs( )
+
+   -- sets the save file
+   !!cdsFile = ||
+   !!sdnffilebrowser( !!sdnfSearchStart, !!sdnfShortProduct + |.xml|, |$!!sdnfShortProduct - File Browser|, false, $
+   |!!cdsFile = !!fileBrowser.file.name( )|, || )
+   !this.configFileName     = !!cdsFile
+   !this.configObj.fileName = !!cdsFile
+   !this.saveConfig( )
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .addProgram( )
+   pml load form !!sdnfaddpairfrm
+   !!sdnfaddpairfrm.showForm( !this, |PROGRAM| )
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .addEquivalent( )
+   pml load form !!sdnfaddpairfrm
+   !!sdnfaddpairfrm.showForm( !this, |EQUIVALENCE| )
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .initFixedArrays( )
+
+   -- Run Parameters
+
+   -- Model Parameters
+   !this.fModelType.dText = !!sdnfModelTypes
+
+   -- Display Colours
+
+   -- Environment Parameters
+
+   !this.fProfFileSep.dText = !!sdnfSeparators
+   !this.fMatFileSep.dText  = !!sdnfSeparators
+   !this.fOriFileSep.dText  = !!sdnfSeparators
+
+   -- Macros
+
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .reset( )
+   !this.initialise( )
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .resetSystem( )
+   !!sdnfsystemdata( )
+   !this.reset( )
+endmethod
+
+------------------------------------------------------------------------
+
+define method .initVariableArrays( !mode is STRING )
+
+   if( !mode.upcase( ).eq( |GLOBAL| ) )then
+      -- Environment Parameters
+      !progList     = !!sdnfExtProgList
+      !progAbbr     = !!sdnfExtProgAbbr
+      !progEquList  = !!sdnfExtProgEquList
+   elseif( !mode.upcase( ).eq( |LOCAL| ) )then
+      -- Environment Parameters
+      !progList     = ARRAY( )
+      !progAbbr     = ARRAY( )
+      !progEquList  = ARRAY( )
+      !this.getProgLists( !progList, !progAbbr )
+      !this.configObj.getEquivList( !progEquList )
+   endif
+
+   -- Environment Parameters
+   !progDArray = ARRAY( )
+   do !prog indices !progList
+      !progDArray.append( !progList[ !prog ] + | (| + !progAbbr[ !prog ] + |)| )
+   enddo
+   !this.fPrograms.dText   = !progDArray
+   !this.fPrograms.rText   = !progList
+
+   !equivDArray = ARRAY( )
+   do !equiv values !progEquList
+      !equivDArray.append( !equiv[ 1 ] + |<-| + !equiv[ 2 ] )
+   enddo
+   !this.fEquivs.dText   = !equivDArray
+
+endmethod
+
+------------------------------------------------------------------------
+
+define method .updateSystem( )
+   !this.getFormFields( )
+   !this.configObj.copyToGlobal( )
+   if( !this.mode.eq( |EXPORT| ) )then
+      -- kick the Export forms
+      !!sdnfExportInit( )
+      !!sdnfTargInfoInit( )
+      handle ANY
+      endhandle
+   elseif( !this.mode.eq( |IMPORT| ) )then
+      -- kick the Import forms
+      !!sdnfImportInit( )
+      !!sdnfSourInfoInit( )
+      handle ANY
+      endhandle
+   endif
+endmethod
+
+------------------------------------------------------------------------
+
+define method .showForm( !mode is STRING, !form is FORM )
+   !this.mode = !mode
+   !this.form = !form
+   show !!sdnfsysconfigfrm
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .remProgFromList( )
+   !program = !this.fPrograms.selection( |RTEXT| )
+   !this.configObj.remProgFromList( !program )
+   !this.initVariableArrays( |LOCAL| )
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .remEquivFromList( )
+   !selection = !this.fEquivs.selection( |DTEXT| )
+   !program = !selection.before( |<-| )
+   !equiv   = !selection.after( |<-| )
+   !this.configObj.remEquivFromList( !program, !equiv )
+   !this.initVariableArrays( |LOCAL| )
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .addProgToList( !program is STRING, !abbrev is STRING )
+   !this.configObj.addProgToList( !program, !abbrev )
+   !this.initVariableArrays( |LOCAL| )
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .addEquivToList( !program is STRING, !equiv is STRING )
+   !this.configObj.addEquivToList( !program, !equiv )
+   !this.initVariableArrays( |LOCAL| )
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .selectColour( !colourType is STRING )
+
+   if( !colourType.upcase( ).eq( |CHANGED| ) )then
+      !objColText = |!!sdnfsysconfigfrm.configObj.colChangedBut|
+      !frmColText = |!!sdnfsysconfigfrm.colChangedBut|
+      !labelText  = |Changed Element Colour|
+   elseif( !colourType.upcase( ).eq( |ADDED| ) )then
+      !objColText = |!!sdnfsysconfigfrm.configObj.colAddedBut|
+      !frmColText = |!!sdnfsysconfigfrm.colAddedBut|
+      !labelText  = |Added Element Colour|
+   elseif( !colourType.upcase( ).eq( |DELETED| ) )then
+      !objColText = |!!sdnfsysconfigfrm.configObj.colDeletedBut|
+      !frmColText = |!!sdnfsysconfigfrm.colDeletedBut|
+      !labelText  = |Deleted Element Colour|
+   elseif( !colourType.upcase( ).eq( |DUPLICATE| ) )then
+      !objColText = |!!sdnfsysconfigfrm.configObj.colDuplicateBut|
+      !frmColText = |!!sdnfsysconfigfrm.colDuplicateBut|
+      !labelText  = |Duplicate Element Colour|
+   elseif( !colourType.upcase( ).eq( |EXPORTED| ) )then
+      !objColText = |!!sdnfsysconfigfrm.configObj.colExportedBut|
+      !frmColText = |!!sdnfsysconfigfrm.colExportedBut|
+      !labelText  = |Exported Element Colour|
+   elseif( !colourType.upcase( ).eq( |DEFAULT| ) )then
+      !objColText = |!!sdnfsysconfigfrm.configObj.colDefaultBut|
+      !frmColText = |!!sdnfsysconfigfrm.colDefaultBut|
+      !labelText  = |Default Element Colour|
+   endif
+   !!colourSelectLoad('!!sdnfsysconfigfrm.setColour($!frmColText, $!objColText)', '$!labelText', $!objColText )
+
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .getProgLists( !progList is ARRAY, !abbrevList is ARRAY )
+   !this.configObj.getProgLists( !progList, !abbrevList )
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .validateInt( !txtGadget is GADGET )
+   !txtGadget.val = int( !txtGadget.val )
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .validateNameRef( !txtGadget is GADGET )
+   -- try to go to object
+   $!txtGadget.val
+   handle ANY
+      -- Initialise Error object
+      !error          = object SDNFERROROBJ( )
+      !error.severity = !!sdnfSevOK
+      !error.status   = !!sdnfErrObjNoExist
+      !error.query    = !!sdnfQueNone
+      !!sdnfError( !error )
+      !txtGadget.val = ||
+   endhandle
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .validateMacro( !txtGadget is GADGET )
+   !macro = !txtGadget.val.before( |.pmlfnc| ) + |.pmlfnc|
+   if( !macro.length( ).gt( 0 ) )then
+      -- look for macro
+      !unusedTest = !!pml.getPathName( !macro )
+      handle ANY
+         -- Macro does not exist
+         !error          = object SDNFERROROBJ( )
+         !error.severity = !!sdnfSevOK
+         !error.status   = !!sdnfErrMacNoExist
+         !error.query    = !!sdnfQueNone
+         !!sdnfError( !error )
+         !txtGadget.val = ||
+      endhandle
+   else
+      !txtGadget.val = ||
+   endif
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .superUserFunc( )
+   -- call external super user functionality
+   !this.suFlag = not !this.suFlag
+   !!sdnfSUFunction( !this.suFlag )
+endmethod
+
+-------------------------------------------------------------------------

@@ -1,0 +1,302 @@
+--    Type:          Form Definition
+--    Group:         Undefined
+--      Keyword:     Undefined
+--    Module:        Undefined
+--  Author:          Undefined
+--  Created:         Tue Oct  2 12:04:59 2012
+
+--
+--  Description:     Undefined
+--
+------------------------------------------------------------------------
+--
+-- Methods defined:
+--
+--  Method call                      Return              Description
+--  ===========                      ======              ===========
+--  browse(STRING)                   -
+--  cancel()                         -
+--  createReport(STRING)             -
+--  firstElement()                   -
+--  hideRE()                         -
+--  initialise()                     -
+--  initialise(SDNFDIFFREPOBJ)       -
+--  lastElement()                    -
+--  nextElement()                    -
+--  prevElement()                    -
+--  proc(STRING,STRING)              -
+--  refreshGraphics()                -
+--  refreshList()                    -
+--  refreshText()                    -
+--  showForm(SDNFDIFFREPOBJ)         -
+--  showRE()                         -
+--  update()                         -
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfdiffhandler.pmlfrm
+--
+-- pml reload form !!sdnfdiffhandler
+-- pml reload object sdnfdiffobj
+-- pml reload object sdnfdiffremobj
+-- !!sdnfdiffreport = object sdnfdiffrepobj( )
+--
+-- !!sdnfdiffhandler.showForm( !!sdnfdiffreport )
+------------------------------------------------------------------------
+
+-- Kill existing Form definition
+kill !!sdnfdiffhandler
+handle( 61,125 )
+   -- Form not found
+endhandle
+
+------------------------------------------------------------------------
+
+-- Export form
+setup form !!sdnfdiffhandler size 50 20
+   title      |$!!sdnfProduct - Differences|
+   icontitle  |OSDE|
+   initialise |!this.initialise( ) |
+
+   -- Bar menu
+   bar
+      add      |Report|    .fileMenu
+   exit
+
+   -- Pull down menus
+   menu .fileMenu
+      add      |Save as CSV...| |!this.browse( 'CSV' )|
+      add      |Save as TXT...| |!this.browse( 'TXT' )|
+      add      |Save as XHTML...| |!this.browse( 'XHTML' )|
+   exit
+
+
+   path down
+
+   frame .viewFrame |View|
+      view .view volume width 50 height 17
+      para .curElement at text |Element: | width 30
+      list .diffs  width 50 height 10
+   exit
+
+   -- Buttons
+   path right
+   button .first at X12 YMAX+1                      | <<  | callback |!this.firstElement( )|
+   button .prev                                    |  <  | callback |!this.prevElement( )|
+   button .next                                    |  >  | callback |!this.nextElement( )|
+   button .last                                    |  >> | callback |!this.lastElement( )|
+   path right
+   button .apply  at X0 YMAX+1                     |   OK   | callback || apply
+   button .cancel at XMAX FORM-SIZE YMAX FORM-SIZE | Cancel | callback |!this.cancel( )| cancel
+
+   menu .popDiffA
+      !this.popDiffA.add( |CALLBACK|, |this change|,                  |!this.proc( 'THIS',    'ACCEPT' )| )
+      !this.popDiffA.add( |CALLBACK|, |all changes of this type|,     |!this.proc( 'TYPE',    'ACCEPT' )| )
+      !this.popDiffA.add( |CALLBACK|, |all changes for this element|, |!this.proc( 'ELEMENT', 'ACCEPT' )| )
+      !this.popDiffA.add( |SEPARATOR| )
+      !this.popDiffA.add( |CALLBACK|, |all changes|,                  |!this.proc( 'ALL',     'ACCEPT' )| )
+   menu .popDiffR
+      !this.popDiffR.add( |CALLBACK|, |this change|,                  |!this.proc( 'THIS',    'REJECT' )| )
+      !this.popDiffR.add( |CALLBACK|, |all changes of this type|,     |!this.proc( 'TYPE',    'REJECT' )| )
+      !this.popDiffR.add( |CALLBACK|, |all changes for this element|, |!this.proc( 'ELEMENT', 'REJECT' )| )
+      !this.popDiffR.add( |SEPARATOR| )
+      !this.popDiffR.add( |CALLBACK|, |all changes|,                  |!this.proc( 'ALL',     'REJECT' )| )
+   menu .popDiffU
+      !this.popDiffU.add( |CALLBACK|, |this change|,                   |!this.proc( 'THIS',    'UNSET' )| )
+      !this.popDiffU.add( |CALLBACK|, |all changes of this type|,      |!this.proc( 'TYPE',    'UNSET' )| )
+      !this.popDiffU.add( |CALLBACK|, |all changes for this element|,  |!this.proc( 'ELEMENT', 'UNSET' )| )
+      !this.popDiffU.add( |SEPARATOR| )
+      !this.popDiffU.add( |CALLBACK|, |all changes|,                   |!this.proc( 'ALL',     'UNSET' )| )
+   menu .popDiffH
+      !this.popDiffH.add( |CALLBACK|, |hide|,                          |!this.hideRE( )| )
+      !this.popDiffH.add( |CALLBACK|, |show|,                          |!this.showRE( )| )
+
+   menu .popDiff
+      !this.popDiff.add( |MENU|, |Accept ...|, |popDiffA| )
+      !this.popDiff.add( |MENU|, |Reject ...|, |popDiffR| )
+      !this.popDiff.add( |MENU|, |Unset ...|,  |popDiffU| )
+      !this.popDiff.add( |SEPARATOR| )
+      !this.popDiff.add( |MENU|, |Resolved elements...|, |popDiffH| )
+      !this.diffs.setpopup( !this.popDiff )
+
+--   Add('MENU', STRING DText, STRING menuName, {STRING fieldName})
+   member .hideRE      is BOOLEAN
+   member .diffRepObj  is SDNFDIFFREPOBJ
+exit
+
+------------------------------------------------------------------------
+
+define method .initialise( !diffRepObj is SDNFDIFFREPOBJ )
+   !this.initialise( )
+   !this.diffRepObj  = !diffRepObj
+
+   if( !this.diffRepObj.getElementCount( ).gt( 0 ) )then
+      !this.diffs.setHeadings( !this.diffRepObj.getHeader( ) )
+      !this.update( )
+   endif
+endmethod
+
+------------------------------------------------------------------------
+
+define method .initialise( )
+   !this.hideRE      = false
+
+   !headings = ARRAY( )
+   !headings.append( |Column 1| )
+   !headings.append( |Column 2| )
+   if( !!sdnfDebug )then
+      !headings.append( |Column 3| )
+      !headings.append( |Column 4| )
+   endif
+   !this.diffs.setHeadings( !headings )
+
+   !this.view.background = |white|
+endmethod
+
+------------------------------------------------------------------------
+
+define method .showForm( !diffRepObj is SDNFDIFFREPOBJ )
+   show !!sdnfdiffhandler
+   !this.initialise( !diffRepObj )
+endmethod
+
+------------------------------------------------------------------------
+
+define method .nextElement( )
+   !this.diffRepObj.nextVisibleElement( !this.hideRE )
+   !this.update( )
+endmethod
+
+------------------------------------------------------------------------
+
+define method .prevElement( )
+   !this.diffRepObj.prevVisibleElement( !this.hideRE )
+   !this.update( )
+endmethod
+
+------------------------------------------------------------------------
+
+define method .firstElement( )
+   !this.diffRepObj.firstElement( )
+   !this.update( )
+endmethod
+
+------------------------------------------------------------------------
+
+define method .lastElement( )
+   !this.diffRepObj.lastElement( )
+   !this.update( )
+endmethod
+
+------------------------------------------------------------------------
+
+define method .refreshList( )
+   !rows = !this.diffRepObj.getList( )
+   !this.diffs.setRows( !rows )
+endmethod
+
+------------------------------------------------------------------------
+
+define method .update( )
+   !this.refreshList( )
+   !this.refreshGraphics( )
+   !this.refreshText( )
+endmethod
+
+------------------------------------------------------------------------
+
+define method .refreshGraphics( )
+
+   !graphicData = !this.diffRepObj.getGraphicData( )
+   if( !graphicData.size( ).gt( 0 ) )then
+      !source = !graphicData[ 1 ]
+      !target = !graphicData[ 2 ]
+      !colour = !graphicData[ 3 ]
+
+      -- zoom into source/target
+      rem all
+      add $!source
+      handle any
+      endhandle
+      add $!target
+      handle any
+      endhandle
+      enhance $!source colour $!colour
+      auto $!source
+      handle any
+      endhandle
+      !this.view.refresh( )
+   endif
+endmethod
+
+------------------------------------------------------------------------
+
+define method .cancel( )
+   kill !!sdnfdiffhandler
+endmethod
+
+------------------------------------------------------------------------
+
+define method .refreshText( )
+   !title    = !this.diffRepObj.getTitle( )
+   !this.curElement.val = !title
+endmethod
+
+------------------------------------------------------------------------
+
+define method .proc( !choice is STRING, !oper is STRING )
+   !this.diffRepObj.proc( !choice, !oper, !this.diffs.val )
+   !this.update( )
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .hideRE( )
+   !this.hideRE = true
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .showRE( )
+   !this.hideRE = false
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .browse( !fileType is STRING )
+   -- sets the save file
+   !fileName = |SDNF-Differences.| + !fileType.lowcase( )
+   !!sdnffilebrowser( !!sdnfSearchStart, !fileName, |$!!sdnfShortProduct - File Browser|, false, $
+   |!!cdsFile = !!fileBrowser.file.name( )|, |!!sdnfdiffhandler.createReport( '$!fileType' )| )
+endmethod
+
+-------------------------------------------------------------------------
+
+define method .createReport( !fileType is STRING )
+   -- create report
+   !saveFile = !!cdsFile
+   !reportArray = ARRAY( )
+
+   if( !saveFile.upcase( ).neq( |NULL| ) )then
+      if( !fileType.eq( |TXT| ) )then
+         !reportArray = !this.diffRepObj.asTXT( )
+      elseif( !fileType.eq( |CSV| ) )then
+         !reportArray = !this.diffRepObj.asCSV( )
+      elseif( !fileType.eq( |XHTML| ) )then
+         !reportArray = !this.diffRepObj.asXHTML( )
+      endif
+
+      -- output
+      !reportFile = object FILE( !saveFile )
+      !reportFile.writefile(|OVERWRITE|, !reportArray )
+
+      -- Update Search Start
+      !testFile = object FILE( !saveFile )
+      !pathName = !testFile.pathName()
+      if( !pathName.length( ).gt( 0 ) )then
+         !!sdnfSearchStart = !pathName
+      endif
+   endif
+
+   !!sdnfResetCDSFILE( )
+endmethod

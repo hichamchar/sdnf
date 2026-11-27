@@ -1,0 +1,54 @@
+--    Type:          Form Definition
+--    Group:         Undefined
+--      Keyword:     Undefined
+--    Module:        Undefined
+--  Author:          Undefined
+--  Created:         Tue Oct  2 12:04:20 2012
+
+--
+--  Description:     Undefined
+--
+----------------------------------------------------------------------
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfexpruninf.pmlfrm
+------------------------------------------------------------------------
+
+-- Kill existing Form definition
+kill !!sdnfexpruninf
+handle( 61,125 )
+   -- Form not found
+endhandle
+
+------------------------------------------------------------------------
+
+-- Export form
+setup form !!sdnfexpruninf
+  title      |$!!sdnfProduct - Export Run Information|
+  icontitle  |OSDE|
+  initialise |!!sdnfExpRunInfIni( )|
+  path down
+
+  -- Logfile
+  path right
+  toggle .expViewLog |Log File?| at X1 YMAX+0.5 callback |call !!sdnfSetExpVieLog( )|
+  rgroup .expMode at YMAX-0.75 callback |call !!sdnfSetExpMode( )| horizontal
+    add tag |Brief|    select |BRIEF|
+    add tag |Verbose|  select |FULL|
+  exit
+  path down
+  toggle .expTestRun |Test Run?| at X1 YMAX+0.5 $
+    callback |!!sdnfexpruninf.testRun = !!sdnfexpruninf.expTestRun.val|
+
+  -- Form member data
+  member .viewMode    is STRING
+  member .viewLog     is BOOLEAN
+  member .testRun     is BOOLEAN
+
+  -- Buttons
+  button .apply  at X0 YMAX+1                     |   OK   | callback |call !!sdnfSetExpRunInf( )| ok
+  button .cancel at XMAX FORM-SIZE YMAX FORM-SIZE | Cancel | callback | | cancel
+
+exit
+
+------------------------------------------------------------------------

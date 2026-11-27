@@ -1,0 +1,114 @@
+--    Type:          Form Definition
+--    Group:         Undefined
+--      Keyword:     Undefined
+--    Module:        Undefined
+--  Author:          Undefined
+--  Created:         Tue Oct  2 12:04:52 2012
+
+--
+--  Description:     Undefined
+--
+----------------------------------------------------------------------
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfaddpairfrm.pmlfrm
+------------------------------------------------------------------------
+
+-- Kill existing Form definition
+kill !!sdnfaddpairfrm
+handle( 61,125 )
+   -- Form not found
+endhandle
+
+------------------------------------------------------------------------
+
+-- Form to add programs or equivalences
+setup form !!sdnfaddpairfrm
+   title      |$!!sdnfProduct - Add Program|
+   icontitle  |OSDE|
+   initialise |!this.initialise()|
+   path down
+
+   para   .program                                   text |Program     |
+   para   .abbrev                                    text |Abbreviation|
+   para   .progList     at XMIN.program YMIN.program text |Programs    |
+   para   .equivalence  at XMIN.abbrev YMIN.abbrev   text |Equivalence |
+
+   text   .fPrograms    at XMAX.program+0.5     YMIN.program     callback || width 20 is STRING
+   text   .fAbbrevs     at XMAX.abbrev+0.5      YMIN.abbrev      callback || width 20 is STRING
+   option .fProgList    at XMAX.progList+0.5    YMIN.progList    callback || width 20
+   text   .fEquivalence at XMAX.equivalence+0.5 YMIN.equivalence callback || width 20 is STRING
+
+   button .apply        at X0 YMAX+0.5                   |   OK   | callback |!this.transferPair( )| ok
+   button .cancel       at XMAX FORM-SIZE YMAX FORM-SIZE | Cancel | cancel
+
+   -- member data
+   member .mode     is STRING
+   member .form     is FORM
+
+exit
+
+------------------------------------------------------------------------
+
+define method .showForm( !form is FORM, !mode is STRING )
+
+   if( !mode.upcase().eq( |PROGRAM| ) )then
+      !this.formtitle            = |$!!sdnfProduct - Add Program|
+      !this.program.visible      = true
+      !this.abbrev.visible       = true
+      !this.progList.visible     = false
+      !this.equivalence.visible  = false
+
+      !this.fPrograms.visible    = true
+      !this.fAbbrevs.visible     = true
+      !this.fProgList.visible    = false
+      !this.fEquivalence.visible = false
+
+   elseif( !mode.upcase().eq( |EQUIVALENCE| ) )then
+      !this.formtitle            = |$!!sdnfProduct - Add Equivalence|
+      !this.program.visible      = false
+      !this.abbrev.visible       = false
+      !this.progList.visible     = true
+      !this.equivalence.visible  = true
+
+      !this.fPrograms.visible    = false
+      !this.fAbbrevs.visible     = false
+      !this.fProgList.visible    = true
+      !this.fEquivalence.visible = true
+   endif
+
+   !this.mode = !mode
+   !this.form = !form
+   show !!sdnfaddpairfrm
+
+endmethod
+
+------------------------------------------------------------------------
+
+define method .initialise( )
+
+   !progList   = ARRAY( )
+   !abbrevList = ARRAY( )
+   !this.form.getProgLists( !progList, !abbrevList )
+
+   !progDArray = ARRAY( )
+   do !prog indices !progList
+      !progDArray.append( !progList[ !prog ] + | (| + !abbrevList[ !prog ] + |)| )
+   enddo
+   !this.fProgList.dText = !progList
+
+endmethod
+
+------------------------------------------------------------------------
+
+define method .transferPair( )
+
+   if( !this.mode.upcase().eq( |PROGRAM| ) )then
+      !this.form.addProgToList( !this.fPrograms.val, !this.fAbbrevs.val )
+   elseif( !this.mode.upcase().eq( |EQUIVALENCE| ) )then
+      !this.form.addEquivToList( !this.fProgList.selection( |DTEXT| ), !this.fEquivalence.val )
+   endif
+
+endmethod
+
+------------------------------------------------------------------------

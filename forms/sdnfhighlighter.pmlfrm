@@ -1,0 +1,97 @@
+--    Type:          Form Definition
+--    Group:         Undefined
+--      Keyword:     Undefined
+--    Module:        Undefined
+--  Author:          Undefined
+--  Created:         Tue Oct  2 12:04:23 2012
+
+--
+--  Description:     Undefined
+--
+----------------------------------------------------------------------
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfhighlighter.pmlfrm
+------------------------------------------------------------------------
+
+-- Kill existing Form definition
+kill !!sdnfHighlighter
+handle( 61,125 )
+   -- Form not found
+endhandle
+
+------------------------------------------------------------------------
+
+-- Export form
+setup form !!sdnfHighlighter
+  title      |$!!sdnfProduct - Highlighter|
+  icontitle  |OSDE|
+  initialise |!!sdnfHighLighInit( )|
+  path down
+
+
+  para   .searchId text |Search in: | width 30 lines 1
+  path right
+  button .setSearchId   |CE| callback |call !!sdnfSetSearchId( )|
+
+  path down
+  frame .frame1 |Selected items| at X0 YMAX+0.5 width 35
+    toggle .highAdded   |New/Added   | callback |call !!sdnfHighSelSel( 'ADDED' )| at X1 Y1
+    toggle .highDeleted |Old/Deleted | callback |call !!sdnfHighSelSel( 'DELETED' )|
+    toggle .highChanged |Changed     | callback |call !!sdnfHighSelSel( 'CHANGED' )|
+
+    rgroup .vFunc |By...| at XMAX + 4 Y1 callback |call !!sdnfHighSelFunc( !!sdnfHighlighter.vFunc.selection( ) )| vertical
+      add tag |Version| select |VERSION|
+      add tag |Date|    select |DATE|
+    exit
+  exit
+
+  frame .frame2 |From| at X0 YMAX+1 width 35
+    path right
+    para   .vSTra at X1 YMAX text |Version:|
+    option .vSTransfer |Transfer | callback |call !!sdnfHighSelVers( 'START' )| width 1
+    text   .vSRevision |Rev | callback |call !!sdnfHighSelVers( 'START' )| width 5 is REAL
+    para   .vSDat   at X1 YMAX+0.5 text |Date:   |
+    option .vSDay   at X10 callback |call !!sdnfHighSelDate( 'START' )| width 2
+    option .vSMonth at XMAX.vSDay+3 callback |call !!sdnfHighSelDate( 'START' )| width 3
+    option .vSYear  at XMAX.vSMonth+2 callback |call !!sdnfHighSelDate( 'START' )| width 4
+    path down
+  exit
+
+  frame .frame3 |To| at X0 YMAX+1 width 35
+    path right
+    para   .vETra at X1 YMAX text |Version:|
+    option .vETransfer |Transfer | callback |call !!sdnfHighSelVers( 'END' )| width 1
+    text   .vERevision |Rev | callback |call !!sdnfHighSelVers( 'END' )| width 5 is REAL
+    para   .vEDat     at X1 YMAX+0.5 text |Date:   |
+    option .vEDay   at X10 callback |call !!sdnfHighSelDate( 'END' )| width 2
+    option .vEMonth at XMAX.vEDay+3 callback |call !!sdnfHighSelDate( 'END' )|  width 3
+    option .vEYear  at XMAX.vEMonth+2 callback |call !!sdnfHighSelDate( 'END' )|  width 4
+    path down
+  exit
+
+  -- Form member data
+  member .source          is DBREF
+  member .highlight       is STRING
+  member .added           is BOOLEAN
+  member .changed         is BOOLEAN
+  member .deleted         is BOOLEAN
+  member .versionDateFlag is STRING
+  member .startTransfer   is REAL
+  member .startRevision   is REAL
+  member .startDate       is REAL
+  member .startMonth      is STRING
+  member .startYear       is REAL
+  member .endTransfer     is REAL
+  member .endRevision     is REAL
+  member .endDate         is REAL
+  member .endMonth        is STRING
+  member .endYear         is REAL
+
+  -- Buttons
+  button .apply  at X0 YMAX+1                     |   OK   | callback |call !!sdnfHighlight( )| apply
+  button .cancel at XMAX FORM-SIZE YMAX FORM-SIZE | Cancel | callback | | cancel
+
+exit
+
+------------------------------------------------------------------------

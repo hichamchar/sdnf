@@ -1,0 +1,121 @@
+--    Type:          Form Definition
+--    Group:         Undefined
+--      Keyword:     Undefined
+--    Module:        Undefined
+--  Author:          Undefined
+--  Created:         Tue Oct  2 12:04:16 2012
+
+--
+--  Description:     Undefined
+--
+------------------------------------------------------------------------
+--
+-- Methods defined:
+--
+--  Method call                      Return              Description
+--  ===========                      ======              ===========
+--  addToList(STRING)                -
+--  reInitialize()                   -
+--  remFromList(STRING,STRING,REAL)  -
+--  runConverter()                   -
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfexport.pmlfrm
+------------------------------------------------------------------------
+
+-- Kill existing Form definition
+kill !!sdnfExport
+handle( 61,125 )
+   -- Form not found
+endhandle
+
+------------------------------------------------------------------------
+
+-- Export form
+setup form !!sdnfExport
+  title      |$!!sdnfProduct - Export|
+  icontitle  |OSDE|
+  initialise |!!sdnfExportInit( )|
+  path down
+
+  -- Bar menu
+  bar
+    add      |Control|    .control
+    add      |General|    .general
+  exit
+  -- Pull down menus
+  menu .control
+    add      |Re-initialise| |!this.reInitialize( )|
+    add      |Configure...|  |!!sdnfexpsysconfig( !this )|
+    add      |Map Converter...| |!this.runConverter( )|
+    add      |Exit|          |!!sdnfExport.hide( )|
+  exit
+  menu .general
+    add      |Highlight...| |show !!sdnfHighlighter|
+  exit
+
+  -- Information buttons
+  button   .expTarget  at X1 |  Mapping files...   | callback |show !!sdnfTargInfo|
+  path right
+  button   .expExport        |Export information...| callback |show !!sdnfExpInfo|
+  button   .expRun           | Run information...  | callback |show !!sdnfExpRunInf|
+
+  -- Member list
+  path right
+  selector .members at X1 YMAX FORM+1 |Members| callback |$$!!sdnfExport.members| single width 31 length 10 database auto
+  -- Export list - do nothing on callback
+  list     .expList at XMAX_MEMBERS+1 |Export list| callback || single width 31 length 10
+
+  -- Buttons to construct Export List
+  path down
+  button   .addCE  at X1 | Add CE  |   callback |!this.addToList( 'CE' )|
+  path right
+  button   .addPick  | Add by Pick   | callback |!this.addToList( 'PICK' )|
+  button   .addStruc | Add Structure | callback |!this.addToList( 'STRUC' )|
+  path down
+  button   .remCE at X1 |Remove CE|    callback |!this.remFromList( 'CE', !this.expList.selection( ), !this.expList.val ) |
+  path right
+  button   .remPick  |Remove by Pick | callback |!this.remFromList( 'PICK', !this.expList.selection( ), !this.expList.val )|
+  button   .remSel   |Remove Selected| callback |!this.remFromList( 'SELECTED', !this.expList.selection( ), !this.expList.val )|
+  button   .remAll   |Clear|           callback |!this.remFromList( 'ALL', !this.expList.selection( ), !this.expList.val )|
+  path down
+
+  -- Buttons
+  button .apply  at X0 YMAX+1                     | Export | callback |call !!sdnfDoExport( )| apply
+  button .cancel at XMAX FORM-SIZE YMAX FORM-SIZE | Cancel | callback | | cancel
+
+exit
+
+-------------------------------------------------------------------------
+
+define method .addToList( !option is STRING )
+   -- sets the export list
+   !!sdnfExport.expList.dText = !!sdnfAddToList( !option )
+endmethod
+
+------------------------------------------------------------------------
+
+define method .remFromList( !option is STRING, !selectedElement is STRING, !selectedElemInd is REAL )
+   -- sets the export list
+   !!sdnfExport.expList.dText = !!sdnfRemFromList( !option, !selectedElement, !selectedElemInd )
+endmethod
+
+------------------------------------------------------------------------
+
+define method .reInitialize( )
+   -- re-initializes the global, system and form variables
+   !!sdnfSystemData( )
+   !!sdnfExportInit( )
+endmethod
+
+------------------------------------------------------------------------
+
+define method .runConverter( )
+   -- run the Mapping file converter
+   var !installedDir evar |SDNFMAIN|
+   !command = 'start /b cmd /c "' + !installedDir + '\AVMapConverter.exe"'
+   syscom '$!command'
+endmethod
+
+------------------------------------------------------------------------

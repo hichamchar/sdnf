@@ -1,0 +1,77 @@
+--    Type:          Form Definition
+--    Group:         Undefined
+--      Keyword:     Undefined
+--    Module:        Undefined
+--  Author:          Undefined
+--  Created:         Tue Oct  2 12:04:32 2012
+
+--
+--  Description:     Undefined
+--
+----------------------------------------------------------------------
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfimpruninf.pmlfrm
+------------------------------------------------------------------------
+
+-- Kill existing Form definition
+kill !!sdnfImpRunInf
+handle( 61,125 )
+   -- Form not found
+endhandle
+
+------------------------------------------------------------------------
+
+-- Import Run Information form
+setup form !!sdnfImpRunInf
+  title      |$!!sdnfProduct - Import Run Information|
+  icontitle  |OSDE|
+  initialise |!!sdnfImpRunInfIni( )|
+  path down
+
+  -- Variables used in form definition
+  !markWidth = !!sdnfMarkVerify.width( )
+
+  -- Logfile
+  path right
+  toggle .impViewLog |Log File?| at X1 YMAX+0.5 $
+    callback |call !!sdnfSetImpVieLog( )|
+  rgroup .impMode at YMAX-0.75 callback |call !!sdnfSetImpMode( )| horizontal
+    add tag |Brief|    select |BRIEF|
+    add tag |Verbose|  select |FULL|
+  exit
+  path down
+  toggle .impSaveModel  |Save Reference Model?| at X1 YMAX+0.5 $
+    callback |!!sdnfImpRunInf.saveModel = !!sdnfImpRunInf.impSaveModel.val|
+  toggle .impSortMode |Sort on Material type?| at X1 YMAX+0.5 $
+    callback |!!sdnfImpRunInf.sortMode = !!sdnfImpRunInf.impSortMode.val|
+  button .impCompAttr at X1 YMAX+0.5 $
+    |Edit Attribute Comparison List...| callback |show !!sdnfCompList|
+
+  frame .frame1 |Validity Checks| at X1 YMAX+1 width 46
+    toggle .impMapVerify  |Profile Mapping?| at X1 YMAX+0.5 $
+      callback |!!sdnfImpRunInf.mapVerify = !!sdnfImpRunInf.impMapVerify.val|
+    option .impMarkVerify |Duplicate Mark #| at X1 YMAX+ 0.5 $
+      callback |call !!sdnfSetMarkFlag( !!sdnfImpRunInf.impMarkVerify.selection( ))| width $!markWidth
+    !!sdnfImpRunInf.impMarkVerify.dText = !!sdnfMarkVerify
+  exit
+
+  -- Buttons
+  button .apply  at X0 YMAX+ 1           |   OK   | callback |call !!sdnfSetImpRunInf( )| ok
+  button .cancel at XMAX FORM-SIZE YMAX FORM-SIZE | Cancel |                                 cancel
+
+  -- Form member data
+  member .viewMode   is STRING
+  member .viewLog    is BOOLEAN
+  member .saveModel  is BOOLEAN
+  member .sortMode   is BOOLEAN
+  member .mapVerify  is BOOLEAN
+  member .markVerify is STRING
+
+  -- From child form
+  member .linMemAttr is ARRAY
+  member .plateAttr  is ARRAY
+
+exit
+
+------------------------------------------------------------------------

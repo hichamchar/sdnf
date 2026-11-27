@@ -1,0 +1,79 @@
+--    Type:          Form Definition
+--    Group:         Undefined
+--      Keyword:     Undefined
+--    Module:        Undefined
+--  Author:          Undefined
+--  Created:         Tue Oct  2 12:04:10 2012
+
+--
+--  Description:     Undefined
+--
+----------------------------------------------------------------------
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfcomplist.pmlfrm
+------------------------------------------------------------------------
+
+-- Kill existing Form definition
+kill !!sdnfCompList
+handle( 61,125 )
+   -- Form not found
+endhandle
+
+------------------------------------------------------------------------
+
+-- Import Run Information form
+setup form !!sdnfCompList
+  title      |$!!sdnfProduct - Comparison Checklist|
+  icontitle  |OSDE|
+  initialise |!!sdnfCompListIni( )|
+  path down
+
+  -- Linear Members
+  path down
+  frame .frame1 |Linear/Curved Members| at X1 YMAX+1
+    toggle .poss1 |Start Position     | callback |!!sdnfCompList.linMemAttr[ $!!sdnfLinAttrPoss ]  = !!sdnfCompList.poss1.val|
+    toggle .pose1 |End Position       | callback |!!sdnfCompList.linMemAttr[ $!!sdnfLinAttrPose ]  = !!sdnfCompList.pose1.val|
+    toggle .jusl1 |Justification Line | callback |!!sdnfCompList.linMemAttr[ $!!sdnfLinAttrJusl ]  = !!sdnfCompList.jusl1.val|
+    toggle .bang1 |Beta Angle         | callback |!!sdnfCompList.linMemAttr[ $!!sdnfLinAttrBang ]  = !!sdnfCompList.bang1.val|
+    toggle .hold1 |Hold Status        | callback |!!sdnfCompList.linMemAttr[ $!!sdnfLinAttrHold ]  = !!sdnfCompList.hold1.val|
+    toggle .pspe1 |Paint Specification| callback |!!sdnfCompList.linMemAttr[ $!!sdnfLinAttrPspe ]  = !!sdnfCompList.pspe1.val|
+    toggle .spre1 |Spec Reference     | callback |!!sdnfCompList.linMemAttr[ $!!sdnfLinAttrSpre ]  = !!sdnfCompList.spre1.val|
+    toggle .matr1 |Material Reference | callback |!!sdnfCompList.linMemAttr[ $!!sdnfLinAttrMatr ]  = !!sdnfCompList.matr1.val|
+    toggle .srel1 |Start Release      | callback |!!sdnfCompList.linMemAttr[ $!!sdnfLinAttrSrel ]  = !!sdnfCompList.srel1.val|
+    toggle .erel1 |End Release        | callback |!!sdnfCompList.linMemAttr[ $!!sdnfLinAttrErel ]  = !!sdnfCompList.erel1.val|
+    toggle .fpth1 |FireProof Thickness| callback |!!sdnfCompList.linMemAttr[ $!!sdnfLinAttrFrth ]  = !!sdnfCompList.fpth1.val|
+    toggle .fpde1 |FireProof Desc     | callback |!!sdnfCompList.linMemAttr[ $!!sdnfLinAttrFrde ]  = !!sdnfCompList.fpde1.val|
+    toggle .fpty1 |FireProof Type     | callback |!!sdnfCompList.linMemAttr[ $!!sdnfLinAttrFrty ]  = !!sdnfCompList.fpty1.val|
+    toggle .fpst1 |FireProof Start    | callback |!!sdnfCompList.linMemAttr[ $!!sdnfLinAttrFrst ]  = !!sdnfCompList.fpst1.val|
+    toggle .fpen1 |FireProof End      | callback |!!sdnfCompList.linMemAttr[ $!!sdnfLinAttrFren ]  = !!sdnfCompList.fpen1.val|
+  exit
+  frame .frame3 |Curved Members| at X1 YMAX
+    toggle .ydir1 |Spine Y direction  | callback |!!sdnfCompList.linMemAttr[ $!!sdnfLinAttrYdir ]  = !!sdnfCompList.ydir1.val|
+    toggle .poin1 |Spine point count  | callback |!!sdnfCompList.linMemAttr[ $!!sdnfLinAttrPoin ]  = !!sdnfCompList.poin1.val|
+  exit
+
+  frame .frame2 |Plates| at XMAX.frame1+0.5 YMIN.frame1
+    toggle .jusl2 |Justification      | callback |!!sdnfCompList.plateAttr[ $!!sdnfPlaAttrJusl ] = !!sdnfCompList.jusl2.val|
+    toggle .hold2 |Hold Status        | callback |!!sdnfCompList.plateAttr[ $!!sdnfPlaAttrHold ] = !!sdnfCompList.hold2.val|
+    toggle .pspe2 |Paint Specification| callback |!!sdnfCompList.plateAttr[ $!!sdnfPlaAttrPspe ] = !!sdnfCompList.pspe2.val|
+    toggle .thic2 |Thickness          | callback |!!sdnfCompList.plateAttr[ $!!sdnfPlaAttrThic ] = !!sdnfCompList.thic2.val|
+    toggle .matr2 |Material Reference | callback |!!sdnfCompList.plateAttr[ $!!sdnfPlaAttrMatr ] = !!sdnfCompList.matr2.val|
+    toggle .pos2  |Position           | callback |!!sdnfCompList.plateAttr[ $!!sdnfPlaAttrPos ]  = !!sdnfCompList.pos2.val|
+    toggle .ori2  |Orientation        | callback |!!sdnfCompList.plateAttr[ $!!sdnfPlaAttrOri ]  = !!sdnfCompList.ori2.val|
+    toggle .fpth2 |FireProof Thickness| callback |!!sdnfCompList.plateAttr[ $!!sdnfPlaAttrFrth ] = !!sdnfCompList.fpth2.val|
+    toggle .fpde2 |FireProof Desc     | callback |!!sdnfCompList.plateAttr[ $!!sdnfPlaAttrFrde ] = !!sdnfCompList.fpde2.val|
+    toggle .fpty2 |FireProof Type     | callback |!!sdnfCompList.plateAttr[ $!!sdnfPlaAttrFrty ] = !!sdnfCompList.fpty2.val|
+
+  exit
+  -- Buttons
+  button .apply  at X0 YMAX.frame3+1           |   OK   | callback |call !!sdnfSetCompAttr( )| ok
+  button .cancel at XMAX FORM-SIZE YMAX FORM-SIZE | Cancel | cancel
+
+  -- Form member data
+  member .linMemAttr is ARRAY
+  member .plateAttr  is ARRAY
+
+exit
+
+------------------------------------------------------------------------

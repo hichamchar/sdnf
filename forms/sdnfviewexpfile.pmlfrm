@@ -1,0 +1,62 @@
+--    Type:          Form Definition
+--    Group:         Undefined
+--      Keyword:     Undefined
+--    Module:        Undefined
+--  Author:          Undefined
+--  Created:         Tue Oct  2 12:04:42 2012
+
+--
+--  Description:     Undefined
+--
+----------------------------------------------------------------------
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfviewexpfile.pmlfrm
+
+------------------------------------------------------------------------
+
+-- Kill existing Form definition
+kill !!sdnfViewExpFile
+handle( 61,125 )
+   -- Form not found
+endhandle
+
+------------------------------------------------------------------------
+
+-- Export form
+setup form !!sdnfViewExpFile
+  title      |$!!sdnfProduct - Export File Header|
+  icontitle  |OSDE|
+  initialise |!!sdnfVwExpFilInit( !!sdnfExpInfo.hdrSource )|
+
+  path right
+  para .pFirm       at X0 YMAX text |Engineering Firm |
+  text .vFirm         width 60 scroll 80 is STRING
+  para .pClient     at X0 YMAX text |Client           |
+  text .vClient       width 60 scroll 80 is STRING
+  para .pStructure  at X0 YMAX text |Structure ID     |
+  text .vStructure    width 60 scroll 80 is STRING
+  para .pProject    at X0 YMAX text |Project ID       |
+  text .vProject      width 60 scroll 80 is STRING
+  para .pRevision   at X0 YMAX text |Prev Revision    |
+  text .vRevision     width 10 is REAL
+  para .pTransfer   at X0 YMAX text |Prev Transfer    |
+  text .vTransfer     width 2  is STRING
+  para .pIssue      at X0 YMAX text |Issue            |
+  text .vIssue        width 10 is STRING
+  para .pDesigncode at X0 YMAX text |Design Code      |
+  text .vDesigncode   width 60 scroll 80 is STRING
+  para .pTarget     at X0 YMAX text |Target Contractor|
+  text .vTarget       width 60 scroll 80 is STRING
+  para .pModelNr    at X0 YMAX text |Model Number     |
+  text .vModelNr      width 10 is REAL
+
+  -- Button
+  path right
+  button .edit    at X0 YMAX+1 | Edit   | callback |call !!sdnfEditHdrDets( !!sdnfExpInfo.hdrSource )|
+  button .apply                | Apply  | callback |call !!sdnfSetHdrDets( !!sdnfExpInfo.hdrSource )|
+  button .cancel  at XMAX FORM-SIZE YMAX FORM-SIZE | Cancel | callback |kill !!sdnfViewExpFile| cancel
+
+exit
+
+------------------------------------------------------------------------

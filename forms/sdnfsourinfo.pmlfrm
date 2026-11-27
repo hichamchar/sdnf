@@ -1,0 +1,99 @@
+--    Type:          Form Definition
+--    Group:         Undefined
+--      Keyword:     Undefined
+--    Module:        Undefined
+--  Author:          Undefined
+--  Created:         Tue Oct  2 12:04:36 2012
+
+--
+--  Description:     Undefined
+--
+------------------------------------------------------------------------
+--
+-- Methods defined:
+--
+--  Method call                      Return              Description
+--  ===========                      ======              ===========
+--  browse()                         -
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsourinfo.pmlfrm
+------------------------------------------------------------------------
+
+-- Kill existing Form definition
+kill !!sdnfSourInfo
+handle( 61,125 )
+   -- Form not found
+endhandle
+
+------------------------------------------------------------------------
+
+-- Import form
+setup form !!sdnfSourInfo
+  title      |$!!sdnfProduct - Import mapping files|
+  icontitle  |OSDE|
+  initialise |!!sdnfSourInfoInit( )|
+  path down
+
+  -- Variables used in form definition
+  !width = !!sdnfExtProgList.width( )
+
+  -- Source Information
+  rgroup .sourceMapMode  at YMAX+0.5  |Mapping Table| $
+    callback |call !!sdnfSetSMapMode( )|
+    add tag |Manual|  select |MANUAL|
+    add tag |Auto  |  select |AUTO|
+  exit
+  path right
+  rgroup .sourceMatMode at XMAX.sourceMapMode+2 YMIN.sourceMapMode-0.15 |Type:| horizontal $
+    callback |!!sdnfSourInfo.matMode = !!sdnfSourInfo.sourceMatMode.selection( ) |
+    add tag |Profiles|  select |PROFILE|
+    add tag |Materials| select |MATERIAL|
+    add tag |Orient'n|  select |ORIENT|
+    add tag |Unicode|   select |UNICODE|
+  exit
+  text   .userSourceFile at XMAX.sourceMapMode+2 YMAX_sourceMatMode $
+    callback |call !!sdnfSetMap( 'IMPORT', 'MANUAL', !!sdnfSourInfo.sourceMatMode.selection( ), !!sdnfSourInfo.userSourceFile.val )| $
+    width 40 scroll 120 is STRING
+  path right
+  button .sMapBrowse |  Browse...  | callback |!this.browse( )| apply
+  path down
+
+  option .autoSourceMap |Mapping Table(s) for Source Package...    | $
+    at XMAX.sourceMapMode+2 YMAX.userSourceFile+0.5 $
+    callback |call !!sdnfSetMap( 'IMPORT', 'AUTO', 'PROFILE', ' ' )| width $!width
+  path down
+  para   .sourceMapFile at X1 text |Profiles:  | width 65 lines 1
+  para   .sourceMatFile at X1 text |Materials: | width 65 lines 1
+  para   .sourceOriFile at X1 text |Orient'n:  | width 65 lines 1
+  para   .sourceUniFile at X1 text |Unicode:   | width 65 lines 1
+
+  -- Buttons
+  button .apply  at X0 YMAX_SourceUniFile+ 1      |   OK   | callback |call !!sdnfSetImpSouInf( )| ok
+  button .cancel at XMAX FORM-SIZE YMAX FORM-SIZE | Cancel |                                 cancel
+
+  -- Form member data
+  member .source     is STRING
+  member .sourceAbbr is STRING
+  member .target     is STRING
+  member .mapMode    is STRING
+  member .matMode    is STRING
+  member .mapFile    is STRING
+  member .matFile    is STRING
+  member .oriFile    is STRING
+  member .uniFile    is STRING
+
+exit
+
+-------------------------------------------------------------------------
+
+define method .browse( )
+   -- sets the import mapping file
+   -- build possible map name
+   !mapName = !this.source + !this.matMode.substring( 1, 3 ) + |.map|
+   !!sdnffilebrowser( !!sdnfSearchStart, !mapName, |$!!sdnfShortProduct - File Browser|, true, |!!cdsFile = !!fileBrowser.file.name( )|, $
+   |!!sdnfSetMap( 'IMPORT', 'MANUAL', !!sdnfSourInfo.sourceMatMode.selection( ), !!sdnfResetCDSFILE( ) )| )
+endmethod
+
+------------------------------------------------------------------------

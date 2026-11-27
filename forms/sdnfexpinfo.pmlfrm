@@ -1,0 +1,124 @@
+--    Type:          Form Definition
+--    Group:         Undefined
+--      Keyword:     Undefined
+--    Module:        Undefined
+--  Author:          Undefined
+--  Created:         Tue Oct  2 12:04:13 2012
+
+--
+--  Description:     Undefined
+--
+------------------------------------------------------------------------
+--
+-- Methods defined:
+--
+--  Method call                      Return              Description
+--  ===========                      ======              ===========
+--  browse()                         -
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfexpinfo.pmlfrm
+------------------------------------------------------------------------
+
+-- Kill existing Form definition
+kill !!sdnfExpInfo
+handle( 61,125 )
+   -- Form not found
+endhandle
+
+------------------------------------------------------------------------
+
+-- Export form
+setup form !!sdnfExpInfo
+  title      |$!!sdnfProduct - Export Information|
+  icontitle  |OSDE|
+  initialise |!!sdnfExpInfoInit( )|
+  path down
+
+ -- Export Information
+  frame .frame1 |File Details| width 70
+    -- File handling
+    para   .filePrompt at X2 YMAX+0.5 text |Full pathname of output file:|
+    text   .expFile         callback |call !!sdnfSetExpFile( !!sdnfExpInfo.expFile.val )| $
+      width 45 scroll 120 is STRING
+    path right
+    button .browse          | Browse... | callback |!this.browse( )| apply
+    para   .expFileMode width 10 lines 1
+    path down
+
+  exit
+
+  path down
+  frame .frame2 at YMAX+1 |Model Details| width 70
+
+    -- nodal model
+    -- Note: We have to tell the system that the outgoing model is a nodal one or a cut-length one.
+    path right
+--    para .pModelType at X2 YMAX+0.5 text |Model type  |
+--    rgroup .expModelType at XMAX+0.5 callback |call !!sdnfSetExpMType( )| horizontal
+--      add tag |Untrimmed|  select |CP|
+--      add tag |Trimmed  |  select |WP|
+--    exit
+      toggle .expModelType |Use Cutbacks| at X2 YMAX+0.5 $
+        callback |call !!sdnfSetExpMType( )|
+
+    -- Source of Header information
+    para   .expHdrText at X2 YMAX+1 width 45 lines 1
+    path right
+    button .header  |  Use CE  | callback |call !!sdnfSetHdrSrce( 'CE' )| apply
+    button .inspect |Inspect...| callback |show !!sdnfViewExpFile| apply
+
+    path down
+    frame .frame3 at X2 YMAX+1 |Linear Members| width 70
+    toggle .expLinMem   |Packet 10 (Straight)| at X2 YMAX $
+      callback |call !!sdnfSetLinMemOpt( !!sdnfExpInfo.expLinMem.val )|
+    toggle .expArcMem  |Packet 60 (Curved)| at X2 YMAX $
+      callback |call !!sdnfSetArcMemOpt( !!sdnfExpInfo.expArcMem.val )|
+    path right
+    rgroup .expLinMemDet at XMAX.expLinMem YMIN.expLinMem-0.35 callback |call !!sdnfSetMemMode( )| vertical
+      add tag |Members only|              select |BRIEF|
+      add tag |Members + End Connections| select |FULL|
+    exit
+    exit
+
+    frame .frame4 at X2 YMAX+1 |Planar Members| width 70
+    toggle .expPlate   |Packet 20 (Plates)| at X2 YMAX $
+      callback |!!sdnfsetexppltopt( !!sdnfExpInfo.expPlate.val )|
+    path down
+    toggle .expHoles   |Packet 22 (Holes)| at X4 YMAX $
+      callback |!!sdnfExpInfo.holes   = !!sdnfExpInfo.expHoles.val|
+    exit
+  exit
+
+  -- Buttons
+  button .apply  at X0 YMAX+1                     |   OK   | callback |call !!sdnfSetExpExpInf( )| ok
+  button .cancel at XMAX FORM-SIZE YMAX FORM-SIZE | Cancel | callback | | cancel
+
+  -- Form member data
+  member .file        is STRING
+  member .fileMode    is STRING
+  member .linMem      is BOOLEAN
+  member .plate       is BOOLEAN
+  member .holes       is BOOLEAN
+  member .arcMem      is BOOLEAN
+  member .endConn     is BOOLEAN
+  member .specMode    is STRING
+  member .markMode    is STRING
+  member .hdrSource   is STRING
+
+  member .fileVersion is STRING
+  member .modelType   is STRING
+  member .modelNr     is REAL
+
+exit
+
+-------------------------------------------------------------------------
+
+define method .browse( )
+   -- sets the output file
+   !!sdnffilebrowser( !!sdnfSearchStart, |sdnfOut.sdn|, |$!!sdnfShortProduct - File Browser|, false, $
+   |!!cdsFile = !!fileBrowser.file.name( )|, |!!sdnfSetExpFile( !!sdnfResetCDSFILE( ) )| )
+endmethod
+
+------------------------------------------------------------------------

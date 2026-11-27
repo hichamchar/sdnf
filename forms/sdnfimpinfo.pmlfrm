@@ -1,0 +1,110 @@
+--    Type:          Form Definition
+--    Group:         Undefined
+--      Keyword:     Undefined
+--    Module:        Undefined
+--  Author:          Undefined
+--  Created:         Tue Oct  2 12:04:26 2012
+
+--
+--  Description:     Undefined
+--
+------------------------------------------------------------------------
+--
+-- Methods defined:
+--
+--  Method call                      Return              Description
+--  ===========                      ======              ===========
+--  browse()                         -
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfimpinfo.pmlfrm
+------------------------------------------------------------------------
+
+-- Kill existing Form definition
+kill !!sdnfImpInfo
+handle( 61,125 )
+   -- Form not found
+endhandle
+
+------------------------------------------------------------------------
+
+-- Import form
+setup form !!sdnfImpInfo
+  title      |$!!sdnfProduct - Import Information|
+  icontitle  |OSDE|
+  initialise |!!sdnfImpInfoInit( )|
+  path down
+
+  -- Variables used in form definition
+  !unusedWidth = !!sdnfExtProgList.width( )
+
+  frame .frame1 |File Details| width 70
+    -- Import Information
+    path down
+     -- File handling
+    para   .filePrompt at X2 YMAX+0.5 text |Full pathname of input file:|
+    text   .impFile         callback |call !!sdnfSetImpFile( !!sdnfImpInfo.impFile.val )| $
+      width 42 scroll 120 is STRING
+    path right
+    button .browse  |Browse... | callback |!this.browse( )| apply
+    button .inspect |Inspect...| callback |show !!sdnfViewImpFile| apply
+
+  exit
+
+  path down
+  frame .frame2 at YMAX+1 |Model Details| width 70
+    -- nodal model
+    -- Note: We have to tell the system that the outgoing model is a nodal one or a cut-length one.
+    path right
+--    para .pModelType at X2 YMAX+0.5 text |Model type  |
+--    rgroup .impModelType at XMAX+0.5 callback |call !!sdnfSetImpMType( )| horizontal
+--      add tag |Untrimmed|  select |CP|
+--      add tag |Trimmed  |  select |WP|
+--    exit
+      toggle .impModelType |Use Cutbacks| at X2 YMAX+0.5 $
+        callback |call !!sdnfSetImpMType( )|
+
+
+    path down
+    frame .frame3 at X2 YMAX+1 |Linear Members| width 70
+    toggle .impLinMem   |Packet 10 (Straight)| at X2 YMAX $
+      callback |!!sdnfImpInfo.linMem = !!sdnfImpInfo.impLinMem.val|
+    toggle .impArcMem   |Packet 60 (Curved)| at X2 YMAX $
+      callback |!!sdnfImpInfo.arcMem   = !!sdnfImpInfo.impArcMem.val|
+    exit
+    frame .frame4 at X2 YMAX+1 |Planar Members| width 70
+    toggle .impPlate    |Packet 20 (Plates)| at X2 YMAX $
+      callback |!!sdnfsetimppltopt( !!sdnfImpInfo.impPlate.val )|
+    toggle .impHoles    |Packet 22 (Holes)| at X4 YMAX $
+      callback |!!sdnfImpInfo.hole   = !!sdnfImpInfo.impHoles.val|
+    exit
+  exit
+
+  -- Buttons
+  button .apply  at X0 YMAX+ 1           |   OK   | callback |call !!sdnfSetImpImpInf( )| ok
+  button .cancel at XMAX FORM-SIZE YMAX FORM-SIZE | Cancel |                              cancel
+
+  -- Form member data
+  member .file        is STRING
+  member .linMem      is BOOLEAN
+  member .arcMem      is BOOLEAN
+  member .plate       is BOOLEAN
+  member .hole        is BOOLEAN
+  member .endConn     is BOOLEAN
+  member .specMode    is STRING
+
+  member .fileVersion is STRING
+  member .modelType   is STRING
+
+exit
+
+-------------------------------------------------------------------------
+
+define method .browse( )
+   -- sets the import file
+   !!sdnffilebrowser( !!sdnfSearchStart, |sdnfIn.sdn|, |$!!sdnfShortProduct - File Browser|, true, $
+      |!!cdsFile = !!fileBrowser.file.name( )|, |!!sdnfSetImpFile( !!sdnfResetCDSFILE( ) )| )
+endmethod
+
+------------------------------------------------------------------------

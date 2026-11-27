@@ -1,0 +1,98 @@
+--    Type:          Form Definition
+--    Group:         Undefined
+--      Keyword:     Undefined
+--    Module:        Undefined
+--  Author:          Undefined
+--  Created:         Tue Oct  2 12:04:39 2012
+
+--
+--  Description:     Undefined
+--
+------------------------------------------------------------------------
+--
+-- Methods defined:
+--
+--  Method call                      Return              Description
+--  ===========                      ======              ===========
+--  browse()                         -
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnftarginfo.pmlfrm
+------------------------------------------------------------------------
+
+-- Kill existing Form definition
+kill !!sdnfTargInfo
+handle( 61,125 )
+   -- Form not found
+endhandle
+
+------------------------------------------------------------------------
+
+-- Export form
+setup form !!sdnfTargInfo
+  title      |$!!sdnfProduct - Export mapping files|
+  icontitle  |OSDE|
+  initialise |!!sdnfTargInfoInit( )|
+  path down
+
+  -- Variables used in form definition
+  !width = !!sdnfExtProgList.width( )
+
+  -- Target Information
+    rgroup .targetMapMode  at YMAX+0.5  |Mapping Table| $
+      callback |call !!sdnfSetTMapMode( )|
+      add tag |Manual|  select |MANUAL|
+      add tag |Auto  |  select |AUTO|
+    exit
+    path right
+    rgroup .targetMatMode at XMAX.targetMapMode+2 YMIN.targetMapMode-0.15 |Type:| $
+      callback | !!sdnfTargInfo.matMode = !!sdnfTargInfo.targetMatMode.selection( ) | horizontal
+      add tag |Profiles|  select |PROFILE|
+      add tag |Materials| select |MATERIAL|
+      add tag |Orient'n|  select |ORIENT|
+      add tag |Unicode|   select |UNICODE|
+    exit
+    text   .userTargetFile at XMAX.targetMapMode+2 YMAX.targetMatMode $
+      callback |call !!sdnfSetMap( 'EXPORT', 'MANUAL', !!sdnfTargInfo.targetMatMode.selection( ), !!sdnfTargInfo.userTargetFile.val )| $
+      width 40 scroll 120 is STRING
+    path right
+    button .tMapBrowse |  Browse...  | callback |!this.browse( )| apply
+    path down
+    option .autoTargetMap |Mapping Table(s) for Target Package...    | $
+      at XMAX.targetMapMode+2 YMAX.userTargetFile+0.5 $
+      callback |call !!sdnfSetMap( 'EXPORT', 'AUTO', 'PROFILE', ' ' )| width $!width
+    path down
+    para   .targetMapFile at X1 text |Profiles:  | width 65 lines 1
+    para   .targetMatFile at X1 text |Materials: | width 65 lines 1
+    para   .targetOriFile at X1 text |Orient'n:  | width 65 lines 1
+    para   .targetUniFile at X1 text |Unicode:   | width 65 lines 1
+
+  -- Buttons
+  button .apply  at X0 YMAX_TargetUniFile+1       |   OK   | callback |call !!sdnfSetExpTarInf( )| ok
+  button .cancel at XMAX FORM-SIZE YMAX FORM-SIZE | Cancel | callback | | cancel
+
+  -- Member data
+  member .source     is STRING
+  member .target     is STRING
+  member .targetAbbr is STRING
+  member .mapMode    is STRING
+  member .matMode    is STRING
+  member .mapFile    is STRING
+  member .matFile    is STRING
+  member .oriFile    is STRING
+  member .uniFile    is STRING
+
+exit
+
+-------------------------------------------------------------------------
+
+define method .browse( )
+   -- sets the export mapping file
+   -- build possible map name
+   !mapName = !this.target + !this.matMode.substring( 1, 3 ) + |.map|
+   !!sdnffilebrowser( !!sdnfSearchStart, !mapName, |$!!sdnfShortProduct - File Browser|, true, |!!cdsFile = !!fileBrowser.file.name( )|, $
+   |!!sdnfSetMap( 'EXPORT', 'MANUAL', !!sdnfTargInfo.targetMatMode.selection( ), !!sdnfResetCDSFILE( ) )| )
+endmethod
+
+------------------------------------------------------------------------

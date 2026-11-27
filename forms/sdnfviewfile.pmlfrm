@@ -1,0 +1,73 @@
+--    Type:          Form Definition
+--    Group:         Undefined
+--      Keyword:     Undefined
+--    Module:        Undefined
+--  Author:          Undefined
+--  Created:         Mon Jul  9 11:40:16 2012
+
+--
+--  Description:     Undefined
+--
+------------------------------------------------------------------------
+--
+-- Methods defined:
+--
+--  Method call                      Return              Description
+--  ===========                      ======              ===========
+--  browse()                         -
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfviewfile.pmlfrm
+------------------------------------------------------------------------
+
+-- Kill existing Form definition
+kill !!sdnfViewFile
+handle( 61,125 )
+   -- Form not found
+endhandle
+
+------------------------------------------------------------------------
+
+-- View file form
+setup form !!sdnfViewFile
+  title      |$!!sdnfProduct - File Viewer|
+  icontitle  |OSDE|
+  initialise |!!sdnfViewFileInit( )|
+
+  -- Bar menu
+  bar
+    add      |File|    .fileMenu
+  exit
+
+  -- Pull down menus
+  menu .fileMenu
+    add      |Save as...| |!this.browse( )|
+  exit
+
+  -- Text scrolling view
+  list   .text callback |!!sdnfZoomToItem( !!sdnfViewFile.text.selection( 'DTEXT' ) )| width 80 length 20
+
+  -- Buttons
+  path right
+  button .save   |  Save  | callback |!!sdnfSaveViewFile( !!sdnfViewFile.saveFile )| at X0 YMAX FORM apply
+  para .message width 70 lines 1
+  button .cancel | Cancel | callback |!!sdnfViewFile.hide( )| at XMAX FORM-SIZE YMAX FORM-SIZE cancel
+
+  -- Member data
+  member .file         is STRING
+  member .saveFile     is STRING
+
+exit
+
+-------------------------------------------------------------------------
+
+define method .browse( )
+   -- sets the save file
+   !!sdnffilebrowser( !!sdnfSearchStart, |logFile.log|, |$!!sdnfShortProduct - File Browser|, false, $
+   |!!cdsFile = !!fileBrowser.file.name( )|, |!!sdnfSaveViewFile( !!sdnfResetCDSFILE( ) )| )
+   handle any
+   endhandle
+endmethod
+
+------------------------------------------------------------------------

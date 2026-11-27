@@ -1,0 +1,100 @@
+--    Type:          Form Definition
+--    Group:         Undefined
+--      Keyword:     Undefined
+--    Module:        Undefined
+--  Author:          Undefined
+--  Created:         Tue Oct  2 12:04:29 2012
+
+--
+--  Description:     Undefined
+--
+------------------------------------------------------------------------
+--
+-- Methods defined:
+--
+--  Method call                      Return              Description
+--  ===========                      ======              ===========
+--  reInitialize()                   -
+--  runConverter()                   -
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfimport.pmlfrm
+------------------------------------------------------------------------
+
+-- Kill existing Form definition
+kill !!sdnfImport
+handle( 61,125 )
+   -- Form not found
+endhandle
+
+------------------------------------------------------------------------
+
+-- Import form
+setup form !!sdnfImport
+  title      |$!!sdnfProduct - Import|
+  icontitle  |OSDE|
+  initialise |!!sdnfImportInit( )|
+  path down
+
+  -- Bar menu
+  bar
+    add      |Control|    .control
+    add      |General|    .general
+  exit
+  -- Pull down menu
+  menu .control
+    add      |Re-initialise| |!this.reInitialize( )|
+    add      |Configure...|  |!!sdnfimpsysconfig( !this )|
+    add      |Map Converter...| |!this.runConverter( )|
+    add      |Exit|          |!!sdnfImport.hide( )|
+  exit
+  menu .general
+    add      |Highlight...| |show !!sdnfHighlighter|
+  exit
+
+  -- Information buttons
+  button   .impSource  at X1 |  Mapping files...   | callback |show !!sdnfSourInfo|
+  path right
+  button   .impImport        |Import information...| callback |show !!sdnfImpInfo|
+  button   .impRun           | Run information...  | callback |show !!sdnfImpRunInf|
+
+  -- Member list
+  path right
+  selector .members at X1 YMAX+1 |Members| callback |$$!!sdnfImport.members| single width 31 length 10 database auto
+  -- Toggles
+  rgroup .impMainFunc |Operations:| at XMAX_Members+2 YMIN_Members $
+    callback |call !!sdnfsetimpmainfunc( )| vertical
+    add tag |Compare ( + Merge )|     select |COMPARE|
+    add tag |Compare + Merge|         select |MERGE|
+    add tag |Merge from File|         select |FILEMERGE|
+  exit
+  path right
+  para   .storeId at X1 YMAX_Members+1 text |Store in: | width 60 lines 1
+  button .impStore   |   CE   | callback |call !!sdnfSetStore( )|
+  path down
+
+  -- Buttons
+  button .apply  at X0 YMAX_storeId+1  | Import | callback |call !!sdnfDoImport( )| apply
+  button .cancel at XMAX FORM-SIZE YMAX FORM-SIZE | Cancel |                                 cancel
+
+exit
+
+------------------------------------------------------------------------
+
+define method .reInitialize( )
+   -- re-initializes the global, system and form variables
+   !!sdnfSystemData( )
+   !!sdnfImportInit( )
+endmethod
+
+------------------------------------------------------------------------
+
+define method .runConverter( )
+   -- run the Mapping file converter
+   var !installedDir evar |SDNFMAIN|
+   !command = 'start /b cmd /c "' + !installedDir + '\AVMapConverter.exe"'
+   syscom '$!command'
+endmethod
+
+------------------------------------------------------------------------
