@@ -1,0 +1,21 @@
+-- File: sdnfcataupgrade.pmldat
+ 
+   Either place SDNF Upgrade macros in the directory structure pointed
+   to by the PMLLIB environment variable, or change temporarily the
+   PMLLIB environment variable to include the directory where the
+   macros are located in the PML search path.
+
+
+INSTRUCTIONS FOR RUNNING CATALOGUE UPGRADE MACROS FOR USE IN THE AVEVA SDNF INTERFACE
+=====================================================================================
+
+NOTE:
+   This macro works only for the Catalogues supplied by AVEVA Solutions Ltd..
+
+Ensure you have write access to your structural catalogue databases.
+In a command window in Paragon run the upgrade by the following command.
+
+      call !!sdnfCataUpgrade( )
+
+The macro suite will check to see if this upgrade has already been executed.
+Save your changes by exiting from Paragon normally, or by SAVEWORK - not by QUIT.

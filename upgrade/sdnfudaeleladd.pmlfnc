@@ -1,0 +1,51 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfudaeleladd.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        lexicon
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         13/10/2009 09:04:14
+--
+--
+-- Description:
+--   Adds the elements to the ELELIST attribute.
+--   Handles attempts to add element type already in list.
+--
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type] [Description]
+--    None
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfudaeleladd( !listName is STRING, !list is STRING )
+
+   !eleTypes = !list.split( )
+
+   if( !eleTypes.size( ).gt( 0 ) )then
+      do !eleType values !eleTypes
+         $!listName ADD $!eleType
+         handle any
+            -- write( |$!eleType already in ELELIST| )
+         endhandle
+      enddo
+   endif
+
+endfunction

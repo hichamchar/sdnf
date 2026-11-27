@@ -1,0 +1,287 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfcataupgrade.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        paragon
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+--
+-- Description:
+--   Upgrades the Standard Steel Catalogue Pline sets to include
+--   additional Plines for SDNF export/import.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type] [Description]
+--    None
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfCataUpgrade( )
+
+  -- Initialisation
+
+  -- Map Shapes to generic update macros
+    !tShape             = |!!sdnfUpgradeT|
+    !iShape             = |!!sdnfUpgradeI|
+    !oShape             = |!!sdnfUpgradeO|
+    !cShape             = |!!sdnfUpgradeC|
+    !lShape             = |!!sdnfUpgradeL|
+    !rhsShape           = |!!sdnfUpgradeRHS|
+    !bulbShape          = |!!sdnfUpgradeBULB|
+
+  -- British Standard
+    !bsMap = ARRAY( )
+    !bsMap[ 1 ]         = object SDNFMAPOBJ( )
+    !bsMap[ 1 ].name   = |/BS-PTSS-BEAM|
+    !bsMap[ 1 ].macro   = !iShape
+    !bsMap[ 1 ].args   = |( false )|
+    !bsMap[ 2 ]         = object SDNFMAPOBJ( )
+    !bsMap[ 2 ].name   = |/BS-PTSS-ANG|
+    !bsMap[ 2 ].macro   = !lShape
+    !bsMap[ 2 ].args   = |( false )|
+    !bsMap[ 3 ]         = object SDNFMAPOBJ( )
+    !bsMap[ 3 ].name   = |/BS-PTSS-BSC|
+    !bsMap[ 3 ].macro   = !cShape
+    !bsMap[ 3 ].args   = |( false )|
+    !bsMap[ 4 ]         = object SDNFMAPOBJ( )
+    !bsMap[ 4 ].name   = |/BS-PTSS-TUBE|
+    !bsMap[ 4 ].macro   = !oShape
+    !bsMap[ 4 ].args   = |( false )|
+    !bsMap[ 5 ]         = object SDNFMAPOBJ( )
+    !bsMap[ 5 ].name   = |/BS-PTSS-BOX|
+    !bsMap[ 5 ].macro   = !rhsShape
+    !bsMap[ 5 ].args   = |( false )|
+    !bsMap[ 6 ]         = object SDNFMAPOBJ( )
+    !bsMap[ 6 ].name   = |/BS-PTSS-TEE|
+    !bsMap[ 6 ].macro   = !tShape
+    !bsMap[ 6 ].args   = |( false )|
+    !bsMap[ 7 ]         = object SDNFMAPOBJ( )
+    !bsMap[ 7 ].name   = |/BS-PTSS-RSJ|
+    !bsMap[ 7 ].macro   = !iShape
+    !bsMap[ 7 ].args   = |( false )|
+    !bsMap[ 8 ]         = object SDNFMAPOBJ( )
+    !bsMap[ 8 ].name   = |/BS-PTSS-PFC|
+    !bsMap[ 8 ].macro   = !cShape
+    !bsMap[ 8 ].args   = |( false )|
+
+  -- German (DIN) Standard
+    !dinMap = ARRAY( )
+    !dinMap[ 1 ]        = object SDNFMAPOBJ( )
+    !dinMap[ 1 ].name  = |/DIN-PTSS-TEE|
+    !dinMap[ 1 ].macro  = !tShape
+    !dinMap[ 1 ].args   = |( false )|
+    !dinMap[ 2 ]        = object SDNFMAPOBJ( )
+    !dinMap[ 2 ].name  = |/DIN-PTSS-DINT|
+    !dinMap[ 2 ].macro  = !tShape
+    !dinMap[ 2 ].args   = |( false )|
+    !dinMap[ 3 ]        = object SDNFMAPOBJ( )
+    !dinMap[ 3 ].name  = |/DIN-PTSS-DINI|
+    !dinMap[ 3 ].macro  = !iShape
+    !dinMap[ 3 ].args   = |( false )|
+    !dinMap[ 4 ]        = object SDNFMAPOBJ( )
+    !dinMap[ 4 ].name  = |/DIN-PTSS-ANG|
+    !dinMap[ 4 ].macro  = !lShape
+    !dinMap[ 4 ].args   = |( false )|
+    !dinMap[ 5 ]        = object SDNFMAPOBJ( )
+    !dinMap[ 5 ].name  = |/DIN-PTSS-ANG-PLT|
+    !dinMap[ 5 ].macro  = !lShape
+    !dinMap[ 5 ].args   = |( false )|
+    !dinMap[ 6 ]        = object SDNFMAPOBJ( )
+    !dinMap[ 6 ].name  = |/DIN-PTSS-DINU|
+    !dinMap[ 6 ].macro  = !cShape
+    !dinMap[ 6 ].args   = |( false )|
+    !dinMap[ 7 ]        = object SDNFMAPOBJ( )
+    !dinMap[ 7 ].name  = |/DIN-PTSS-TUBE|
+    !dinMap[ 7 ].macro  = !oShape
+    !dinMap[ 7 ].args   = |( false )|
+    !dinMap[ 8 ]        = object SDNFMAPOBJ( )
+    !dinMap[ 8 ].name  = |/DIN-PTSS-BOX|
+    !dinMap[ 8 ].macro  = !rhsShape
+    !dinMap[ 8 ].args   = |( false )|
+    !dinMap[ 9 ]        = object SDNFMAPOBJ( )
+    !dinMap[ 9 ].name  = |/DIN-PTSS-BEAM|
+    !dinMap[ 9 ].macro  = !iShape
+    !dinMap[ 9 ].args   = |( false )|
+
+  -- American Standards
+    !aiscMap = ARRAY( )
+    !aiscMap[ 1 ]       = object SDNFMAPOBJ( )
+    !aiscMap[ 1 ].name = |/AISC-PTSS-L-PRFL|
+    !aiscMap[ 1 ].macro = !lShape
+    !aiscMap[ 1 ].args   = |( false )|
+    !aiscMap[ 2 ]       = object SDNFMAPOBJ( )
+    !aiscMap[ 2 ].name = |/AISC-PTSS-C-PRFL|
+    !aiscMap[ 2 ].macro = !cShape
+    !aiscMap[ 2 ].args   = |( false )|
+    !aiscMap[ 3 ]       = object SDNFMAPOBJ( )
+    !aiscMap[ 3 ].name = |/AISC-PTSS-W-PRFL|
+    !aiscMap[ 3 ].macro = !iShape
+    !aiscMap[ 3 ].args   = |( false )|
+    !aiscMap[ 4 ]       = object SDNFMAPOBJ( )
+    !aiscMap[ 4 ].name = |/AISC-PTSS-WT-PRFL|
+    !aiscMap[ 4 ].macro = !tShape
+    !aiscMap[ 4 ].args   = |( false )|
+    !aiscMap[ 5 ]       = object SDNFMAPOBJ( )
+    !aiscMap[ 5 ].name = |/AISC-PTSS-S-PRFL|
+    !aiscMap[ 5 ].macro = !iShape
+    !aiscMap[ 5 ].args   = |( false )|
+    !aiscMap[ 6 ]       = object SDNFMAPOBJ( )
+    !aiscMap[ 6 ].name = |/AISC-PTSS-THS-PRFL|
+    !aiscMap[ 6 ].macro = !oShape
+    !aiscMap[ 6 ].args   = |( false )|
+    !aiscMap[ 7 ]       = object SDNFMAPOBJ( )
+    !aiscMap[ 7 ].name = |/AISC-PTSS-HS-PRFL|
+    !aiscMap[ 7 ].macro = !rhsShape
+    !aiscMap[ 7 ].args   = |( false )|
+    !aiscMap[ 8 ]       = object SDNFMAPOBJ( )
+    !aiscMap[ 8 ].name = |/AISC-PTSS-HP-PRFL|
+    !aiscMap[ 8 ].macro = !iShape
+    !aiscMap[ 8 ].args   = |( false )|
+    !aiscMap[ 9 ]       = object SDNFMAPOBJ( )
+    !aiscMap[ 9 ].name = |/AISC-PTSS-HSS-BOX-PRFL|
+    !aiscMap[ 9 ].macro = !rhsShape
+    !aiscMap[ 9 ].args   = |( false )|
+    !aiscMap[ 10 ]       = object SDNFMAPOBJ( )
+    !aiscMap[ 10 ].name = |/AISC-PTSS-HSS-TUBE-PRFL|
+    !aiscMap[ 10 ].macro = !oShape
+    !aiscMap[ 10 ].args   = |( false )|
+    !aiscMap[ 11 ]       = object SDNFMAPOBJ( )
+    !aiscMap[ 11 ].name = |/AISC-PTSS-M-PRFL|
+    !aiscMap[ 11 ].macro = !iShape
+    !aiscMap[ 11 ].args   = |( false )|
+    !aiscMap[ 12 ]       = object SDNFMAPOBJ( )
+    !aiscMap[ 12 ].name = |/AISC-PTSS-MC-PRFL|
+    !aiscMap[ 12 ].macro = !cShape
+    !aiscMap[ 12 ].args   = |( false )|
+    !aiscMap[ 13 ]       = object SDNFMAPOBJ( )
+    !aiscMap[ 13 ].name = |/AISC-PTSS-MT-PRFL|
+    !aiscMap[ 13 ].macro = !tShape
+    !aiscMap[ 13 ].args   = |( false )|
+    !aiscMap[ 14 ]       = object SDNFMAPOBJ( )
+    !aiscMap[ 14 ].name = |/AISC-PTSS-PIPE-PRFL|
+    !aiscMap[ 14 ].macro = !oShape
+    !aiscMap[ 14 ].args   = |( false )|
+    !aiscMap[ 15 ]       = object SDNFMAPOBJ( )
+    !aiscMap[ 15 ].name = |/AISC-PTSS-ST-PRFL|
+    !aiscMap[ 15 ].macro = !tShape
+    !aiscMap[ 15 ].args   = |( false )|
+
+
+  -- Cardinal point Data
+  !!sdnfCPData = |LEVEL 99 99 TUFL TRUE CLFL TRUE|
+  call !!sdnfLoadCPData( )
+
+  -- Error codes
+    !!sdnfCPErrOK = 0                      $* No error
+    !!sdnfCPErrAU = 1                      $* Already updated
+    !!sdnfCPErrors.delete( )
+    handle( 2,751 )
+      -- Variable does not exist
+    endhandle
+    !!sdnfCPErrors = ARRAY( )
+    !!sdnfCPErrors[ !!sdnfCPErrOK ] = |No error.|
+    !!sdnfCPErrors[ !!sdnfCPErrAU ] = |Already updated.|
+
+  -- Banner
+  !!sdnfProdVerData( )
+  write( || )
+  write( !!sdnfProduct )
+  write( !!sdnfCopyright )
+  write( || )
+  !text = |Catalogue Upgrade Macro|
+  write( !text )
+  write( || )
+  write( |  Macro to upgrade your Structural Steel Catalogues to be compatible with| )
+  !text = |  | + !!sdnfProduct + | Import/Export functionality.|
+  write( !text )
+  write( || )
+
+  -- Start at WORL
+  trace off
+  !origin = ( ref )
+  WORL
+
+  -- Go to first CATA
+  CATA 1
+
+  -- Loop through all CATA elements
+  label /loop
+    -- Collect all PTSS in this CATA
+    var !ptssColl collect all PTSS for CE
+
+    -- Process each PTSS
+    do !id values !ptssColl
+      $!id
+      !name = ( flnm )
+      -- Only treat standard catalogues
+      if( !name.match( |/AISC| ) neq 0 )then
+        !mapping = !aiscMap
+      elseif( !name.match( |/BS| ) neq 0 )then
+        !mapping = !bsMap
+      elseif( !name.match( |/DIN| ) neq 0 )then
+        !mapping = !dinMap
+      else
+        -- Not known - will not be treated
+        golabel /nextPTSS
+      endif
+
+      -- Look for suitable macro
+      do !i index !mapping
+        if( !name eq !mapping[ !i ].name )then
+           -- Found - Process it
+           !result = $!mapping[ $!i ].macro $!mapping[ $!i ].args
+           if( !result neq !!sdnfCPErrOK )then
+             !name = ( flnm )
+             write( |SDNF Upgrade Error >>>> $!name - $!!sdnfCPErrors[ $!!sdnfCPErrAU ] | )
+           endif
+        endif
+      enddo
+      -- Forget unmapped items
+
+      label /nextPTSS
+    enddo
+
+    -- Go round again
+    next CATA
+    handle( 2,113 )
+      -- No more CATAs
+      golabel /doneCatas
+    endhandle
+    golabel /loop
+
+  -- Finished
+  label /doneCatas
+  $!origin
+  trace on
+
+  -- Delete Global variables created in the upgrade process
+  !!sdnfCPData.delete( )
+  !!sdnfCPErrOK.delete( )
+  !!sdnfCPErrAU.delete( )
+  !!sdnfCPErrors.delete( )
+  call !!sdnfRemCPData( )
+
+  -- Let the user know
+  savework 'cataupgrade.log'
+  write( |  Your Catalogues have now been upgraded for $!!sdnfProduct| )
+  write( || )
+
+endfunction

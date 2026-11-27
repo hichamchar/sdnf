@@ -1,0 +1,514 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfudaupgrade.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        paragon
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+--
+-- Description:
+--   Creates UDA definitions for use in the SDNF export/import system.
+--
+--    This has been seriously modified so that the UDAs can be modified without loss of data.
+--
+-- Notes on modifying the UDAs
+-- 1.  If you wish to create additional UDAs use the format shown.
+-- 2.  If you wish to modify UDAs do not change the default settings, change the attributes
+--     outside the "create" section.
+-- 3.  Do not change the critical attributes of the UDAs supplied.
+--
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type] [Description]
+--    None
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfUDAUpgrade( )
+
+  -- Banner
+  call !!sdnfProdVerData()
+  write(||)
+  write( !!sdnfProduct )
+  write( !!sdnfCopyright )
+  write(||)
+  !text = |UDA Definition Upgrade Macro|
+  write( !text )
+  write(||)
+  write(|   Macro to upgrade your UDA definitions to be compatible with| )
+  !text = |  | + !!sdnfProduct + | Import/Export functionality.|
+  write( !text )
+  write(||)
+
+  -- Load level for sorting according to :SDNFPSPEC
+  call !!sdnfLoadPspeData( )
+
+  -- Start
+  trace off
+  WORL
+
+  -- Set UDA WORLD name here
+  !uwrl = |/SDNF-UWRL|
+
+  -- Try going to it
+  UWRL $!uwrl
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    NEW UWRL $!uwrl
+    DESC  'UDAs for $!!sdnfProduct Interface'
+  endhandle
+  UWRL  $!uwrl
+
+
+  UDA   /SDNF-HOLD
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-HOLD
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  PANE  GENSEC| )
+  DESC  'HOLD - Provisional Status flag'  UDNA  'SDNFHOLD'  ABLE  6
+  UTYP  INT   RPTX  'HoldStatus'    DFLT  0 UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-PSPE
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-PSPE
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  PANE  GENSEC  $!!sdnfPspecLevel| )
+  DESC  'PSPE - Paint Specification index'  UDNA  'SDNFPSPEC'  ABLE  6
+  UTYP  INT   RPTX  'Paint Spec'   DFLT  0 UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-EXDT
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-EXDT
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  PANE  SITE  ZONE  STRU  GENSEC| )
+  DESC  'EXDT - Date of Export'  UDNA  'SDNFEDATE'  ABLE  6
+  UTYP  TEXT  ULEN  20  RPTX  'Date Exported' UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-EXTI
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-EXTI
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  PANE  SITE  ZONE  STRU  GENSEC| )
+  DESC  'EXTI - Time of Export'  UDNA  'SDNFETIME'  ABLE  6
+  UTYP  TEXT  ULEN  20  RPTX  'Time Exported' UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-IMDT
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-IMDT
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  PANE  SITE  ZONE  STRU  GENSEC| )
+  DESC  'IMDT - Date of Import'  UDNA  'SDNFIDATE'  ABLE  6
+  UTYP  TEXT  ULEN  30  RPTX  'Date Imported' UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-IMTI
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-IMTI
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  PANE  SITE  ZONE  STRU  GENSEC| )
+  DESC  'IMTI - Time of Import'  UDNA  'SDNFITIME'  ABLE  6
+  UTYP  TEXT  ULEN  30  RPTX  'Time Imported' UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-REVN
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-REVN
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  PANE  SITE  GENSEC| )
+  DESC  'REVNo - Revision Nr.'  UDNA  'SDNFREVNO'  ABLE  6
+  UTYP  INT   RPTX  'Revision Nr.'      DFLT  0 UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-TRAN
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-TRAN
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  PANE  SITE  GENSEC| )
+  DESC  'TRANo - Transfer Nr.'  UDNA  'SDNFTRANO'  ABLE  7
+  UTYP  INT   RPTX  'Revision Nr.'      DFLT  1 UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-TRRV
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-TRRV
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  PANE  SITE  GENSEC| )
+  DESC  'TRRVno - Transfer.Revision Nr.'  UDNA  'SDNFTRRVNO'  ABLE  7
+  UTYP  TEXT  ULEN  10    RPTX  'Revision Nr.'      DFLT  '_.0' UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-MGRA
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-MGRA
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  PANE  GENSEC  $!!sdnfPspecLevel| )
+  DESC  'MGRA - Material Grade'  UDNA  'SDNFMGRADE'  ABLE  6
+  UTYP  TEXT  ULEN  24  RPTX  'Material Grade' UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-MARK
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-MARK
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  PANE  GENSEC| )
+  DESC  'MARK - Mark no.'  UDNA  'SDNFMARK'  ABLE  6
+  UTYP  TEXT  ULEN  24  RPTX  'Mark' UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-EMAR
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-EMAR
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  PANE  GENSEC| )
+  DESC  'EMARK - External Mark no.'  UDNA  'SDNFEMARK'  ABLE  6
+  UTYP  TEXT  ULEN  24  RPTX  'Mark' UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-EFID
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-EFID
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SITE  ZONE  STRU| )
+  DESC  'EFID - Engineering Firm Id'  UDNA  'SDNFEFID'  ABLE  6
+  UTYP  TEXT  ULEN  80  RPTX  'Eng Firm Id'      DFLT  'Engineering Firm Id' UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-CLID
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-CLID
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SITE  ZONE  STRU| )
+  DESC  'CLID - Client Id'  UDNA  'SDNFCLID'  ABLE  6
+  UTYP  TEXT  ULEN  80  RPTX  'Client Id'      DFLT  'Client Id' UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-STID
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-STID
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SITE  ZONE  STRU| )
+  DESC  'STID - Structure Id'  UDNA  'SDNFSTID'  ABLE  7
+  UTYP  TEXT  ULEN  80  RPTX  'Structure Id'    DFLT  'Structure Id' UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-PRID
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-PRID
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SITE  ZONE  STRU| )
+  DESC  'PRID - Project Id'  UDNA  'SDNFPRID'  ABLE  6
+  UTYP  TEXT  ULEN  80  RPTX  'Project Id'      DFLT  'Project Id' UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-DECO
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-DECO
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SITE  ZONE  STRU| )
+  DESC  'DECO - Design Code'  UDNA  'SDNFDECODE'  ABLE  6
+  UTYP  TEXT  ULEN  80  RPTX  'Design Code'      DFLT  'Design Code' UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-SOUR
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-SOUR
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SITE  ZONE  STRU| )
+  DESC  'SOUR - Source of Data'  UDNA  'SDNFSOURCE'  ABLE  6
+  UTYP  TEXT  ULEN  64  RPTX  'Data Source' UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-TARG
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-TARG
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SITE  ZONE  STRU| )
+  DESC  'TARG - Target Contractor'  UDNA  'SDNFTARGET'  ABLE  6
+  UTYP  TEXT  ULEN  64   RPTX  'Target Contractor'      DFLT  'Target Contractor' UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-MODN
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-MODN
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SITE  ZONE  STRU  SCTN  PANE  GENSEC| )
+  DESC  'MODN - Model Number'  UDNA  'SDNFMODNR'  ABLE  6
+  UTYP  INT   RPTX  'Model Number'      DFLT  1 UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-EXCL
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-EXCL
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  PANE  PJOI  SJOI  GENSEC| )
+  DESC  'EXCL - Exclude this item from Export'  UDNA  'SDNFEXCLUDE'  ABLE  6
+  UTYP  LOG    RPTX  'Exclude Flag'      DFLT  FALSE UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-STAT
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-STAT
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  PANE  GENSEC| )
+  DESC  'STAT - Status - AVEVA, ADDED, CHANGED, DELETED'  UDNA  'SDNFSTATUS'  ABLE  7
+  UTYP  TEXT  ULEN  10    RPTX  'Status'      DFLT  'AVEVA' UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-ELIS
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-ELIS
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SITE ZONE STRU| )
+  DESC 'ELIS - Export List' UDNA 'SDNFELIST' ABLE 6
+  UTYP REF ULEN 100 RPTX 'Export List' UHIDE TRUE
+  !!sdnfudaeleladd( |REFL|, |SITE ZONE STRU FRMW SBFR SCTN PANE  GENSEC| )
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-CRDT
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-CRDT
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  PANE  GENSEC| )
+  DESC  'CRDT - Date of Creation'  UDNA  'SDNFCDATE'  ABLE  6
+  UTYP  TEXT  ULEN  30  RPTX  'Date Created' UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-MDDT
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-MDDT
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  PANE  GENSEC| )
+  DESC  'MDDT - Date of Modification'  UDNA  'SDNFMDATE'  ABLE  6
+  UTYP  TEXT  ULEN  30  RPTX  'Date Modified' UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-CRTI
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-CRTI
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  PANE  GENSEC| )
+  DESC  'CRTI - Time of Creation'  UDNA  'SDNFCTIME'  ABLE  6
+  UTYP  TEXT  ULEN  30  RPTX  'Time Created' UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-MDTI
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-MDTI
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  PANE  GENSEC| )
+  DESC  'MDTI - Time of Modification'  UDNA  'SDNFMTIME'  ABLE  6
+  UTYP  TEXT  ULEN  30  RPTX  'Time Modified' UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+  -- Fireproofing
+  UDA   /SDNF-FITH
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-FITH
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  GENSEC  PANE| )
+  DESC  'FITH - Fire Insulation Thickness'  UDNA  'SDNFFTHICK'  ABLE  6
+  UTYP  REAL  ULEN  1  RPTX  'Insulation Thickness'      DFLT  0 UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-FIDE
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-FIDE
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  GENSEC  PANE| )
+  DESC  'FIDE - Fire Insulation Description'  UDNA  'SDNFFDESC'  ABLE  6
+  UTYP  INT  ULEN  1  RPTX  'Insulation Desc'      DFLT  0 UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-FIST
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-FIST
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  GENSEC| )
+  DESC  'FIST - Fire Insulation Start'  UDNA  'SDNFFSTART'  ABLE  6
+  UTYP  REAL  ULEN  1  RPTX  'Insulation Start'      DFLT  0 UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+  UDA   /SDNF-FIEN
+  handle( 2,109 )
+    -- Does not exist - create default UDA
+    UWRL  $!uwrl
+    NEW UDA   /SDNF-FIEN
+  endhandle
+  !!sdnfudaeleladd( |ELEL|, |SCTN  GENSEC| )
+  DESC  'FIEN - Fire Insulation End'  UDNA  'SDNFFEND'  ABLE  6
+  UTYP  REAL  ULEN  1  RPTX  'Insulation End'      DFLT  0 UHIDE TRUE
+  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+  END
+
+
+
+  -- If you wish to add UDAs, you may do it here using the format similar to that above.
+
+--  UDA   /SDNF-ZZZZ
+--  handle( 2,109 )
+--    -- Does not exist - create default UDA
+--    UWRL  $!uwrl
+--    NEW UDA   /SDNF-ZZZZ
+--  endhandle
+--  !!sdnfudaeleladd( |ELEL|, |SITE| )
+--  DESC  'TEST - Test UDA'  UDNA  'SDNFZZZZ'  ABLE  6
+--  UTYP  LOG    RPTX  'Test UDA'      DFLT  FALSE UHIDE TRUE
+--  -- If you wish to modify the UDA above you may modify it using the correct syntax here
+--  END
+
+  END
+
+  -- Compile the new UDAs
+  compile
+
+  -- Remove level for sorting according to :SDNFPSPEC
+  call !!sdnfRemPspeData( )
+
+  -- Let the user know
+  write(||)
+  write(| Your UDA definitions have now been upgraded for $!!sdnfProduct|)
+  write(||)
+  trace on
+
+endfunction

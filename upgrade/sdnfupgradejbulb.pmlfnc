@@ -1,0 +1,158 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfupgradejbulb.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        paragon
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+--
+-- Description:
+--   Upgrades the Standard Steel Catalogue Pline sets to include
+--   additional Plines for SDNF export/import.  Specific for JIS BULB shapes.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type] [Description]
+--    REAL       Error Code
+------------------------------------------------------------------------
+--
+-- Significant Catalogue Parameters:
+--  [#] [Description]                  [Specials]
+--   1  Depth
+--   2  Height
+--   3  Vertical thickness
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfUpgradeJBULB( ) is REAL
+
+  -- Initialisation
+  !error  = !!sdnfCPErrOK
+  !origin = ( ref )
+
+
+  -- Build map of existing PLINes
+  !plineMap = ARRAY()
+  var !coll collect all PLIN with (substring((PKEY ),1,3) eq |SNF|)for CE
+  if( not !coll.empty( ) )then
+      -- Build a map indexed on PKEY - don't delete them
+      do !i values !coll
+          $!i
+          !pkey = PKEY
+          var !pkeyString hash( |$!pkey| )
+          !index = !pkeyString.real( )
+          !plineMap[ !index ] = !i.dbref( )
+      enddo
+  endif
+
+
+  -- Create all new SDNF PLINes necessary
+  !pkeysHashed = ARRAY( )
+  do !i to !!sdnfCPPkeys.size( )
+      !pkey = !!sdnfCPPkeys[ $!i ]
+      var !pkeyString hash( |$!pkey| )
+      !index = !pkeyString.real( )
+      !pkeysHashed[ $!i ] = !index
+      -- Try going to PLINe called SNF[A-N]
+      $!plineMap[ $!index ]
+      handle( 2,109 )( 2,752 )
+        -- Failed - create it
+        NEW PLIN $!!sdnfCPData
+        PKEY $!pkey
+        !ref = ( ref )
+        !plineMap[ !index ] = !ref
+      endhandle
+  enddo
+
+
+  -- Set Pline dimensions
+  !yOff  =  |( ATTRIB CPARA[ 7 ] )|
+  !nYOff = |( ATTRIB CPARA[ 7 ] - ATTRIB CPARA[ 1 ] )|
+  !yCOff = |( ATTRIB CPARA[ 7 ] - ( ATTRIB CPARA[ 1 ] / 2.0 ) )|
+  !xOff  =  |( ATTRIB CPARA[ 2 ] + ATTRIB CPARA[ 3 ] - ATTRIB CPARA[ 8 ] )|
+  !xCOff = |( ( ( ATTRIB CPARA[ 2 ] + ATTRIB CPARA[ 3 ] ) / 2.0 ) - ATTRIB CPARA[ 8 ] )|
+  !nXOff = |( -1.0 * ATTRIB CPARA[ 8 ] )|
+
+
+  -- All requisite PLINes exist now
+
+
+  -- Cardinal point 1  - Pkey = SNFA
+  $!plineMap[ $!pkeysHashed[ 1 ] ]
+  PX $!xOff PY $!nYOff PLAX -Y
+
+  -- Cardinal point 2  - Pkey = SNFB
+  $!plineMap[ $!pkeysHashed[ 2 ] ]
+  PX $!xCOff PY $!nYOff PLAX -Y
+
+  -- Cardinal point 3  - Pkey = SNFC
+  $!plineMap[ $!pkeysHashed[ 3 ] ]
+  PX $!nXOff PY $!nYOff PLAX -Y
+
+  -- Cardinal point 4  - Pkey = SNFD
+  $!plineMap[ $!pkeysHashed[ 4 ] ]
+  PX $!xOff PY $!yCOff PLAX X
+
+  -- Cardinal point 5  - Pkey = SNFE
+  $!plineMap[ $!pkeysHashed[ 5 ] ]
+  PX $!xCOff PY $!yCOff PLAX Y
+
+  -- Cardinal point 6  - Pkey = SNFF
+  $!plineMap[ $!pkeysHashed[ 6 ] ]
+  PX $!nXOff PY $!yCOff PLAX -X
+
+  -- Cardinal point 7  - Pkey = SNFG
+  $!plineMap[ $!pkeysHashed[ 7 ] ]
+  PX $!xOff PY $!yOff PLAX Y
+
+  -- Cardinal point 8  - Pkey = SNFH
+  $!plineMap[ $!pkeysHashed[ 8 ] ]
+  PX $!xCOff PY $!yOff PLAX Y
+
+  -- Cardinal point 9  - Pkey = SNFI
+  $!plineMap[ $!pkeysHashed[ 9 ] ]
+  PX $!nXOff PY $!yOff PLAX Y
+
+  -- Cardinal point 10 - Pkey = SNFJ - Neutral Axis
+  $!plineMap[ $!pkeysHashed[ 10 ] ]
+  PX 0.0 PY 0.0
+
+  -- Cardinal point 11 - Pkey = SNFK - Bottom Neutral Axis
+  $!plineMap[ $!pkeysHashed[ 11 ] ]
+  PX 0.0 PY $!nYOff PLAX -Y
+
+  -- Cardinal point 12 - Pkey = SNFL - Left Neutral Axis
+  $!plineMap[ $!pkeysHashed[ 12 ] ]
+  PX $!xOff PY 0.0 PLAX X
+
+  -- Cardinal point 13 - Pkey = SNFM - Right Neutral Axis
+  $!plineMap[ $!pkeysHashed[ 13 ] ]
+  PX $!nXOff PY 0.0 PLAX -X
+
+  -- Cardinal point 14 - Pkey = SNFN - Top Neutral Axis
+  $!plineMap[ $!pkeysHashed[ 14 ] ]
+  PX 0.0 PY $!yOff
+
+  -- Finished - return to base
+  $!origin
+  return !error
+
+endfunction

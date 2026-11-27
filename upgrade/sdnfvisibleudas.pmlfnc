@@ -1,0 +1,68 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File: sdnfshowhideuda.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        lexicon
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+--
+-- Description:
+--   Show or hide UDAs
+
+-- Define function
+define function !!sdnfvisibleudas( !prefix is STRING, !globalVisibility is BOOLEAN, !localList is STRING )
+
+   -- save start position
+   !start = !!ce
+
+   -- Set UDA WORLD name here
+   if( !prefix.upcase().match( |SDNF| ).gt( 0 ) or $
+       !prefix.upcase().match( |FAB| ).gt( 0 ) )then
+
+      -- Construct UWRL name
+      !uwrl = |/| + !prefix.upcase() + |-UWRL|
+      $!uwrl
+      handle ANY
+         -- Probably UWRL does not exist
+         return
+      endhandle
+      !visible = not !globalVisibility
+      !udas = !!ce.members
+
+      !hasLocals = false
+      !locals = ARRAY( )
+      if( !localList.length().gt( 0 ) )then
+         !hasLocals = true
+         !locals = !localList.split( )
+      endif
+
+      -- turn them all on/off
+      do !uda values !udas
+         !!ce = !uda
+         var !udna udname
+         UHIDE $!visible
+
+         -- is this one of the ones we want to be visible whatever?
+         do !local values !locals
+            if( !local.upcase( ).eq( !udna ) )then
+               UHIDE false
+               break
+            endif
+         enddo
+      enddo
+
+      -- Done
+      compile
+   endif
+
+   -- restore start position
+   !!ce = !start
+
+endfunction

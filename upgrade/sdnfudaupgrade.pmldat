@@ -1,0 +1,18 @@
+-- File: sdnfudaupgrade.pmldat
+
+   Either place SDNF Upgrade macros in the directory structure pointed
+   to by the PMLLIB environment variable, or change temporarily the
+   PMLLIB environment variable to include the directory where the
+   macros are located in the PML search path.
+
+
+INSTRUCTIONS FOR CREATING UDAs FOR USE IN THE AVEVA SDNF INTERFACE
+====================================================================
+
+Ensure you have write access to your structural dictionary databases.
+In a command window in Lexicon run the upgrade by the following command.
+
+      call !!sdnfUDAUpgrade( )
+
+The macro suite will check to see if this upgrade has already been executed.
+Save your changes by exiting from Lexicon normally, not by QUIT.
