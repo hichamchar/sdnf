@@ -1,0 +1,71 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfgetcrmddt.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         05/10/2009 09:38:31
+--
+--
+-- Description:
+--   Gets the creation and modification dates and times
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R
+--
+-- Return:
+--   [Data Type] [Description]
+--    None
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfgetcrmddt( !ref is DBREF, !crDate is STRING, !crTime is STRING, !mdDate is STRING, !mdTime is STRING )
+
+   -- Save start position
+   !start = ( ref )
+
+   -- Go to element
+   !!ce = !ref
+
+  !crDate  = ( :SDNFCDATE )
+  !crTime  = ( :SDNFCTIME )
+  !mdDate  = ( :SDNFMDATE )
+  !mdTime  = ( :SDNFMTIME )
+
+   -- if unset - haven't been exported before
+   -- or read only databases where we haven't been able to update the values
+  var !date clock date
+  var !time clock time
+   if( !crDate.length( ).eq( 0 ) )then
+      !crDate = !date
+   endif
+   if( !mdDate.length( ).eq( 0 ) )then
+      !mdDate = !date
+   endif
+   if( !crTime.length( ).eq( 0 ) )then
+      !crTime = !time
+   endif
+   if( !mdTime.length( ).eq( 0 ) )then
+      !mdTime = !time
+   endif
+
+   -- Return to base
+   $!start
+
+endfunction
+
+------------------------------------------------------------------------

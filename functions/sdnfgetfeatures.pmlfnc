@@ -1,0 +1,85 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfgetfeatures.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         12/11/2010 12:51:47
+--
+-- Description:
+--   Gets version specific features
+
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfgetfeatures( !direction is STRING ) is STRING
+
+   -- Default value
+   !features = '|'
+
+   if (!!module().product eq 'AVEVA E3D Design') then
+      !versNo = 13.0
+   else
+     -- Isolate the version/service pack
+     !version = ||
+     !versNo  = 0.0
+     !sPackNo = 0.0
+     !banner = banner
+     !version = !banner.short.after( |Mk| ).before( | | )
+     -- |11.6.SP5.0|, |12.0.SP4[6073]|, |12.0.SP6.0[7043]|, |12.1.1.0[3459]|
+
+     -- Is there a build number?
+     !oBrackIndex = !version.match( |[| )
+     if( !oBrackIndex.gt( 0 ) )then
+        -- there is a build number [1234] - strip it out
+        !version = !version.before( |[| ) + !version.after( |]| )
+     endif
+     -- |11.6.SP5.0|, |12.0.SP4|, |12.0.SP6.0|, |12.1.1.0|
+
+     if( !version.upcase( ).match( |.SP| ).gt( 0 ) )then
+        -- |11.6.SP5.0|, |12.0.SP4|, |12.0.SP6.0| --> split on |.SP|
+        !sPackNo = !version.upcase( ).after( |SP| ).real( )
+        !version = !version.upcase( ).before( |.SP| )
+     else
+        -- |12.1.1.0| --> split 12.1.1.0 on 2nd |.|
+        !version = !version.replace( |.|, | |, 2, 1 )
+        !parts = !version.split( )
+        !sPackNo = !parts[ 2 ].real( )
+        !version = !parts[ 1 ]
+     endif
+     !versNo = !version.real( )
+   endif
+
+   -- General features
+
+   -- Version 12.0 and beyond can have secondary PLOOs
+   if( !versNo.lt( 12.0 ) )then
+      !features = !features + 'NXTR|'
+   else
+      !features = !features + 'PLOO|'
+   endif
+
+   -- Version 12.1 and beyond can have Unicode
+   if( !versNo.geq( 12.1 ) )then
+      !features = !features + 'UNICODE|'
+   endif
+
+   -- Direction specific features
+   if( !direction.upcase( ).eq( |IMPORT| ) )then
+   elseif( !direction.upcase( ).eq( |EXPORT| ) )then
+   endif
+
+   -- Done
+   if( !features.substring( !features.length( ), 1 ).neq( '|' ) )then
+      !features = !features + '|'
+   endif
+
+   return !features
+
+endfunction

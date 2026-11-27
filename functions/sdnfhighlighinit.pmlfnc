@@ -1,0 +1,102 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfhighlighinit.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Initialises the !!sdnfHighlighter form.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]  [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfHighLighInit( )
+
+  -- Initialise choice arrays
+  !!sdnfHighlighter.vSDay.dText   = !!sdnfDay
+  !!sdnfHighlighter.vEDay.dText   = !!sdnfDay
+  !!sdnfHighlighter.vSMonth.dText = !!sdnfMonth
+  !!sdnfHighlighter.vEMonth.dText = !!sdnfMonth
+  !today = object DATETIME( )
+  if (!today.year().string() ne !!sdnfYear.last()) then
+    -- In the unlikely event that the year has changed during the current session
+    -- append the current year to the list.
+    !!sdnfYear.append(!today.year().string())
+  endif
+  !!sdnfHighlighter.vSYear.dText  = !!sdnfYear
+  !!sdnfHighlighter.vEYear.dText  = !!sdnfYear
+
+  -- Version text
+  !versionArray  = ARRAY( )
+  do !i from 1 to !!sdnfVersionList.length( )
+    !versionArray.append( !!sdnfVersionList.substring( !i, 1 ) )
+  enddo
+
+  !!sdnfHighlighter.vSTransfer.dText  = !versionArray
+  !!sdnfHighlighter.vETransfer.dText  = !versionArray
+
+  -- Set form member variables
+  !!sdnfHighlighter.startTransfer = ( 0 )
+  !!sdnfHighlighter.startRevision = ( 0 )
+  !!sdnfHighlighter.startDate     = !today.date( )
+  !!sdnfHighlighter.startMonth    = !!sdnfMonth[ !today.month( ) ]
+  !!sdnfHighlighter.startYear     = !today.year( )
+  !!sdnfHighlighter.endTransfer   = ( 0 )
+  !!sdnfHighlighter.endRevision   = ( 0 )
+  !!sdnfHighlighter.endDate       = !today.date( )
+  !!sdnfHighlighter.endMonth      = !!sdnfMonth[ !today.month( ) ]
+  !!sdnfHighlighter.endYear       = !today.year( )
+  !!sdnfHighlighter.added   = true
+  !!sdnfHighlighter.changed = true
+  !!sdnfHighlighter.deleted = true
+  !!sdnfHighlighter.highlight = |ALL|
+
+
+  -- Initialise options on form
+  !!sdnfHighlighter.vSDay.select( |DTEXT|, !!sdnfDay[ !today.date( ) ] )
+  !!sdnfHighlighter.vEDay.select( |DTEXT|, !!sdnfDay[ !today.date( ) ] )
+  !!sdnfHighlighter.vSMonth.select( |DTEXT|, !!sdnfMonth[ !today.month( ) ] )
+  !!sdnfHighlighter.vEMonth.select( |DTEXT|, !!sdnfMonth[ !today.month( ) ] )
+  !!sdnfHighlighter.vSYear.select( |DTEXT|, !today.year( ).string( |D0| ) )
+  !!sdnfHighlighter.vEYear.select( |DTEXT|, !today.year( ).string( |D0| ) )
+  !!sdnfHighlighter.vSTransfer.val = !!sdnfVersionList.substring( 1, 1 )
+  !!sdnfHighlighter.vETransfer.val = !!sdnfVersionList.substring( 1, 1 )
+  !!sdnfHighlighter.vSRevision.val = ( 0 )
+  !!sdnfHighlighter.vERevision.val = ( 0 )
+  !!sdnfHighlighter.highAdded.val   = true
+  !!sdnfHighlighter.highChanged.val = true
+  !!sdnfHighlighter.highDeleted.val     = true
+
+  -- Set Search Start location
+  call !!sdnfSetSearchId( )
+
+  -- Set Version/Date Flag
+  call !!sdnfHighSelFunc( |DATE| )
+
+endfunction
+
+------------------------------------------------------------------------

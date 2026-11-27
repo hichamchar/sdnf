@@ -1,0 +1,80 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfgettimestamp.pmlfnc
+--   Type:          Function Definition
+--   Group:         Product Development
+--   Keyword:       Interfaces
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson
+-- Created:         19/02/2010 14:44:24
+--
+-- Description:
+--   Gets timestamp string.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--
+-- Return:
+--   [Data Type]  [Description]
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfgettimestamp( ) is STRING
+
+   !dateTime = object DATETIME( )
+
+   !dth      = !dateTime.hour( ).string( )
+   if( !dth.length( ).eq( 1 ) )then
+      -- 0-9
+      !dth = |0| + !dth
+   endif
+
+   !dtmin    = !dateTime.minute( ).string( )
+   if( !dtmin.length( ).eq( 1 ) )then
+      -- 0-9
+      !dtmin = |0| + !dtmin
+   endif
+
+   !dts      = !dateTime.second( ).string( )
+   if( !dts.length( ).eq( 1 ) )then
+      -- 0-9
+      !dts = |0| + !dts
+   endif
+
+   !dtd      = !dateTime.date( ).string( )
+   if( !dtd.length( ).eq( 1 ) )then
+      -- 0-9
+      !dth = |0| + !dtd
+   endif
+
+   !dtmth    = !dateTime.month( ).string( )
+   if( !dtmth.length( ).eq( 1 ) )then
+      -- 0-9
+      !dtmth = |0| + !dtmth
+   endif
+
+   !dty      = !dateTime.year( ).string( )
+   if( !dty.length( ).eq( 1 ) )then
+      -- 0-9
+      !dty = |000| + !dty
+   endif
+
+   !timeStamp = !dty + !dtmth + !dtd + !dth + !dtmin + !dts
+   -- Finished
+   return !timeStamp
+
+endfunction
+
+------------------------------------------------------------------------

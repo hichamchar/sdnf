@@ -1,0 +1,122 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfgetcpoint.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         13/10/2009 09:51:05
+--
+--
+-- Description:
+--   Returns cardinal point
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      REAL        Justification line
+--
+-- Return:
+--   [Data Type]  [Description]
+--   REAL         Cardinal point from mapping
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfgetcpoint( !jusl is STRING ) is REAL
+
+   -- default is neutral axis
+   !cpoint = ( 10 )
+   !name   = ( name )
+   !result = ARRAY( )
+   !strPlines = |LBOT.CBOT.RBOT.LMID.CMID.RMID.LTOP.CTOP.RTOP.NA.BNA.LNA.RNA.TNA|
+
+   if( !!sdnfDebug )then
+      !result.append( || )
+      !result.append( |JUSL = $!jusl .| )
+   endif
+   -- Check this is a valid Pline
+   var !unusedTestPlExist pplin $!jusl start
+   handle ANY
+      -- Pline does not exist - assume NA
+      !result.append( |(Warning) - $!name - Bad Cardinal Point $!jusl .| )
+      !jusl = |NA|
+   endhandle
+
+   -- Skip equivalencing if already an SNF Pline
+   !found = false
+   if( !jusl.match( |SNF| ).gt( 0 ) or $
+      !strPlines.match( !jusl ).neq( 0 ) )then
+      !found = true
+   else
+      -- Look for match by position
+      !juslStart = PLSTCU $!jusl
+       handle any
+          -- Bad Pline
+       elsehandle NONE
+
+          do !j index !!sdnfCPPkeys
+             do !i index !!sdnfCPPkeys[ !j ]
+                !val = !!sdnfCPPkeys[ !j ][ !i ]
+                !testStart = PLSTCU $!val
+                handle any
+                elsehandle NONE
+                   if( !juslStart.wrt( WORL ).distance(!testStart.wrt( WORL ) ).lt( 1.0 ) )then
+                      -- Found match set it to the new one
+                      if( !!sdnfDebug )then
+                         !spre = (flnm of spre)
+                         !result.append( |$!spre - Pline $!jusl is positionally equivalent to $!val| )
+                      endif
+                      !cpoint = !i
+                      golabel /done
+                   endif
+                endhandle
+             enddo
+          enddo
+       endhandle
+   endif
+
+   -- Find the Cardinal point index
+   if( !found )then
+      do !j index !!sdnfCPPkeys
+         do !i index !!sdnfCPPkeys[ !j ]
+            if( !!sdnfCPPkeys[ !j ][ !i ] eq !jusl )then
+
+               if( !!sdnfDebug )then
+                  !result.append( |Matching JUSL $!jusl to CP $!i .| )
+               endif
+
+               !found = true
+               !cpoint = !i
+               break
+            endif
+         enddo
+      enddo
+   endif
+
+   if( not !found )then
+      !jusl = ( JUSL )
+      !result.append( |(Warning) - $!name - No match for Cardinal Point $!jusl .| )
+      !cpoint = ( 10 )
+   endif
+
+   label /done
+   -- output errors
+   do !line values !result
+      write( !line )
+   enddo
+
+   return !cpoint
+
+   endfunction

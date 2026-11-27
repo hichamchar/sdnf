@@ -1,0 +1,75 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfimpdelrefsit.pmlfnc
+--   Type:          Function Definition
+--   Group:         Interfaces
+--   Keyword:       SDNF
+--   Module:        Design
+--   Replaces:
+--
+-- Author:          D.Wilson
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+-- Description:
+--   After Import, conditionally deletes Reference SITE after asking user
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      BOOLEAN     ask the user before deleting?
+--
+-- Return:
+--   [Data Type]   [Description]
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfImpDelRefSit( !saveFlag is BOOLEAN )
+
+  -- Save start position
+  !start = ( ref )
+
+  -- does ref site exist?
+  $!!sdnfRefSite
+  handle( 2, 109 )
+    -- no it doesn't
+  elsehandle none
+
+    if( !saveFlag )then
+
+      -- Initialise Error object
+      !error          = object SDNFERROROBJ( )
+      !error.severity = !!sdnfSevConfirm
+      !error.status   = !!sdnfErrUserMess
+      !error.query    = !!sdnfQueSave
+      !error.default  = |YES|
+      !error.message  = |WARNING: Reference SITE $!!sdnfRefSite contains transient data.|
+
+      !reply = !!sdnfError( !error )
+      if( !reply eq |NO| )then
+        $!!sdnfRefSite
+        delete SITE
+      endif
+
+    else
+
+      -- Delete it anyway
+      $!!sdnfRefSite
+      delete SITE
+
+    endif
+  endhandle
+
+  -- Return to start
+  $!start
+  handle( 2, 107 )
+    -- we've probably removed the carpet from under ourselves
+  endhandle
+
+endfunction
+
+------------------------------------------------------------------------

@@ -1,0 +1,98 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfexportinit.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Initialises the !!sdnfExport form.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]  [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfExportInit( )
+
+  -- Get System Configuration Details
+  call !!sdnfGetConfig( )
+  !transferNo = ( -1 )
+  !revNo = ( -1 )
+  !!sdnfGetExportHWM( !transferNo, !revNo )
+  !!sdnfUpdExportHWM( !transferNo, !revNo )
+
+  -- do not lose previous settings
+  !unusedTest = !!sdnfExpdata.set()
+  handle (2,751)
+
+    -- create a new one
+    !!sdnfExpdata     = object SDNFEXPORTDATA( )
+
+    -- Initialise choices
+    !!sdnfExpdata.mapFile     = |unset|
+    !!sdnfExpdata.matFile     = |unset|
+    !!sdnfExpdata.oriFile     = |unset|
+    !!sdnfExpdata.uniFile     = |unset|
+
+    !!sdnfExpdata.source      = !!sdnfThisProg
+    !!sdnfExpdata.mapMode     = |AUTO|
+    !!sdnfExpdata.matMode     = |PROFILE|
+
+    -- Export Info
+    !!sdnfExpdata.file        = ||
+    !!sdnfExpdata.fileMode    = |UNKNOWN|
+    !!sdnfExpdata.linMem      = true
+    !!sdnfExpdata.arcMem      = true
+    !!sdnfExpdata.plate       = true
+    !!sdnfExpdata.holes       = true
+    !!sdnfExpdata.endConn     = true
+    !!sdnfExpdata.specMode    = |DEFAULT|
+    !!sdnfExpdata.hdrSource   = |$!!sdnfExpHeader|
+    !!sdnfExpdata.modelNr     = 1
+
+    -- Run Info
+    !!sdnfExpdata.viewLog     = true
+    !!sdnfExpdata.viewMode    = |FULL|
+    !!sdnfExpdata.testRun     = false
+
+    -- Version specific features
+    !!sdnfExpdata.features    = !!sdnfgetfeatures( |EXPORT| )
+
+    -- specials for TTY running
+    !!sdnfExpdata.logFile     = ||
+    !!sdnfExpdata.testing     = false
+  endhandle
+
+   -- these might have been changed by the sysConfig form
+   !!sdnfExpdata.targetList  = !!sdnfExtProgList
+   !!sdnfExpdata.target      = !!sdnfExtProgList[ 1 ]
+   !!sdnfExpdata.targetAbbr  = !!sdnfExtProgAbbr[ 1 ]
+   !!sdnfExpdata.markMode    = !!sdnfEMarkMode
+   !!sdnfExpdata.fileVersion = !!sdnfSDNFVersion
+   !!sdnfExpdata.modelType   = !!sdnfModelType
+
+endfunction
+
+------------------------------------------------------------------------

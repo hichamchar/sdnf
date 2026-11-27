@@ -1,0 +1,55 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfgetaddedmemdets.pmlfnc
+--   Type:          Function Definition
+--   Group:         Product Development
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         01/02/2010 08:36:26
+--
+--
+-- Description:
+--    Gets details for adding to log file
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R     REF         Refno of object in question
+--    2   W     STRING      SDNF element type
+--    3   W     STRING      String for log file
+--
+-- Return:
+--   [Data Type] [Description]
+--    None
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfgetaddedmemdets( !ref is DBREF, !sdnfType is STRING, !argList is STRING )
+   !start = !!ce
+   !!ce = !ref
+   !type = ( type )
+   if( !type eq |SCTN| or !type eq |GENSEC| )then
+      !sdnfType = |LINMEM|
+      !argList = |   A   N   N   N   N   N   N   N   N   N   N   N   N   N   N   N|
+      -- if there are any CURVE elements "guess" that the GENSEC is a CURMEM
+      var !curList coll all CURVE for ce
+      if( !curList.size( ).gt( 0 ) )then
+         !sdnfType = |CURMEM|
+      endif
+   else
+      !sdnfType = |PLATE |
+      !argList = |   A   N   N   N   N   N   N   N   N   N   N   N   N|
+   endif
+   !!ce = !start
+endfunction

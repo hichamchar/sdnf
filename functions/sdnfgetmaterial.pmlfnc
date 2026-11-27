@@ -1,0 +1,149 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfgetmaterial.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         08/10/2009 14:13:48
+--
+--
+-- Description:
+--   Resolves the material properties.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Item refno
+--    2   R      STRING      Material grade
+--    3   R      STRING      Results
+--
+-- Return:
+--   [Data Type]  [Description]
+--    BOOLEAN     error flag
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfgetmaterial( !item is STRING, !grade is STRING, !result is ARRAY ) is BOOLEAN
+
+   -- Save start position and go to object to be output
+   !origin = ( ref )
+   $!item
+   !name = ( FLNM )
+
+   !grade   = ( :SDNFMGRADE )
+   handle any
+      -- Wrong element type - should have been trapped before
+      !!ce = !origin
+      return true
+   endhandle
+
+   if( !grade eq |unset| or $
+      !grade.length( ) eq 0 ) then
+      -- Try and get it from the MATR
+      !matref = ( matr )
+      if( !matref.badref( ) )then
+         -- No Material information - try user function
+         !macroName = !!sdnfMaterialMac + !!sdnfFncSfx
+         !fullMacroName = |!!| + !!sdnfMaterialMac + |( )|
+         !fullMacroName = !fullMacroName.lowcase( )
+         !grade = $!fullMacroName
+         handle any
+            if( !!error.text.match( |PML:| ) ne 0 )then
+                !result.append( |(Error) - $!name - User macro $!macroName not found.| )
+            else
+                !result.append( |(Error) - $!name - Error in user macro $!macroName .| )
+            endif
+            !grade = |unset|
+         endhandle
+         if( !grade eq |unset| )then
+            !result.append( |(Error) - $!name - No material information - Not exported.| )
+            !grade = |unset|
+            return true
+         endif
+      else
+         -- Lift value from Description attribute from SOLI
+         $!matref
+         !grade = ( DESC )
+         -- Return to base and set UDA
+         same
+      endif
+      -- Truncate string if necessary
+      if( !grade.length( ) gt 24 )then
+         !grade = !grade.substring( 1, 24 )
+      endif
+      :SDNFMGRADE |$!grade|
+      handle ANY
+         -- DB is read only
+         !ref = ( ref )
+         !!sdnfVerFile.writeRecord( !ref.string( ) )
+         !!sdnfVerFile.writeRecord( |:SDNFMGRADE '$!grade'| )
+      endhandle
+   else
+      -- Try to match grade with MATR
+      !found = false
+      do !matl values !!sdnfMatRefList
+         !desc = ( desc of $!matl )
+         if( !desc eq !grade )then
+            -- Found match
+            !found = true
+            !matref = ( matr )
+            if( !matref.badref( ) )then
+               -- Reset MATR as it can be overwritten
+               matr $!matl
+               handle ANY
+                  -- DB is read only
+                  !ref = ( ref )
+                  !!sdnfVerFile.writeRecord( !ref.string( ) )
+                  !!sdnfVerFile.writeRecord( |matr $!matl| )
+               endhandle
+               --        else
+               --          -- Test for consistency
+               --          if( !matref neq !matl )then
+               --            !result.append( |(Warning) - $!name - Inconsistent material specification.| )
+               --          endif
+            endif
+            break
+         endif
+      enddo
+      if( not !found )then
+         -- No Material information (yet)- try user function
+         !macroName = !!sdnfMaterialMac + !!sdnfFncSfx
+         !fullMacroName = |!!| + !!sdnfMaterialMac + |( )|
+         !fullMacroName = !fullMacroName.lowcase( )
+         !desc = $!fullMacroName
+         handle any
+            if( !!error.text.match( |PML:| ) ne 0 )then
+               !result.append( |(Error) - $!name - User macro $!macroName not found.| )
+            else
+               !result.append( |(Error) - $!name - Error in user macro $!macroName .| )
+            endif
+            !desc = |unset|
+         endhandle
+         if( !desc eq !grade )then
+            !found = true
+            golabel /DoneMaterial
+         endif
+         !result.append( |(Warning) - $!name - No material match for '$!grade'.| )
+      endif
+   endif
+
+   -- Finished
+   label /DoneMaterial
+   !!ce = !origin
+
+   return false
+
+endfunction

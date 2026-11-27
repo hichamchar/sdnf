@@ -1,0 +1,60 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfhighselsel.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Sets the Highlight Selection details.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      START or END
+--
+-- Return:
+--   [Data Type]   [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfHighSelSel( !selectionFlag is STRING )
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Set form variable
+
+  -- Activate/deactivate form gadgets
+  if( !selectionFlag eq |ADDED| )then
+    !!sdnfHighlighter.added = !!sdnfHighlighter.highAdded.val
+  elseif( !selectionFlag eq |CHANGED| )then
+    !!sdnfHighlighter.changed = !!sdnfHighlighter.highChanged.val
+  elseif( !selectionFlag eq |DELETED| )then
+    !!sdnfHighlighter.deleted = !!sdnfHighlighter.highDeleted.val
+  endif
+
+  -- Finished
+
+endfunction
+
+------------------------------------------------------------------------

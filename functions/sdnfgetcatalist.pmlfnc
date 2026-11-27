@@ -1,0 +1,86 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfgetcatalist.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Extracts list of steel catalogues from database.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]  [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfGetCataList( ) is SDNFERROROBJ
+
+  -- Save start position
+  !start = ( ref )
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Delete pre-existing Arrays...
+  !!sdnfCataNameList.delete( )
+  handle( 2,751 )
+    -- Variable does not exist
+  endhandle
+  !!sdnfCataRefList.delete( )
+  handle( 2,751 )
+    -- Variable does not exist
+  endhandle
+
+  -- ...and create empty ones
+  !!sdnfCataNameList = ARRAY( )
+  !!sdnfCataRefList = ARRAY( )
+
+  -- Note that the Catalogue discriminator is |STL|
+  WORL
+  var !!sdnfCataRefList collect all CATA with ( PURP eq |STL| )
+  if( !!sdnfCataRefList.empty( ) )then
+    -- No Steel Catalogues
+    !error.severity = !!sdnfSevFatal
+    !error.status   = !!sdnfErrNoStlCats
+    !error.query    = !!sdnfQueNone
+    !unusedReply = !!sdnfError( !error )
+  endif
+
+  -- Generate a list from the names
+  do !val values !!sdnfCataRefList
+    $!val
+    !!sdnfCataNameList.append( ( FLNN ) )
+  enddo
+
+  -- Finished
+  -- Return to start
+  $!start
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

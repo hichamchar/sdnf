@@ -1,0 +1,92 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfexpandenv.pmlfnc
+--   Type:          Function Definition
+--   Group:         Interfaces
+--   Keyword:       SDNF
+--   Module:        Design
+--   Replaces:
+--
+-- Author:          D.Wilson
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+-- Description:
+--   Expands environment variables into full text.
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Input string
+--
+-- Return:
+--   [Data Type]   [Description]
+--   STRING        Output string (with environment variables expanded)
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfExpandEnv( !iString is STRING ) is STRING
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Loop until finished
+  !oString = !iString
+  label /Loop
+
+  -- Have we got anything to work with?
+  if( !oString.unset( ) )then
+    !oString = ||
+    golabel /Finished
+  endif
+
+  -- Look for %
+  if( !oString.length( ) eq 0 or $
+      !oString.match( |%| ) eq 0 )then
+    -- No % found
+    golabel /Finished
+  else
+
+    -- Found % - look for closing one
+    !beforeString = !oString.before( |%| )
+    !afterString = !oString.after( |%| )
+    !env = !afterString.before( |%| )
+
+    if( !afterString eq !env )then
+      -- No closing %
+      !oString = !beforeString + |%| + !afterString
+      golabel /Finished
+    endif
+
+    var !envVar evar |$!env|
+    if( |$!envVar| eq || ) then
+      -- Error - should not get here
+      !error.severity = !!sdnfSevError
+      !error.status   = !!sdnfErrUserMess
+      !error.message  = |Environment variable '$!env' not understood.|
+      !unusedReply = !!sdnfError( !error )
+      golabel /Finished
+    endif
+
+    -- Rebuild working string
+    !afterString = !afterString.after( |%| )
+    !oString = !beforeString + !envVar + !afterString
+  endif
+
+  -- Try again for more environment variables
+  golabel /Loop
+
+  -- Finished
+  label /Finished
+  return !oString
+
+endfunction
+
+------------------------------------------------------------------------

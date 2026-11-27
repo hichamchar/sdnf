@@ -1,0 +1,102 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfgetexporthwm.pmlfnc
+--   Type:          Function Definition
+--   Group:         Interfaces
+--   Keyword:       SDNF
+--   Module:        Design
+--   Replaces:
+--
+-- Author:          D.Wilson
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+-- Description:
+--   Gets export HWM.
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      REAL        Transfer number
+--    2   R      REAL        Revision number
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfGetExportHWM( !transferNo is REAL, !revNo is REAL ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Get list of sites with SDNF-CONFIG in their name
+  !start = ( ref )
+  WORL
+  !searchText = !!sdnfPrefix + |CONFIG-|
+  var !list coll all SITE with ( matchwild( NAME, |$!searchText*| ) )
+
+  -- Scan for HWM
+  !transferNo = ( 1 )
+  !revNo = ( 0 )
+  if( !list.size( ) eq 0 )then
+    -- No Configuration object exists
+    !error.severity = !!sdnfSevConfirm
+    !error.status   = !!sdnfErrNoConfig
+    !error.query    = !!sdnfQueInstall
+    !error.default  = |NO|
+    !reply = !!sdnfError( !error )
+    if( !reply eq |YES| )then
+      -- Load up the data
+      !error = !!sdnfLoadConfig( )
+      $!!sdnfConfigObj
+    else
+      -- Fatal Error - Give up
+      !error.severity = !!sdnfSevFatal
+      !error.query    = !!sdnfQueNone
+      !reply = !!sdnfError( !error )
+      golabel /Finished
+    endif
+  else
+    do !val values !list
+      -- Go to it
+      $!val
+      !tran = ( :SDNFTRANO )
+      handle( 99, 532 )
+        -- UDAs haven't been installed
+        -- This case is where the CONFIG Site exists, but it has no UDAs
+        !error.severity = !!sdnfSevFatal
+        !error.status   = !!sdnfErrNoUDA
+        !reply = !!sdnfError( !error )
+        golabel /Finished
+      endhandle
+      !rev = ( :SDNFREVNO )
+      if( !tran gt !transferNo )then
+        !transferNo = !tran
+        !revNo = !rev
+      elseif( !tran eq !transferNo )then
+        if( !rev gt !revNo )then
+          !revNo = !rev
+        endif
+      endif
+    enddo
+  endif
+
+  -- Return to base
+  $!start
+
+  -- Finished
+  label /Finished
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

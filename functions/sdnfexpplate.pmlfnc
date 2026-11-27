@@ -1,0 +1,223 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfexpplate.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Exports plate details.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      REAL        Export object index
+--    2   R      STRING      This item
+--    3   R      FILE        Export file
+--    4   R      FILE        Log file
+--    5   R      STRING      Message Mode [BRIEF|FULL]
+--    6   R      STRING      Mark Mode [INTERNAL|EXTERNAL]
+--
+-- Return:
+--   [Data Type]  [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfExpPlate( !objectIndex is REAL, !item is STRING, $
+  !expFile is FILE, !logFile is FILE, !messageMode is STRING, $
+  !markMode is STRING ) is SDNFERROROBJ
+
+  -- Save start position and go to object to be output
+  !start = ( ref )
+  $!item
+
+  -- Initialise Error object
+  !error = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrBadObject
+  !error.query    = !!sdnfQueNone
+  !result = ARRAY( )
+
+  -- Identification information
+  !unusedPathname       = ( FLNN )
+  !name           = ( FLNM )
+  !ref            = ( REF )
+
+  -- Orientation vector
+  !orivec = !!sdnfgetorivec( )
+
+  -- Basic checks here
+  PLOO 1
+  handle( 2,113 )
+    -- No PLOO
+    !result.append( |(Error) - $!name - No geometry information - Not exported.| )
+    golabel /Finished
+  elsehandle NONE
+     -- Has a PLOO.  Any Vertices?
+     !testVertices = MEM COUNT lt 3
+     if( !testVertices )then
+       -- No Vertices
+       !result.append( |(Error) - $!name - No geometry information - Not exported.| )
+       golabel /Finished
+     endif
+  endhandle
+  !heig = ( HEIG )
+  if( !heig lt !!sdnfDistTol )then
+    -- PANE too thin
+    !result.append( |(Error) - $!name - Plate too thin - Not exported.| )
+    golabel /Finished
+  endif
+  !sjus = ( SJUS )
+  if( !sjus.match( |TOP| ) neq 0 )then
+    !sjus = |1|
+  elseif( !sjus.match( |CEN| ) neq 0 )then
+    !sjus = |0|
+  elseif( !sjus.match( |BOT| ) neq 0 )then
+    !sjus = |-1|
+  else
+    -- Assume bottom
+    !sjus = |-1|
+  endif
+  var !count mem PAVE count
+  var !fillets coll all PAVE with (DESP[1] eq 3) for ce
+  !rCount = !count.real( ) - !fillets.size( )
+  if( !rCount lt 3 )then
+    -- Not enough points
+    !result.append( |(Error) - $!name - Not enough vertices - Not exported.| )
+    golabel /Finished
+  endif
+  $!item
+
+  -- Specific information
+  !genericType    = ( GTYP )
+  if( !genericType.length( ) eq 0 )then
+    !genericType = |PANE|
+  endif
+
+   !grade      = STRING( )
+   !matResults = ARRAY( )
+   !matError = !!sdnfgetmaterial( !item, !grade, !matResults )
+   if( !matResults.size( ).gt( 0 ) )then
+      !result.appendArray( !matResults )
+   endif
+   if( !matError.eq( true ) )then
+      golabel /Finished
+   endif
+
+  -- UDAs
+  !hold      = ( :SDNFHOLD )
+  !pspe      = ( :SDNFPSPEC )
+  !revno     = ( :SDNFREVNO )
+  !fireTy    = ( FIRE )
+  !fireTh    = ( :SDNFFTHICK )
+  !fireDesc  = ( :SDNFFDESC )
+
+   -- Use AVEVA database reference number or External Mark Nr.
+   !expRef = !!sdnfsetmarknos( !ref,!markMode )
+
+  --  Now about to output the item, update the relevant UDAs
+  var !date clock date
+  var !time clock time
+  !!sdnfsetexpdatetime( !ref, !date, !time )
+  !crDate  = STRING( )
+  !crTime  = STRING( )
+  !mdDate  = STRING( )
+  !mdTime  = STRING( )
+  !!sdnfgetcrmddt( !ref, !crDate, !crTime, !mdDate, !mdTime )
+
+  -- Everything should be OK here - output it
+  -- DO NOT CHANGE ORDER OF OUTPUT
+  !error.status   = !!sdnfErrOK
+  !expFile.writeRecord( |PANEL| )
+  !expFile.writeRecord( |  INDEX: $!objectIndex| )
+  !expFile.writeRecord( |  CPOINT: $!sjus| )
+  !expFile.writeRecord( |  ORIVEC: $!orivec| )
+  !expFile.writeRecord( |  HOLD: $!hold| )
+  !expFile.writeRecord( |  PSPE: $!pspe| )
+  !expFile.writeRecord( |  GTYPE: $!genericType| )
+  !expFile.writeRecord( |  REFNO: $!expRef| )
+  !expFile.writeRecord( |  REVNO: $!revno| )
+  !expFile.writeRecord( |  GRADE: $!grade| )
+  !expFile.writeRecord( |  HEIGH: $!heig| )
+
+  !expFile.writeRecord( |  CDATE: $!crDate| )
+  !expFile.writeRecord( |  CTIME: $!crTime| )
+  !expFile.writeRecord( |  MDATE: $!mdDate| )
+  !expFile.writeRecord( |  MTIME: $!mdTime| )
+  !expFile.writeRecord( |  FIRTY: $!fireTy| )
+  !expFile.writeRecord( |  FIRTH: $!fireTh| )
+  !expFile.writeRecord( |  FIRDE: $!fireDesc| )
+
+   -- get plate plane definition
+   !ori = ( ori $!!sdnfWRT )
+   !pos = ( pos $!!sdnfWRT )
+   !defPlane = object PLANE( !pos, !ori )
+
+  -- Now go and output vertices
+  first PLOO
+  !vertPosArray = ARRAY( )
+  !vertTypArray = ARRAY( )
+  !isCircular   = false
+  !!sdnfprocessbndry( |PAVE|, !vertPosArray, !vertTypArray, !isCircular )
+
+   -- output the vertices projected onto definition plane
+   !rCount = !vertPosArray.size( )
+   !expFile.writeRecord( |  POINTS: $!rCount| )
+   do !index indices !vertPosArray
+      !vertPos = !vertPosArray[ !index ]
+      !vertType = !vertTypArray[ !index ]
+      !pos = !defPlane.near( !vertPos )
+      !expFile.writeRecord( |    VERTEX: $!pos| )
+      !expFile.writeRecord( |    VERTYP: $!vertType| )
+   enddo
+
+   !expFile.writeRecord( |ENDPANEL| )
+
+   -- Object export counts
+   !!sdnfExp20Cnt = !!sdnfExp20Cnt + 1
+
+   $!item
+
+   -- set :SDNFMARK
+   !!sdnfsetmarkno( !ref )
+
+  -- Update transfer and revision numbers
+   !!sdnfupdaterevnos( )
+
+  -- Finished
+  label /Finished
+  -- Return to start
+
+  $!start
+  -- Output Error messages
+  if( !messageMode eq |FULL| )then
+    do !line values !result
+      !logFile.writeRecord( |$!line| )
+    enddo
+  else
+    if( !result.size( ) gt 0 )then
+      !logFile.writeRecord( |PANE  $!ref - Problem exporting entity.| )
+    endif
+  endif
+
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

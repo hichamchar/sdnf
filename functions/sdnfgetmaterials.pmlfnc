@@ -1,0 +1,92 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfgetmaterials.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Scours properties database for all SOLI elements and extracts
+--   Material information.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]  [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfGetMaterials( ) is SDNFERROROBJ
+
+  -- Save start position
+  !start = ( ref )
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Delete pre-existing Arrays...
+  !!sdnfMatDescList.delete( )
+  handle( 2,751 )
+    -- Variable does not exist
+  endhandle
+  !!sdnfMatRefList.delete( )
+  handle( 2,751 )
+    -- Variable does not exist
+  endhandle
+
+  -- ...and create empty ones
+  !!sdnfMatDescList = ARRAY( )
+  !!sdnfMatRefList = ARRAY( )
+
+  -- Pick up all SOLI elements
+  WORL
+  var !tempRefList collect all SOLI
+  if( !tempRefList.empty( ) )then
+    -- No materials
+    !error.severity = !!sdnfSevInfo
+    !error.status   = !!sdnfErrNoMat
+    golabel /Finished
+  endif
+
+  -- Pick up Descriptions
+  do !ref values !tempRefList
+    !desc = !ref.dbref( ).attribute( |DESC| )
+    if( !desc.set( ) and $
+        !desc.length( ).gt( 0 ) and $
+        !desc.upcase( ).neq( |UNSET| ) )then
+      !!sdnfMatRefList.append( !ref )
+      !!sdnfMatDescList.append( !desc )
+    endif
+  enddo
+
+  -- Finished
+  label /Finished
+  -- Return to start
+  $!start
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

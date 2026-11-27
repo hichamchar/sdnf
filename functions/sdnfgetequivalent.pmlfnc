@@ -1,0 +1,37 @@
+--  Author:          Undefined
+--  Created:         Fri Jul  6 13:22:11 2012
+
+--
+--  Description:     Undefined
+--
+----------------------------------------------------------------------
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfgetequivalent.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Define function
+define function !!sdnfgetequivalent( !progName is STRING ) is STRING
+
+   -- look for equivalents
+   !found = false
+   !module = !progName
+
+   do !equivalent values !!sdnfExtProgEquList
+      if( !progName.upcase( ).eq( !equivalent[ 1 ].upcase( ) ) )then
+         !found = true
+         !module = !equivalent[ 2 ]
+      endif
+   enddo
+
+   return !module
+
+endfunction
+
+------------------------------------------------------------------------

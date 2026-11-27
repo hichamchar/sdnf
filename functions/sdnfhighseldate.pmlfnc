@@ -1,0 +1,85 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfhighseldate.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Sets the Highlight Date details.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      START or END
+--
+-- Return:
+--   [Data Type]   [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfHighSelDate( !startEndFlag is STRING )
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Set form variable
+
+  -- Activate/deactivate form gadgets
+  if( !startEndFlag eq |START| )then
+    !day   = !!sdnfHighlighter.vSDay.selection( ).real( )
+    !month = !!sdnfHighlighter.vSMonth.selection( )
+    !year  = !!sdnfHighlighter.vSYear.selection( ).real( )
+  elseif( !startEndFlag eq |END| )then
+    !day   = !!sdnfHighlighter.vEDay.selection( ).real( )
+    !month = !!sdnfHighlighter.vEMonth.selection( )
+    !year  = !!sdnfHighlighter.vEYear.selection( ).real( )
+  endif
+
+  -- Are these valid choices
+  !unusedTest = object DATETIME( !year, !month, !day )
+  handle( 161,50 )
+    -- Bad date
+    !error.severity = !!sdnfSevWarn
+    !error.status   = !!sdnfErrBadDate
+    !error.query    = !!sdnfQueNone
+    !unusedReply = !!sdnfError( !error )
+    call !!sdnfHighLighInit( )
+  elsehandle none
+
+    -- Set form variables
+    if( !startEndFlag eq |START| )then
+      !!sdnfHighlighter.startDate     = !day
+      !!sdnfHighlighter.startMonth    = !month
+      !!sdnfHighlighter.startYear     = !year
+    elseif( !startEndFlag eq |END| )then
+      !!sdnfHighlighter.endDate     = !day
+      !!sdnfHighlighter.endMonth    = !month
+      !!sdnfHighlighter.endYear     = !year
+    endif
+  endhandle
+
+  -- Finished
+
+endfunction
+
+------------------------------------------------------------------------

@@ -1,0 +1,340 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfexphole.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         19/10/2009 15:54:55
+--
+--
+-- Description:
+--   Exports hole details.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      REAL        Export object index
+--    2   R      STRING      This item
+--    3   R      FILE        Export file
+--    4   R      FILE        Log file
+--    5   R      STRING      Message Mode [BRIEF|FULL]
+--    6   R      STRING      Mark Mode [INTERNAL|EXTERNAL]
+--
+-- Return:
+--   [Data Type]  [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfExpHole( !objectIndex is REAL, !item is STRING, $
+   !expFile is FILE, !logFile is FILE, !messageMode is STRING, $
+   !plateRefArr is ARRAY, !plateIDArr is ARRAY ) is SDNFERROROBJ
+
+   -- Save start position and go to object to be output
+   !start = ( ref )
+   $!item
+
+   -- Orientation vector
+   !pOrivec = !!sdnfgetorivec( )
+   !plateIndex = !plateRefArr.findFirst( !item )
+   !plateId    = !plateIDArr[ !plateIndex ]
+
+   -- Initialise Error object
+   !error = object SDNFERROROBJ( )
+   !error.severity = !!sdnfSevOK
+   !error.status   = !!sdnfErrBadObject
+   !error.query    = !!sdnfQueNone
+   !result = ARRAY( )
+
+   -- collect all allowed elements owned by CE (but not recursively)
+   !yPrimTypes = ARRAY( )
+   !yPrimTypes.append( |PLOO| )
+   !yPrimTypes.append( |NXTR| )
+   !yPrimTypes.append( |NCYL| )
+   !yPrimTypes.append( |NBOX| )
+   !yPrims = ARRAY( )
+   do !yPrimType values !yPrimTypes
+      var !negList mem $!yPrimType
+      if( !negList.neq( |unset| ) )then
+         !yPrims.appendArray( !negList.split( ) )
+      endif
+   enddo
+   -- add negatives directly owned by any PFIT or CMPF owned by CE.
+   -- does not cope with TMPL owning TMPL (directly or indirectly)
+   !fittTypes = ARRAY( )
+   !fittTypes.append( |PFIT| )
+   !fittTypes.append( |CMPF| )
+   !fittings = ARRAY( )
+   do !fittType values !fittTypes
+      var !fitList mem $!fittType
+      if( !fitList.neq( |unset| ) )then
+         !fittings.appendArray( !fitList.split( ) )
+      endif
+   enddo
+   -- collect TMPL for each fitting
+   !templates = ARRAY( )
+   do !fitting values !fittings
+      $!fitting
+      var !tmpList mem TMPL
+      if( !tmpList.neq( |unset| ) )then
+         !templates.appendArray( !tmpList.split( ) )
+      endif
+   enddo
+   -- collect all holes for each TMPL
+   do !tmpl values !templates
+      $!tmpl
+      do !yPrimType values !yPrimTypes
+         var !negList mem $!yPrimType
+         if( !negList.neq( |unset| ) )then
+            !yPrims.appendArray( !negList.split( ) )
+         endif
+      enddo
+   enddo
+
+   -- check that there are no "forbidden" negatives
+   $!item
+   var !nPrims coll all ( NPOLYH NSLC NSNO NDIS NCON NPYR NCTO NRTO NREV ) for ce
+   if( !nPrims.size( ).gt( 0 ) )then
+      -- record negative primitives not being exported
+      !name = ( FLNM )
+      !result.append( |(Error) - $!name - Non loop-based negative primitives not exported.| )
+   endif
+
+   -- Basic checks here
+   $!item
+   PLOO 1
+   !sjus = ( SJUS )
+   if( !sjus.match( |TOP| ) neq 0 )then
+      !pSjus = |1|
+   elseif( !sjus.match( |CEN| ) neq 0 )then
+      !pSjus = |0|
+   elseif( !sjus.match( |BOT| ) neq 0 )then
+      !pSjus = |-1|
+   else
+      -- Assume bottom
+      !pSjus = |-1|
+   endif
+   -- remove from list of allowable primitives
+   !ref  = ( REF )
+   !iBound    = !yPrims.findFirst( !ref.string( ) )
+   !yPrims.remove( !iBound )
+
+
+   do !index indices !yPrims
+
+      -- go to element
+      !!ce = !yPrims[ !index ].dbref( )
+      !sjus = !pSjus
+
+      -- Identification information
+      !ref  = ( REF )
+      !name = ( FLNM )
+      !type = ( TYPE )
+
+      !heig = ( HEIG )
+      handle ANY
+         -- does not have HEIG attribute - get relevant length later on
+      endhandle
+      if( !type.eq( |PLOO| ) )then
+         !pointTyp = |PAVE|
+         !heig     = ( HEIG of PLOO 1 of OWNER )
+         !orivec = !pOrivec
+      elseif( !type.eq( |NXTR| ) )then
+         -- check that the extrusion axis is parallel to the axis of the plane
+         PANE
+         !ori = ( ORI $!!sdnfWRT )
+         !ozDir = !ori.zDir( )
+         SAME
+         !ori = ( ORI $!!sdnfWRT )
+         !zDir = !ori.zDir( )
+         if( not !zDir.isParallel( !ozDir ) )then
+            !result.append( |(Error) - $!name - NXTR extrusion direction not compatible with owner| )
+            skip
+         endif
+         !pointTyp = |VERT|
+         !orivec = !!sdnfgetorivec( )
+         LOOP 1
+      elseif( !type.eq( |NCYL| ) )then
+         -- check that the cylinder axis is parallel to the axis of the plane
+         PANE
+         !pOri  = ( ORI $!!sdnfWRT )
+         !pzDir = !pOri.zDir( )
+         !orivec = !!sdnfgetorivec( )
+         SAME
+         !nOri  = ( ORI $!!sdnfWRT )
+         !nzDir = !nOri.zDir( )
+         if( not !nzDir.isParallel( !pzDir ) )then
+            !result.append( |(Error) - $!name - NCYL Z-axis direction not compatible with owner| )
+            skip
+         endif
+         !pPoint   = 2
+         if( !nzDir.dot( !pzDir ).lt( 0.0 ) )then
+            !pPoint = 1
+         endif
+      elseif( !type.eq( |NBOX| ) )then
+         -- check that a box axis is parallel to the axis of the plane
+         PANE
+         !pOri   = ( ORI $!!sdnfWRT )
+         !pzDir  = !pOri.zDir( )
+         !orivec = !!sdnfgetorivec( )
+         SAME
+         !nOri     = ( ORI $!!sdnfWRT )
+         !nzDir    = !nOri.zDir( )
+         if( !nOri.xDir( ).isParallel( !pzDir ) )then
+            !heig  = ( XLEN )
+            !widt  = ( YLEN )
+            !dept  = ( ZLEN )
+            !nxDir = !nOri.yDir( )
+            !nyDir = !nOri.zDir( )
+            !nzDir = !nOri.xDir( )
+            !pPoint = 4
+         elseif( !nOri.yDir( ).isParallel( !pzDir ) )then
+            !heig = ( YLEN )
+            !widt = ( ZLEN )
+            !dept = ( XLEN )
+            !nxDir = !nOri.zDir( )
+            !nyDir = !nOri.xDir( )
+            !nzDir = !nOri.yDir( )
+            !pPoint = 5
+         elseif( !nOri.zDir( ).isParallel( !pzDir ) )then
+            !heig = ( ZLEN )
+            !widt = ( XLEN )
+            !dept = ( YLEN )
+            !nxDir = !nOri.xDir( )
+            !nyDir = !nOri.yDir( )
+            !nzDir = !nOri.zDir( )
+            !pPoint = 6
+         else
+            !result.append( |(Error) - $!name - NBOX axial directions not compatible with owner| )
+            skip
+         endif
+         -- I now know why this is needed.
+         if( !nzDir.dot( !pzDir ).lt( 0.0 ) )then
+            !pPoint = !pPoint - 3
+         endif
+      endif
+
+      if( !heig lt !!sdnfDistTol )then
+        -- PANE too thin
+        !result.append( |(Error) - $!name - Hole too thin - Not exported.| )
+        skip
+      endif
+
+      !vertPosArray = ARRAY( )
+      !vertTypArray = ARRAY( )
+      if( !type.eq( |PLOO| ) or !type.eq( |NXTR| ) )then
+         var !count mem $!pointTyp count
+         var !fillets coll all $!pointTyp with (DESP[1] eq 3) for ce
+         !rCount = !count.real( ) - !fillets.size( )
+         if( !rCount lt 3 )then
+          -- Not enough points
+          !result.append( |(Error) - $!name - Not enough vertices - Not exported.| )
+          skip
+         endif
+
+         -- Now go and output vertices
+         !isCircular   = false
+        !!sdnfprocessbndry( !pointTyp, !vertPosArray, !vertTypArray, !isCircular )
+
+         -- have to adjust vertices onto origin plane
+         !!ce = !ref
+         if( !type.eq( |NXTR| ) )then
+            !planePos    = pos $!!sdnfWRT
+            !planeOri    = ori $!!sdnfWRT
+            !sjus     = |-1|
+         elseif( !type.eq( |PLOO| ) )then
+            !planePos    = pos of OWNER $!!sdnfWRT
+            !planeOri    = ori of OWNER $!!sdnfWRT
+         endif
+         !plane       = object PLANE( !planePos, !planeOri )
+         do !ip indices !vertPosArray
+            !vertPosArray[ !ip ] = !plane.near( !vertPosArray[ !ip ] )
+         enddo
+
+      elseif( !type.eq( |NCYL| ) )then
+         -- build list of points for hole
+         !pos      = ( P$!pPoint pos $!!sdnfWRT )
+         !sjus     = |-1|
+         !diam     = ( diam )
+         !vertPosArray.append( !pos )
+         !vertTypArray.append( !diam / 2.0 )
+      elseif( !type.eq( |NBOX| ) )then
+         !pos      = ( P$!pPoint pos $!!sdnfWRT )
+         !sjus     = |-1|
+         !pos      = !pos.offset( !nxDir, !widt / 2.0 )
+         !pos      = !pos.offset( !nyDir, !dept / 2.0 )
+         !vertPosArray.append( !pos )
+         !vertTypArray.append( 1 )
+         !pos      = !pos.offset( !nxDir, ( !widt * -1.0 ) )
+         !vertPosArray.append( !pos )
+         !vertTypArray.append( 1 )
+         !pos      = !pos.offset( !nyDir, ( !dept * -1.0 ) )
+         !vertPosArray.append( !pos )
+         !vertTypArray.append( 1 )
+         !pos      = !pos.offset( !nxDir, !widt )
+         !vertPosArray.append( !pos )
+         !vertTypArray.append( 1 )
+         !pos      = !pos.offset( !nyDir, !dept )
+         !vertPosArray.append( !pos )
+         !vertTypArray.append( 0 )
+      endif
+
+      -- Everything should be OK here - output it
+      -- DO NOT CHANGE ORDER OF OUTPUT
+      !error.status   = !!sdnfErrOK
+      !expFile.writeRecord( |HOLE| )
+      !expFile.writeRecord( |  INDEX: $!objectIndex| )
+      !expFile.writeRecord( |  OWNER: $!plateId| )
+      !expFile.writeRecord( |  CPOINT: $!sjus| )
+      !expFile.writeRecord( |  ORIVEC: $!orivec| )
+      !expFile.writeRecord( |  STYPE: $!type| )
+      !expFile.writeRecord( |  HEIGH: $!heig| )
+
+      -- output the vertices
+      !rCount = !vertPosArray.size( )
+      !expFile.writeRecord( |  POINTS: $!rCount| )
+      do !ip indices !vertPosArray
+         !vertPos = !vertPosArray[ !ip ]
+         !vertType = !vertTypArray[ !ip ]
+         !expFile.writeRecord( |    VERTEX: $!vertPos| )
+         !expFile.writeRecord( |    VERTYP: $!vertType| )
+      enddo
+
+      !expFile.writeRecord( |ENDHOLE| )
+      !objectIndex = !objectIndex + 1
+
+      -- Object export counts
+      !!sdnfExp22Cnt = !!sdnfExp22Cnt + 1
+
+   enddo
+
+   -- Return to start
+   $!start
+   -- Output Error messages
+   if( !messageMode eq |FULL| )then
+      do !line values !result
+      !logFile.writeRecord( |$!line| )
+      enddo
+   else
+      if( !result.size( ) gt 0 )then
+      !logFile.writeRecord( |HOLE  $!ref - Problem exporting entity.| )
+      endif
+   endif
+   return !error
+
+endfunction
+
+------------------------------------------------------------------------

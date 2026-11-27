@@ -1,0 +1,50 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfimpexp.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNFIMPEXP
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Initialises Steel Detailing Neutral File Import Export System
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type] [Description]
+--    None
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfImpExp( )
+
+  -- Tidy up before we start
+  call !!sdnfExit( )
+
+  -- Initialise data first
+  call !!sdnfSystemData( )
+
+  -- Create a File viewer form then hide it
+--  show !!sdnfViewFile
+--  !!sdnfViewFile.hide( )
+
+endfunction
+
+------------------------------------------------------------------------

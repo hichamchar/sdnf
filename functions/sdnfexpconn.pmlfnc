@@ -1,0 +1,167 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfexpconn.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+--
+-- Description:
+--   Exports connection details.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type]   [Description]
+--    1   R      ARRAY         Array of linear Members
+--    2   R      REAL          Export index of this object
+--    3   R      STRING        Connection to be exported
+--    3   R      FILE          Export file
+--    4   R      FILE          Log file
+--    6   R      STRING        Message Mode [BRIEF|FULL]
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfExpConn( !linMemArray is ARRAY, !objectIndex is REAL, $
+  !item is STRING, !expFile is FILE, !logFile is FILE, !messageMode is STRING ) is SDNFERROROBJ
+
+  -- Save start position and go to object to be output
+  !origin = ( ref )
+  $!item
+
+  -- Initialise Error object
+  !error = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrBadObject
+  !error.query    = !!sdnfQueNone
+  !result = ARRAY( )
+
+  -- Identification information
+  !unusedPathname       = ( FLNN )
+  !name           = ( FLNM )
+  !ref            = ( REF )
+  !catr           = ( CATR )
+  handle any
+    -- (Warning) only for joints because there may be thousands!
+--    !result.append( |(Warning) - $!name - Illegal or unset SPRE.| )
+    golabel /Finished
+  endhandle
+
+  -- Basic checks here
+  $!catr
+  handle any
+    -- (Warning) only for joints because there may be thousands!
+--    !result.append( |(Warning) - $!name - Illegal or unset SPRE.| )
+    golabel /Finished
+  endhandle
+  !catRef         = ( FLNN )
+  same
+
+  -- Specific information
+  !genericType    = ( GTYP )
+  if( !genericType.length( ) eq 0 )then
+    !genericType = |CONN|
+  endif
+  !connType       = ( CTYA of $!catr )
+  !mappedConnType = !!sdnfMapConnType( |$!connType|, !logFile, !messageMode )
+  if( !mappedConnType.length( ) eq 0 )then
+    !result.append( |(Error) - $!name - No Connection Type - Not exported.| )
+    golabel /Finished
+  endif
+
+  -- Find attached Linear member
+  !cref = ( CREF )
+  goto CREF
+  !test = ( JOIS )
+  if( not !test.unset( ) )then
+    !jois = ( flnm of JOIS )
+  else
+    !jois = ||
+  endif
+  !test = ( JOIE )
+  if( not !test.unset( ) )then
+    !joie = ( flnm of JOIE )
+  else
+    !joie = ||
+  endif
+  -- Check which end
+  if( !jois eq !name )then
+    !end = 1
+    -- Set start connection type
+    ctys $!connType
+    handle any
+    endhandle
+  elseif( !joie eq !name )then
+    !end = 2
+    -- Set end connection type
+    ctye $!connType
+    handle any
+    endhandle
+  else
+    -- Something odd here
+    !result.append( |(Error) - $!name - Inconsistent connectivity - Not exported.| )
+    golabel /Finished
+  endif
+  same
+  -- Now find Linear Member index
+  !unusedCrefs = !cref.string( )
+  !linMemIndex = !linMemArray.findFirst( !cref.string( ) )
+
+   if( !linMemIndex.unset() )then
+     -- not found
+    !result.append( |(Error) - $!name - Connectivity problem - Attached member not exported.| )
+    golabel /Finished
+   endif
+
+  -- Everything should be OK here - output it
+  -- DO NOT CHANGE ORDER OF OUTPUT
+  !error.status   = !!sdnfErrOK
+  !expFile.writeRecord( |CONNECTION| )
+  !expFile.writeRecord( |  INDEX: $!objectIndex| )
+  !expFile.writeRecord( |  SPEC: $!catRef| )
+  !expFile.writeRecord( |  GTYPE: $!genericType| )
+  !expFile.writeRecord( |  CTYPE: $!mappedConnType| )
+  !expFile.writeRecord( |  LINMEM: $!linMemIndex| )
+  !expFile.writeRecord( |  END: $!end| )
+  !expFile.writeRecord( |ENDCONNECTION| )
+
+  -- Object export counts
+  !!sdnfExp40Cnt = !!sdnfExp40Cnt + 1
+
+  -- Finished
+  label /Finished
+  -- Return to start
+  $!origin
+  -- Output Error messages
+  if( !messageMode eq |FULL| )then
+    do !line values !result
+      !logFile.writeRecord( |$!line| )
+    enddo
+  else
+    if( !result.size( ) gt 0 )then
+      !logFile.writeRecord( |JOINT $!ref - Problem exporting entity.| )
+    endif
+  endif
+
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

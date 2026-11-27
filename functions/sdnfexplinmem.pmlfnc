@@ -1,0 +1,316 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfexplinmem.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+--
+-- Description:
+--   Exports linear member details.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      REAL        Export object index
+--    2   R      STRING      This item
+--    3   R      FILE        Export file
+--    4   R      FILE        Log file
+--    5   R      STRING      Message Mode [BRIEF|FULL]
+--    6   R      STRING      Mark Mode [INTERNAL|EXTERNAL]
+--
+-- Return:
+--   [Data Type]  [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfExpLinMem( !objectIndex is REAL, !item is STRING, $
+  !expFile is FILE, !logFile is FILE, !messageMode is STRING, $
+  !markMode is STRING ) is SDNFERROROBJ
+
+  -- Save start position and go to object to be output
+  !origin = ( ref )
+  $!item
+
+  -- Initialise Error object
+  !error = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrBadObject
+  !error.query    = !!sdnfQueNone
+  !result = ARRAY( )
+
+  -- Identification information
+  !unusedPathname       = ( FLNN )
+  !name           = ( FLNM )
+  !catr           = ( $!!sdnfProfMapRef )
+  !ref            = ( REF )
+
+  -- Basic checks here
+  $!catr
+  handle any
+    !result.append( |(Error) - $!name - Illegal or unset SPRE - Not exported.| )
+    golabel /Finished
+  endhandle
+  !catRef         = ( FLNN )
+  same
+  !length = der length
+  if( !length lt !!sdnfDistTol )then
+    !result.append( |(Error) - $!name - Zero length Linear Member - Not exported.| )
+    golabel /Finished
+  endif
+
+  -- Specific information
+  !genericType    = ( GTYP )
+  if( !genericType.length( ) eq 0 )then
+    !genericType = |SCTN|
+  endif
+
+   !grade      = STRING( )
+   !matResults = ARRAY( )
+   !matError = !!sdnfgetmaterial( !item, !grade, !matResults )
+   if( !matResults.size( ).gt( 0 ) )then
+      !result.appendArray( !matResults )
+   endif
+   if( !matError.eq( true ) )then
+      golabel /Finished
+   endif
+
+  -- Location information
+  !startArray  = ARRAY( )
+  !endArray    = ARRAY( )
+  !orivecArray = ARRAY( )
+  !unusedRotation    = ( BANG )
+
+  !jusl        = ( JUSL )
+
+  -- get cardinal point
+  !cpoint = !!sdnfgetcpoint( !jusl )
+
+   !isOneSeg = true
+   !start       = ( poss $!!sdnfWRT )
+   !end         = ( pose $!!sdnfWRT )
+   if( !!ce.type.eq( |SCTN| ) )then
+      -- Just output Neutral Axis start and end
+    --  !start       = ( pplin NA start $!!sdnfWRT )
+    --  handle any
+    --    !result.append( |(Error) - $!name - No Cardinal Point $!jusl| )
+    --    golabel /Finished
+    --  endhandle
+      !startArray.append( !start )
+      !endArray.append( !end )
+
+     -- Orientation vector
+     !orivec = !!sdnfgetorivec( )
+     !orivecArray.append( !orivec )
+
+   else
+      -- split up GENSEC
+      !starts = ARRAY( )
+      !ends   = ARRAY( )
+      !orivecs = ARRAY( )
+      !isOneSeg = !!sdnfgetgenseclin( !item, !starts, !ends, !orivecs )
+      !startArray.appendArray( !starts )
+      !endArray.appendArray( !ends )
+      !orivecArray.appendArray( !orivecs )
+   endif
+
+  -- Just output Neutral Axis start and end
+--  !end         = ( pplin NA end $!!sdnfWRT )
+  -- Start and End Offsets
+  -- look for an adjoining node at each end
+  !jois = ( JOIS )
+  !joie = ( JOIE )
+  if( not !jois.badref( ) )then
+    $!jois
+    end
+    if (!!ce.type eq |PLDATU|) then
+      end
+    endif
+    pin 1 at $!start
+    var !se pin 1 e $!!sdnfWRT
+    var !sn pin 1 n $!!sdnfWRT
+    var !su pin 1 u $!!sdnfWRT
+    pin 2 at ce
+    var !ne pin 2 e $!!sdnfWRT
+    var !nn pin 2 n $!!sdnfWRT
+    var !nu pin 2 u $!!sdnfWRT
+    $!item
+    -- Calculate offset
+    !de = ( $!ne - $!se )
+    !dn = ( $!nn - $!sn )
+    !du = ( $!nu - $!su )
+     -- Construct Node offset
+    !startNode = |E $!de N $!dn U $!du $!!sdnfWRT|
+  else
+    !startNode = |E 0 N 0 U 0 $!!sdnfWRT|
+  endif
+  if( not !joie.badref( ) )then
+    $!joie
+    end
+    if (!!ce.type eq |PLDATU|) then
+      end
+    endif
+
+    pin 1 at $!end
+    var !se pin 1 e $!!sdnfWRT
+    var !sn pin 1 n $!!sdnfWRT
+    var !su pin 1 u $!!sdnfWRT
+    pin 2 at ce
+    var !ne pin 2 e $!!sdnfWRT
+    var !nn pin 2 n $!!sdnfWRT
+    var !nu pin 2 u $!!sdnfWRT
+    $!item
+    -- Calculate offset
+    !de = ( $!ne - $!se )
+    !dn = ( $!nn - $!sn )
+    !du = ( $!nu - $!su )
+     -- Construct Node offset
+    !endNode = |E $!de N $!dn U $!du $!!sdnfWRT|
+  else
+    !endNode = |E 0 N 0 U 0 $!!sdnfWRT|
+  endif
+  pin 1 off
+  pin 2 off
+
+  -- Mirroring
+  !rota    = ( 0 )
+  !mirrorX = ( 0 )
+  !mirrorY = ( 0 )
+  if( !!ce.type.eq( |GENSEC| ) )then
+    if( !!ce.attribute( |LMIRROR| ) )then
+      !mirrorY = ( 1 )
+    endif
+  endif
+
+  -- Degrees of Freedom
+  $!item
+  !srel = ( SREL )
+  !erel = ( EREL )
+
+  -- UDAs
+  !hold      = ( :SDNFHOLD )
+  !pspe      = ( :SDNFPSPEC )
+  !revno     = ( :SDNFREVNO )
+  !fireTy    = ( FIRE )
+  !fireTh    = ( :SDNFFTHICK )
+  !fireDesc  = ( :SDNFFDESC )
+  !fireStart = ( :SDNFFSTART )
+  !fireEnd   = ( :SDNFFEND )
+
+   -- Use AVEVA database reference number or External Mark Nr.
+   !expRef = !!sdnfsetmarknos( !ref,!markMode )
+
+  --  Now about to output the item, update the relevant UDAs
+  var !date clock date
+  var !time clock time
+  !!sdnfsetexpdatetime( !ref, !date, !time )
+  !crDate  = STRING( )
+  !crTime  = STRING( )
+  !mdDate  = STRING( )
+  !mdTime  = STRING( )
+  !!sdnfgetcrmddt( !ref, !crDate, !crTime, !mdDate, !mdTime )
+
+  -- Everything should be OK here - output it
+  !error.status   = !!sdnfErrOK
+
+   if( not !isOneSeg )then
+      -- GENSEC with more than 1 straight segment
+      !tmpRef = !expRef + |.S|
+   endif
+
+  -- DO NOT CHANGE ORDER OF OUTPUT
+  do !index indices !startArray
+
+      if( not !isOneSeg )then
+         -- GENSEC with more than 1 straight segment
+         !expRef = !tmpRef + !index.string( )
+      endif
+
+      !expFile.writeRecord( |SECTION| )
+      !expFile.writeRecord( |  INDEX: $!objectIndex| )
+      !expFile.writeRecord( |  HOLD: $!hold| )
+      !expFile.writeRecord( |  PSPE: $!pspe| )
+      !expFile.writeRecord( |  GTYPE: $!genericType| )
+      !expFile.writeRecord( |  REFNO: $!expRef| )
+      !expFile.writeRecord( |  REVNO: $!revno| )
+      !expFile.writeRecord( |  GRADE: $!grade| )
+      !expFile.writeRecord( |  SPEC: $!catRef| )
+      !expFile.writeRecord( |  ROTA: $!rota| )
+      !expFile.writeRecord( |  MIRROR: $!mirrorX $!mirrorY| )
+      !expFile.writeRecord( |  CPOINT: $!cpoint| )
+      !orivec = !orivecArray[ !index ]
+      !expFile.writeRecord( |  ORIVEC: $!orivec| )
+      !start = !startArray[ !index ]
+      !expFile.writeRecord( |  START: $!start| )
+      !end = !endArray[ !index ]
+      !expFile.writeRecord( |  END: $!end| )
+      !expFile.writeRecord( |  SNODE: $!startNode| )
+      !expFile.writeRecord( |  ENODE: $!endNode| )
+      !expFile.writeRecord( |  SREL: $!srel| )
+      !expFile.writeRecord( |  EREL: $!erel| )
+
+      !expFile.writeRecord( |  CDATE: $!crDate| )
+      !expFile.writeRecord( |  CTIME: $!crTime| )
+      !expFile.writeRecord( |  MDATE: $!mdDate| )
+      !expFile.writeRecord( |  MTIME: $!mdTime| )
+      !expFile.writeRecord( |  FIRTY: $!fireTy| )
+      !expFile.writeRecord( |  FIRTH: $!fireTh| )
+      !expFile.writeRecord( |  FIRDE: $!fireDesc| )
+      !expFile.writeRecord( |  FIRST: $!fireStart| )
+      !expFile.writeRecord( |  FIREN: $!fireEnd| )
+
+      !expFile.writeRecord( |ENDSECTION| )
+
+      -- increment object index
+      !objectIndex = !objectIndex + 1
+
+      -- Object export counts
+      !!sdnfExp10Cnt = !!sdnfExp10Cnt + 1
+
+  enddo
+  !objectIndex = !objectIndex - 1
+
+   $!item
+
+   -- set :SDNFMARK
+   !!sdnfsetmarkno( !ref )
+
+  -- Update transfer and revision numbers
+  !!sdnfupdaterevnos( )
+
+  -- Finished
+  label /Finished
+  -- Return to start
+  $!origin
+  -- Output Error messages
+  if( !messageMode eq |FULL| )then
+    do !line values !result
+      !logFile.writeRecord( |$!line| )
+    enddo
+  else
+    if( !result.size( ) gt 0 )then
+      !logFile.writeRecord( |SCTN  $!ref - Problem exporting entity.| )
+    endif
+  endif
+
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

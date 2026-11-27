@@ -1,0 +1,70 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfhighselfunc.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Activates the Highlighter form according to the Highlight Selection Flag.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      VERSION or DATE
+--
+-- Return:
+--   [Data Type]   [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfHighSelFunc( !versionDateFlag is STRING )
+
+  -- Set form variable
+  !!sdnfHighlighter.versionDateFlag = !versionDateFlag
+  !!sdnfHighlighter.vFunc.select( !versionDateFlag )
+
+  -- Activate/deactivate form gadgets
+  if( !versionDateFlag eq |DATE| )then
+    !!sdnfHighlighter.vSDay.active   = true
+    !!sdnfHighlighter.vSMonth.active = true
+    !!sdnfHighlighter.vSYear.active  = true
+    !!sdnfHighlighter.vEDay.active   = true
+    !!sdnfHighlighter.vEMonth.active = true
+    !!sdnfHighlighter.vEYear.active  = true
+    !!sdnfHighlighter.vSTransfer.active  = false
+    !!sdnfHighlighter.vSRevision.active  = false
+    !!sdnfHighlighter.vETransfer.active  = false
+    !!sdnfHighlighter.vERevision.active  = false
+  elseif( !versionDateFlag eq |VERSION| )then
+    !!sdnfHighlighter.vSDay.active   = false
+    !!sdnfHighlighter.vSMonth.active = false
+    !!sdnfHighlighter.vSYear.active  = false
+    !!sdnfHighlighter.vEDay.active   = false
+    !!sdnfHighlighter.vEMonth.active = false
+    !!sdnfHighlighter.vEYear.active  = false
+    !!sdnfHighlighter.vSTransfer.active  = true
+    !!sdnfHighlighter.vSRevision.active  = true
+    !!sdnfHighlighter.vETransfer.active  = true
+    !!sdnfHighlighter.vERevision.active  = true
+  endif
+
+endfunction
+
+------------------------------------------------------------------------

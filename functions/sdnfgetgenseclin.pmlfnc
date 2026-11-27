@@ -1,0 +1,192 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfgetgenseclin.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         05/10/2009 09:38:31
+--
+--
+-- Description:
+--   Splits a GENSEC and extracts the straight segments, including the straight components in a curve
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING     Refno
+--    2   R/W    ARRAY      Start point array
+--    3   R/W    ARRAY      End point array
+--    4   R/W    ARRAY      Segment up vector
+--
+-- Return:
+--   [Data Type] [Description]
+--    None
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfgetgenseclin( !item is STRING, !starts is ARRAY, !ends is ARRAY, !orivecs is ARRAY ) is BOOLEAN
+
+   -- Save start position
+   !start = ( ref )
+   !thisStarts = ARRAY( )
+   !thisEnds   = ARRAY( )
+   !thisOri    = ARRAY( )
+   !angTol     = 0.001
+   !isOneSeg = false
+
+   -- Go to element
+   $!item
+
+   if( !!ce.type.eq( |GENSEC| ) )then
+      SPINE 1
+      handle( 2,113 )
+         -- no spine
+         !!ce = !start
+         return !isOneSeg
+      endhandle
+      FIRST MEM
+      handle( 2,113 )
+         -- empty list
+         !!ce = !start
+         return !isOneSeg
+      endhandle
+      do
+         if( !!ce.type.eq( |POINSP| ) )then
+            -- start a linear section, look for next POINSP
+            !startPos = ( pos $!!sdnfWRT )
+            !orivec = !!sdnfgetorivec( )
+            NEXT
+            handle( 2,113 )
+               -- done
+               break
+            endhandle
+            if( !!ce.type.eq( |POINSP| ) )then
+               !endPos   = ( pos $!!sdnfWRT )
+               if( !startPos.distance( !endPos ).gt( !!sdnfDistTol ) )then
+                  !thisStarts.append( !startPos )
+                  !thisEnds.append( !endPos )
+                  !thisOri.append( !orivec )
+                  !startPos = !endPos
+               endif
+            endif
+         else
+            -- Curve point.
+            -- look at ppoint pairs (1,3) and (2,4)
+            -- if they are different then there may be a straight implied by curve
+            !posP1 = ( p1 pos $!!sdnfWRT )
+            !posP2 = ( p2 pos $!!sdnfWRT )
+            !posP3 = ( p3 pos $!!sdnfWRT )
+            !posP4 = ( p4 pos $!!sdnfWRT )
+            !orivec = !!sdnfgetorivec( )
+            if( !posP1.distance( !posP3 ).gt( !!sdnfDistTol ) )then
+               -- in straight
+               !thisStarts.append( !posP1 )
+               !thisEnds.append( !posP3 )
+               !thisOri.append( !orivec )
+            endif
+            if( !posP2.distance( !posP4 ).gt( !!sdnfDistTol ) )then
+               -- out straight
+               !thisStarts.append( !posP4 )
+               !thisEnds.append( !posP2 )
+               if( !posP3.distance( !posP4 ).lt( !!sdnfDistTol ) )then
+                  -- straights without curved section in between (I think - unless rad= 0)
+                  !thisOri.append( !orivec )
+               else
+                  -- remember !orivec is a String of the form 'E 250 N 866.025403784439 U -433.012701892219 WRT /*'
+                  !startVec = object DIRECTION( )
+                  -- !orivec length will be 1000
+                  !startVecLen = 1000.0
+                  !startVec.east   = !orivec.after( |E| ).before( |N| ).trim( ).real( ) / !startVecLen
+                  !startVec.north  = !orivec.after( |N| ).before( |U| ).trim( ).real( ) / !startVecLen
+                  !startVec.up     = !orivec.after( |U| ).before( |WRT| ).trim( ).real( ) / !startVecLen
+                  !startVec.origin = !orivec.after( |WRT| ).trim( ).dbref( )
+                  -- calculate conic rotation
+                  !posP5   = ( p5 pos $!!sdnfWRT )
+                  !axisVec = ( p5 dir $!!sdnfWRT )
+                  !baseVec = !posP3.direction( !posP5 )
+                  !height  = !axisVec.dot( !startVec )
+                  !base    = !baseVec.dot( !startVec )
+
+                  if( abs( 1.0 - abs( !height ) ) lt !angTol )then
+                     -- vectors are nearly parallel/anti-parallel
+                     !mult = 1.0
+                     if( !height.lt( 0.0 ) )then
+                        !mult = -1.0
+                     endif
+                     !east  = !axisVec.east * 1000.0 * !mult
+                     !north = !axisVec.north * 1000.0 * !mult
+                     !up    = !axisVec.up * 1000.0 * !mult
+                     !orivec = |E $!east N $!north U $!up $!!sdnfWRT|
+                     !thisOri.append( !orivec )
+                  else
+                     !endVec = !posP4.direction( !posP5 )
+                     !mult = 1.0
+                     if( !startVec.dot( !posP3.direction( !posP5 ) ).lt( 0.0 ) )then
+                        !mult = -1.0
+                     endif
+                     if( abs( 0.0 - abs( !height ) ) lt !angTol )then
+                        -- vectors are nearly perpendicular
+                        !east  = !endVec.east * 1000.0 * !mult
+                        !north = !endVec.north * 1000.0 * !mult
+                        !up    = !endVec.up * 1000.0 * !mult
+                        !orivec = |E $!east N $!north U $!up $!!sdnfWRT|
+                        !thisOri.append( !orivec )
+                     else
+                        -- all other cases
+                        !east  = ( !endVec.east  * !base + !axisVec.east  * !height ) * 1000.0
+                        !north = ( !endVec.north * !base + !axisVec.north * !height ) * 1000.0
+                        !up    = ( !endVec.up    * !base + !axisVec.up    * !height ) * 1000.0
+                        !orivec = |E $!east N $!north U $!up $!!sdnfWRT|
+                        !thisOri.append( !orivec )
+                     endif
+                  endif
+               endif
+            endif
+            NEXT
+            handle( 2,113 )
+               -- done
+               break
+            endhandle
+         endif
+      enddo
+   else
+      -- Wrong element type
+   endif
+
+   -- now check if it is likely that this is just a single segment
+   if( !thisStarts.size( ).eq( 1 ) )then
+      $!item
+      !memStart = POSS !!sdnfWRT
+      !memEnd   = POSE !!sdnfWRT
+      !memLen   = !memStart.distance( !memEnd )
+      !segLen   = !thisStarts[ 1 ].distance( !thisEnds[ 1 ] )
+      -- compare member length against segment length
+      !lenDiff = abs( !memLen - !segLen )
+      if( !lenDiff le !!sdnfDistTol )then
+         !isOneSeg = true
+      endif
+   endif
+
+   -- Return to base
+   !starts  = !thisStarts
+   !ends    = !thisEnds
+   !orivecs = !thisOri
+   !!ce = !start
+
+   return !isOneSeg
+
+endfunction
+
+------------------------------------------------------------------------

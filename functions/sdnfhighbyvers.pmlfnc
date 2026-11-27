@@ -1,0 +1,145 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfhighbyvers.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+--
+-- Description:
+--   Highlights items according to version criteria.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      DBREF       Search starting point
+--    2   R      REAL        Start Transfer Number
+--    3   R      REAL        Start Revision Number
+--    4   R      REAL        End Transfer Number
+--    5   R      REAL        End Revision Number
+--    6   R      STRING      ALL or ALLBUT
+--    7   R      STRING      Status - concatenated string of CHANGED, ADDED, DELETED
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfHighByVers( !ref is DBREF, !startTransfer is REAL, $
+      !startRevision is REAL, !endTransfer is REAL, $
+      !endRevision is REAL, !allOrAllBut is STRING, $
+      !statusMask is STRING ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Set initial status
+  !origin = ( ref )
+
+  -- Check input
+  if( !startTransfer gt !endTransfer or $
+      !startRevision gt !endRevision )then
+    -- Bad version test
+    !error.severity = !!sdnfSevWarn
+    !error.status   = !!sdnfErrBadVers
+    !error.query    = !!sdnfQueNone
+    !reply = !!sdnfError( !error )
+    golabel /Finished
+  endif
+
+
+  -- Get list of items
+  var !refList collect all ( SCTN GENSEC PANE ) for $!ref
+
+  --Work out initial filter
+  !filter = |neq|
+  if( !allOrAllBut eq |ALLBUT| )then
+    !filter = |eq|
+  endif
+  -- Apply initial filter on CHANGED|DELETED|ADDED status
+  !newRefList = ARRAY( )
+  do !item values !refList
+    !status = ( :SDNFSTATUS of $!item )
+    if( !statusMask.match( !status ) $!filter 0 )then
+      -- This is one we want
+      !newRefList.append( !item )
+    endif
+  enddo
+
+  -- Now go down this list for date comparison
+  !highlightList = ARRAY( )
+  if( !newRefList.size( ) eq 0 )then
+    -- Nothing to process
+    !error.severity = !!sdnfSevWarn
+    !error.status   = !!sdnfErrNoHighLig
+    !error.query    = !!sdnfQueNone
+    !reply = !!sdnfError( !error )
+    golabel /Finished
+  else
+    do !item values !newRefList
+      !revision = ( :SDNFREVNO of $!item )
+      !transfer = ( :SDNFTRANO of $!item )
+      if( !transfer ge !startTransfer and $
+          !transfer le !endTransfer and $
+          !revision ge !startRevision and $
+          !revision le !endRevision  )then
+        -- Compare versions in this Transfer
+          -- Satisfies highlight requirements
+          !highlightList.append( !item )
+      endif
+    enddo
+  endif
+
+  if( !highlightList.size( ) eq 0 )then
+    -- Nothing to process
+    !error.severity = !!sdnfSevWarn
+    !error.status   = !!sdnfErrNoHighLig
+    !error.query    = !!sdnfQueNone
+    !reply = !!sdnfError( !error )
+    golabel /Finished
+  else
+    if( not !!sdnftty ) then
+    -- Go and highlight them
+      unenhance all
+      do !item values !highlightList
+        -- Choose colour
+        !status = ( :SDNFSTATUS of $!item )
+        !colour = !!sdnfColDefault
+        if( !status eq |ADDED| )then
+          !colour = !!sdnfColAdded
+        elseif( !status eq |CHANGED| )then
+          !colour = !!sdnfColChanged
+        elseif( !status eq |DELETED| )then
+          !colour = !!sdnfColDeleted
+        endif
+        enhance $!item col $!colour
+      enddo
+    endif
+  endif
+
+  -- Finished
+  label /Finished
+  $!origin
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

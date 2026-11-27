@@ -1,0 +1,229 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfgetgenseccur.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         05/10/2009 09:38:31
+--
+--
+-- Description:
+--   Splits a GENSEC and extracts the straight segments, including the straight components in a curve
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING     Refno
+--    2   R/W    ARRAY      Start point array
+--    3   R/W    ARRAY      End point array
+--    4   R/W    ARRAY      Segment up vector
+--    5   R/W    ARRAY      Arc centre array
+--    6   R/W    ARRAY      Arc radii array
+--    7   R/W    ARRAY      Start angle array
+--    8   R/W    ARRAY      Sweep angle array
+--    9   R/W    ARRAY      Plane normal array
+--
+-- Return:
+--   [Data Type] [Description]
+--    None
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfgetgenseccur( !item is STRING, !starts is ARRAY,    !ends is ARRAY,   !orivecs is ARRAY, !centres is ARRAY, $
+                                    !radii is ARRAY, !startAngs is ARRAY, !sweeps is ARRAY, !norms is ARRAY,   !tangents is ARRAY ) is BOOLEAN
+
+   -- Save start position
+   !start = ( ref )
+   !isOneSeg = false
+
+   -- Go to element
+   $!item
+
+   if( !!ce.type.eq( |GENSEC| ) )then
+
+      SPINE 1
+      handle( 2,113 )
+         -- no spine
+         !!ce = !start
+         return !isOneSeg
+      endhandle
+      FIRST MEM
+      handle( 2,113 )
+         -- empty list
+         !!ce = !start
+         return !isOneSeg
+      endhandle
+      do
+         if( !!ce.type.eq( |CURVE| ) )then
+            -- Curve point.
+            !posP3  = ( p3 pos $!!sdnfWRT )
+            !dirP3  = ( p3 dir $!!sdnfWRT )
+            !posP4  = ( p4 pos $!!sdnfWRT )
+            !posP5  = ( p5 pos $!!sdnfWRT )
+            !norm   = ( p5 dir $!!sdnfWRT )
+            !posP7  = ( p7 pos $!!sdnfWRT )
+            !orivec = !!sdnfgetorivec( )
+            !radius = ( radius )
+            if( !posP5.distance( !posP4 ).gt( !!sdnfDistTol ) )then
+               -- arc
+               !starts.append( !posP3 )
+               !ends.append( !posP4 )
+               !centres.append( !posP5 )
+               !radii.append( !radius )
+
+               -- convert normal to direction "Triple"
+               !east  = ( !norm.east * 1000.0 )
+               !north = ( !norm.north * 1000.0 )
+               !up    = ( !norm.up * 1000.0 )
+               if( !east.abs( ) lt !!sdnfMinTol )then
+                  !east = 0.0
+               endif
+               if( !north.abs( ) lt !!sdnfMinTol )then
+                  !north = 0.0
+               endif
+               if( !up.abs( ) lt !!sdnfMinTol )then
+                  !up = 0.0
+               endif
+               !norvec = |E $!east N $!north U $!up $!!sdnfWRT|
+               !norms.append( !norvec )
+
+               -- convert normal to direction "Triple"
+               !east  = ( !dirP3.east * 1000.0 )
+               !north = ( !dirP3.north * 1000.0 )
+               !up    = ( !dirP3.up * 1000.0 )
+               if( !east.abs( ) lt !!sdnfMinTol )then
+                  !east = 0.0
+               endif
+               if( !north.abs( ) lt !!sdnfMinTol )then
+                  !north = 0.0
+               endif
+               if( !up.abs( ) lt !!sdnfMinTol )then
+                  !up = 0.0
+               endif
+               !tanvec = |E $!east N $!north U $!up $!!sdnfWRT|
+               !tangents.append( !tanvec )
+
+               -- Calculate start angle
+               -- the SDNF specification of this is particularly vague.
+               -- I am taking it to be the rotation of the start point from the horizontal (or East)
+               !startAng = ( 0 )
+               !startVec = !posP5.direction( !posP3 )
+               -- find curve plane relative to E
+               !baseVec  = object DIRECTION( |E $!!sdnfWRT| )
+               if( !norm.isParallel( !baseVec ) )then
+                  -- use north/south
+                  if( !norm.dot( !baseVec ).gt( 0.0 ) ) then
+                     !baseVec = object DIRECTION( |S $!!sdnfWRT| )
+                  else
+                     !baseVec = object DIRECTION( |N $!!sdnfWRT| )
+                  endif
+               endif
+               -- project baseVec onto plane of curve
+               !ori = object ORIENTATION( |Z is $!norm| )
+               !curPlane = object PLANE( !posP5, !ori )
+               !projBase = !baseVec.projected( !curPlane )
+
+               -- calculate angle
+               !cosA = !projBase.dot( !startVec )
+               if( ( abs( abs( !cosA ) - 1.0 ) ) le 0.00001 )then
+                  -- cosA is a bit outside range -1.0<x<+1.0
+                  if( !cosA.lt( 0.0 ) )then
+                     !cosA = -1.0
+                  else
+                     !cosA = 1.0
+                  endif
+               endif
+               !startAng = acos( !cosA )
+               -- correct sign
+               if( !startVec.isParallel( !projBase ) )then
+                  -- special case
+                  if( !startVec.dot( !projBase ).lt( 0.0 ) )then
+                     !startAng = 180.0
+                  endif
+               else
+                  if( !projBase.cross( !startVec ).dot( !norm ).lt( 0.0 ) )then
+                     !startAng = !startAng * -1.0
+                  endif
+               endif
+               !startAngs.append( !startAng )
+
+               -- calculate sweep angle
+               !endVec = !posP5.direction( !posP4 )
+               !cosA = !endVec.dot( !startVec )
+               if( ( abs( abs( !cosA ) - 1.0 ) ) le 0.00001 )then
+                  -- cosA is a bit outside range -1.0<x<+1.0
+                  if( !cosA.gt( 0.0 ) )then
+                     !sweepAngle = 0.0
+                  else
+                     !sweepAngle = 180.0
+                  endif
+               else
+                  !sweepAngle = acos( !cosA )
+               endif
+               -- correct sign
+               if( !startVec.isParallel( !endVec ) )then
+                  -- special case
+                 !arcVec = !posP3.direction( !posP7 )
+                  if( !startVec.cross( !arcVec ).dot( !norm ).lt( 0.0 ) )then
+                     !sweepAngle = !sweepAngle * -1.0
+                  endif
+               else
+                  -- check for angle > 180
+                  !line = object LINE( !posP4, !posP3 )
+                  !point = !line.near( !posP7 )
+                  if( !point.distance( !posP7 ).gt( !radius ) )then
+                     -- more than 180
+                     !sweepAngle = !sweepAngle - 360.0 * ( !sweepAngle / abs( !sweepAngle ) )
+                  endif
+                  if( !startVec.cross( !endVec ).dot( !norm ).lt( 0.0 ) )then
+                     !sweepAngle = !sweepAngle * -1.0
+                  endif
+               endif
+               !sweeps.append( !sweepAngle )
+               !orivecs.append( !orivec )
+            endif
+         endif
+         NEXT
+         handle( 2,113 )
+            -- done
+            break
+         endhandle
+      enddo
+   else
+      -- Wrong element type
+   endif
+
+   -- now check if it is likely that this is just a single segment
+   if( !starts.size( ).eq( 1 ) )then
+      $!item
+      !memStart = POSS !!sdnfWRT
+      !memEnd   = POSE !!sdnfWRT
+      !memLen   = !memStart.distance( !memEnd )
+      !segLen   = !starts[ 1 ].distance( !ends[ 1 ] )
+      -- compare member length against segment length
+      !lenDiff = abs( !memLen - !segLen )
+      if( !lenDiff le !!sdnfDistTol )then
+         !isOneSeg = true
+      endif
+   endif
+
+   -- Return to base
+   !!ce = !start
+
+   return !isOneSeg
+
+endfunction
+
+------------------------------------------------------------------------

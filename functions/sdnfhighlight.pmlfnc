@@ -1,0 +1,75 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfhighlight.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNFIMPEXP
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Highlights items according to form requirements
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type] [Description]
+--    None
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfHighLight( )
+
+  -- Save start position
+  !start = ( ref )
+
+  -- Go to Search Start
+  $!!sdnfHighLighter.source
+  rem all
+  add ce
+
+  -- Go and Do it
+  !checkMask = ||
+  if( !!sdnfHighLighter.added )then
+    !checkMask = !checkMask + |ADDED|
+  endif
+  if( !!sdnfHighLighter.deleted )then
+    !checkMask = !checkMask + |DELETED|
+  endif
+  if( !!sdnfHighLighter.changed )then
+    !checkMask = !checkMask + |CHANGED|
+  endif
+  if( !!sdnfHighLighter.versionDateFlag eq |DATE| )then
+    -- Highlight by date
+    call !!sdnfHighByDate( !start, !!sdnfHighLighter.startDate, $
+      !!sdnfHighLighter.startMonth, !!sdnfHighLighter.startYear, $
+      !!sdnfHighLighter.endDate, !!sdnfHighLighter.endMonth, $
+      !!sdnfHighLighter.endYear, !!sdnfHighLighter.highlight, !checkMask )
+  else
+    -- Highlight by version
+    call !!sdnfHighByVers( !start, !!sdnfHighLighter.startTransfer, $
+      !!sdnfHighLighter.startRevision, !!sdnfHighLighter.endTransfer, $
+      !!sdnfHighLighter.endRevision, !!sdnfHighLighter.highlight, !checkMask )
+  endif
+
+  -- Return to base
+  $!start
+
+endfunction
+
+------------------------------------------------------------------------

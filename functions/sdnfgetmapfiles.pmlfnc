@@ -1,0 +1,257 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfgetmapfiles.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         14/10/2009 10:59:59
+--
+--
+-- Description:
+--   Gets mapping files from import or export form
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]  [Description]
+--    None
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfgetmapfiles( !formData is ANY, !impExp is STRING, !soutar is STRING, $
+                                   !mapFile is STRING, !matFile is STRING, !oriFile is STRING, $
+                                   !uniFile is STRING ) is SDNFERROROBJ
+
+   -- Initialise Error object
+   !error          = object SDNFERROROBJ( )
+   !error.severity = !!sdnfSevOK
+   !error.status   = !!sdnfErrOK
+   !error.query    = !!sdnfQueNone
+
+   -- the following variables must exist
+   --   We may be able to cope with no Unicode mapping file
+   !formDataAttrs = !formData.attributes( )
+   if( !formDataAttrs.findFirst( |MAPMODE| ).set( ) and $
+       !formDataAttrs.findFirst( |MAPFILE| ).set( ) and $
+       !formDataAttrs.findFirst( |MATFILE| ).set( ) and $
+       !formDataAttrs.findFirst( |ORIFILE| ).set( ) and $
+       !formDataAttrs.findFirst( |FILE| ).set( ) )then
+   else
+      -- Give up
+      !error.severity = !!sdnfSevError
+      !error.status   = !!sdnfErrNoMapFile
+      return !error
+   endif
+
+   -- Check we have suitable Mapping Files
+   !mapFile = ||
+   !matFile = ||
+   !oriFile = ||
+   !uniFile = ||
+   if( !formData.mapMode eq |MANUAL| )then
+      -- Check given file is Mapping File
+      !mapFile = !formData.mapFile
+      !error = !!sdnfTestMapFile( !mapFile, !soutar, !!sdnfProfSep )
+      if( !error.status neq !!sdnfErrOK )then
+         -- Handle error
+         return !error
+      endif
+      !matFile = !formData.matFile
+      !error = !!sdnfTestMapFile( !matFile, !soutar, !!sdnfMatSep )
+      if( !error.status neq !!sdnfErrOK )then
+         -- Handle error
+         return !error
+      endif
+      !oriFile = !formData.oriFile
+      !error = !!sdnfTestMapFile( !oriFile, !soutar, !!sdnfOriSep )
+      if( !error.status neq !!sdnfErrOK )then
+         -- Handle error
+         return !error
+      endif
+      !uniFile = !formData.uniFile
+      if( !uniFile.length( ).gt( 0 ) )then
+         !error = !!sdnfTestMapFile( !uniFile, !soutar, !!sdnfUniSep )
+         if( !error.status neq !!sdnfErrOK )then
+            -- Handle error
+            !uniFile = ||
+            !formData.uniFile = !uniFile
+            return !error
+         endif
+      endif
+   elseif( !formData.mapMode eq |AUTO| )then
+      -- Search through Input file for Data Source
+      if( !impExp.upcase( ).eq( |IMPORT| ) )then
+         !header = object SDNFHEADEROBJ( )
+         !header = !!sdnfGetFileHead( !formData.file )
+         if( !header.issue eq |Unset| or $
+             !header.issue.length( ).eq( 0 ) )then
+            -- Use value from form
+            !header.issue = !soutar
+         endif
+         !soutar = !header.issue.upcase( )
+      endif
+      -- Check for Mapping Tables
+
+      -- Profile Mapping Table
+      !table = |!!sdnf| + !!sdnfProj + |PrfMap|
+      -- Try to see if this array exists
+      !test = $!table
+      handle( 2,751 )
+         -- No it doesn't - construct a general one
+         !table = |!!sdnfAny| + |PrfMap|
+         !test = $!table
+         handle( 2,751 )
+            -- Give up
+            !error.severity = !!sdnfSevError
+            !error.status   = !!sdnfErrNoMapFile
+            return !error
+         endhandle
+      endhandle
+
+      -- Look for soutar
+      !doneOnce = false
+      !gotEquiv = false
+      do
+         do !mapTable values $!table
+            !tokens = !mapTable.split( |*| )
+            if( !tokens[ 1 ].upcase( ).eq( !soutar ) )then
+               -- Found Mapping Table
+               !mapFile = !tokens[ 2 ]
+               break
+            endif
+         enddo
+
+         if( !mapFile.length().neq( 0 ) )then
+            -- Done - found map
+            break
+         else
+            if( !doneOnce )then
+               -- can't find it, or its equivalent
+               break
+            else
+               -- it may be that the source/target we are looking for is an equivalent
+               -- try resetting it, and possibly go round again
+               !doneOnce = true
+               do !equivalent values !!sdnfExtProgEquList
+                  if( !equivalent[ 2 ].upcase( ) eq !soutar.upcase( ) )then
+                     -- Found it - but it is the first entry
+                     !soutar = !equivalent[ 1 ].upcase( )
+                     !gotEquiv = true
+                     break
+                  endif
+               enddo
+            endif
+            if( not !gotEquiv )then
+               -- can't find it, or its equivalent
+               break
+            endif
+         endif
+      enddo
+
+      -- Material Mapping Table
+      !table = |!!sdnf| + !!sdnfProj + |MatMap|
+      -- Try to see if this array exists
+      !test = $!table
+      handle( 2,751 )
+      -- No it doesn't - construct a general one
+         !table = |!!sdnfAny| + |MatMap|
+         !test = $!table
+         handle( 2,751 )
+            -- Give up
+            !error.severity = !!sdnfSevError
+            !error.status   = !!sdnfErrNoMapFile
+            return !error
+         endhandle
+      endhandle
+      -- Look for soutar
+      do !matTable values $!table
+         !tokens = !matTable.split( |*| )
+         if( !tokens[ 1 ].upcase( ) eq !soutar )then
+            -- Found Mapping Table
+            !matFile = !tokens[ 2 ]
+            break
+         endif
+      enddo
+
+      -- Look for Orientation file
+      !table = |!!sdnf| + !!sdnfProj + |OriMap|
+      -- Try to see if this array exists
+      !test = $!table
+      handle( 2,751 )
+         -- No it doesn't - construct a general one
+         !table = |!!sdnfAny| + |OriMap|
+         !test = $!table
+         handle( 2,751 )
+            -- Give up
+            !error.severity = !!sdnfSevError
+            !error.status   = !!sdnfErrNoMapFile
+            return !error
+         endhandle
+      endhandle
+      -- Look for soutar
+      do !oriTable values $!table
+         !tokens = !oriTable.split( |*| )
+         if( !tokens[ 1 ].upcase( ) eq !soutar )then
+            -- Found Mapping Table
+            !oriFile = !tokens[ 2 ]
+            break
+         endif
+      enddo
+
+      -- Look for Unicode file
+      !gotUniTable = false
+      !table = |!!sdnf| + !!sdnfProj + |UniMap|
+      -- Try to see if this array exists
+      !test = $!table
+      handle( 2,751 )
+         -- No it doesn't - construct a general one
+         !table = |!!sdnfAny| + |UniMap|
+         !test = $!table
+         handle( 2,751 )
+            -- Give up not necessarily an error
+         endhandle
+         !gotUniTable = true
+      endhandle
+      if( !gotUniTable.eq( true ) )then
+         -- Look for soutar
+         do !uniTable values $!table
+            !tokens = !uniTable.split( |*| )
+            if( !tokens[ 1 ].upcase( ) eq !soutar )then
+               -- Found Mapping Table
+               !uniFile = !tokens[ 2 ]
+               break
+            endif
+         enddo
+      endif
+   endif
+
+   -- Have we found enough Mapping Tables
+   --   We may be able to cope with no Unicode mapping file
+   if( !mapFile.length( ) eq 0 or $
+       !matFile.length( ) eq 0 or $
+       !oriFile.length( ) eq 0 )then
+      -- No - Give up
+      !error.severity = !!sdnfSevError
+      !error.status   = !!sdnfErrNoMapFile
+      return !error
+   endif
+
+   -- Finished completely
+   return !error
+
+endfunction

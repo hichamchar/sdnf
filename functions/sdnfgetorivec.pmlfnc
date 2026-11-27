@@ -1,0 +1,80 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfgetorivec.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         05/10/2009 09:38:31
+--
+--
+-- Description:
+--   Gets the orientation vector in SDNF terms
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--
+-- Return:
+--   [Data Type] [Description]
+--    STRING     Orientation vector as a string
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfgetorivec( ) is STRING
+
+   -- Orientation vector
+   if( !!ce.type.eq( |CURVE| ) )then
+      !ori    = ( ori of prev $!!sdnfWRT )
+      !oridir   = !ori.ydir()
+      !east   = ( !oridir.east * 1000 )
+      !north  = ( !oridir.north * 1000 )
+      !up     = ( !oridir.up * 1000 )
+   elseif( !!ce.type.eq( |SCTN| ) )then
+      !ori    = ( ori $!!sdnfWRT )
+      !east   = ( !ori.ydir( ).east * 1000 )
+      !north  = ( !ori.ydir( ).north * 1000 )
+      !up     = ( !ori.ydir( ).up * 1000 )
+   elseif( !!ce.type.eq( |POINSP| ) )then
+      !ori    = ( ori $!!sdnfWRT )
+      !east   = ( !ori.ydir( ).east * 1000 )
+      !north  = ( !ori.ydir( ).north * 1000 )
+      !up     = ( !ori.ydir( ).up * 1000 )
+   elseif( !!ce.type.eq( |PANE| ) or $
+           !!ce.type.eq( |NXTR| ) or $
+           !!ce.type.eq( |NCYL| ) or $
+           !!ce.type.eq( |NBOX| ) )then
+      !ori    = ( ori $!!sdnfWRT )
+      !east   = ( !ori.zdir( ).east * 1000 )
+      !north  = ( !ori.zdir( ).north * 1000 )
+      !up     = ( !ori.zdir( ).up * 1000 )
+   endif
+
+   if( !east.abs( ) lt !!sdnfMinTol )then
+      !east = 0.0
+   endif
+   if( !north.abs( ) lt !!sdnfMinTol )then
+      !north = 0.0
+   endif
+   if( !up.abs( ) lt !!sdnfMinTol )then
+      !up = 0.0
+   endif
+   !orivec = |E $!east N $!north U $!up $!!sdnfWRT|
+
+   return !orivec
+
+endfunction
+
+------------------------------------------------------------------------

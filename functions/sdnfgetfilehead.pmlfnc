@@ -1,0 +1,213 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfgetfilehead.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Gets SDNF header (Packet 00) information from the named file.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      File name
+--
+-- Return:
+--   [Data Type]  [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfGetFileHead( !file is STRING ) is SDNFHEADEROBJ
+
+  -- Initialise Header object
+  !header          = object SDNFHEADEROBJ( )
+  !header.issue    = |Unset|
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+  !header.error   = |No Error|
+
+  -- Try to see if input file exists
+  !filePos = 0
+  if( !file.length( ) gt 0 )then
+    -- Pick up from file
+    !testFile = object FILE( !file )
+    if( not !testFile.exists( ) )then
+      -- Error - should not get here - handled above
+      !error.severity = !!sdnfSevError
+      !error.status   = !!sdnfErrNoImpFile
+      !reply = !!sdnfError( !error )
+    else
+
+      !foundHeader = false
+      !error.status   = !!sdnfErrNSDNFFile
+
+      -- Read input file
+      !lines = !testFile.readFile( !!sdnfMaxFileSize )
+      do
+        !filePos = !filePos + 1
+        !line = !lines[ !filePos ]
+        handle any
+          -- Last line or other error
+          break
+        endhandle
+
+        -- Scan for PACKET 00
+        !tokens = !line.split( )
+        if( !tokens.size( ) eq 0 )then
+          -- Empty line
+          skip
+        endif
+
+        if( !line.match( |STARTTABLE| ) ne 0 and $
+            !line.match( |PACKET| ) ne 0 )then
+          -- Found 'STARTTABLE PACKET' - read until 'ENDTABLE'
+          do
+            !filePos = !filePos + 1
+            !line = !lines[ !filePos ]
+            handle any
+               -- Last line or other error
+               golabel /End
+            endhandle
+
+            break if( !line.match( |ENDTABLE| ) ne 0 )
+
+            !tokens = !line.trim( ).after( |#| ).split( )
+            !packet = ( !tokens[ 1 ].real( ) )
+            !number = ( !tokens[ 2 ].real( ) )
+
+            !header.packets[ !packet ] = !number
+          enddo
+
+        -- maybe this test caters for |PACKET| and |packet|
+        elseif( !tokens[ 1 ].upcase( ).match( |PACKET| ).gt( 0 ) and $
+            !tokens[ 2 ] eq |00| )then
+
+          -- Scan till next PACKET
+          !headerLines = ARRAY( )
+          !headerLines.append( !line )
+
+          do
+            !filePos = !filePos + 1
+            !line = !lines[ !filePos ]
+            handle any
+               -- Last line or other error
+               golabel /End
+            endhandle
+            !line = !line.trim( )
+            if( !line.length( ) gt 0 and $
+                not !line.substring( 1, 1 ) eq |#| )then
+                -- break if we reach next Packet
+                !tokens = !line.split( )
+                if( !tokens[ 1 ].upcase( ) eq |PACKET| )then
+                    -- finished
+                    break
+                endif
+                !headerLines.append( !line )
+            endif
+          enddo
+
+          -- Here we have to work backwards for the indeterminate number of load cases there may be
+          !loadCasePtr = 0
+          do !i from !headerLines.size( ) to 1 by -1
+             !tokens = !headerLines[ !i ].split( )
+             if( !tokens.size( ) eq 1 )then
+                -- should have got back to count of load cases
+                !caseCount = $!tokens[ 1 ]
+                handle ANY
+                   !error.status   = !!sdnfErrBadLoads
+                   golabel /End
+                endhandle
+                if( !headerLines.size( ) ne (!caseCount + !i ) )then
+                   -- badly formed load case section
+                   !error.status   = !!sdnfErrBadLoads
+                   golabel /End
+                endif
+                -- Found it
+                !loadCasePtr = !i
+                break
+             endif
+          enddo
+
+          -- So now we can determine the version of the file
+          if( !loadCasePtr eq 9 )then
+          elseif( !loadCasePtr eq 10 )then
+          endif
+
+          !foundHeader = true
+          if( !loadCasePtr eq 10 )then
+             !offset = 1
+             !header.fileVersion = |3.0|
+             !line = !headerLines[ 2 ]
+             !header.sDNFVersion = !line.after( |"| ).before( |"| )
+          else
+             !offset = 0
+             !header.fileVersion = |2.0|
+             !header.sDNFVersion = |SDNF Version 2.0|
+          endif
+
+          -- Firm
+          !line = !headerLines[ 2 + !offset ]
+          !header.firm      = !line.after( |"| ).before( |"| )
+          -- Client
+          !line = !headerLines[ 3 + !offset ]
+          !header.client      = !line.after( |"| ).before( |"| )
+          -- Structure
+          !line = !headerLines[ 4 + !offset ]
+          !header.structure      = !line.after( |"| ).before( |"| )
+          -- Project
+          !line = !headerLines[ 5 + !offset ]
+          !header.project      = !line.after( |"| ).before( |"| )
+          -- Date, Time
+          !line = !headerLines[ 6 + !offset ]
+          !header.date = !line.after( |"| ).before( |"| )
+          !header.time = !line.after( !header.date ).after( |"| ).after( |"| ).before( |"| )
+          -- Revision,Issue
+          !line = !headerLines[ 7 + !offset ]
+          !header.revision = !line.before( | | )
+          !header.issue = !line.after( |"| ).before( |"| )
+          -- Design code
+          !line = !headerLines[ 8 + !offset ]
+          !header.designcode      = !line.after( |"| ).before( |"| )
+          -- Finished
+          golabel /End
+        endif
+      enddo
+
+      -- Close file
+      label /End
+      if( not !foundHeader )then
+        -- Not an SDNF file - pass back
+        !error.severity = !!sdnfSevError
+        !header.error = |Error|
+        !reply = !!sdnfError( !error )
+      endif
+    endif
+  endif
+
+  -- Finished
+  return !header
+
+endfunction
+
+------------------------------------------------------------------------

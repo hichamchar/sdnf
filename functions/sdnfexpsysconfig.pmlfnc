@@ -1,0 +1,29 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfexpsysconfig.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         04/02/2010 14:12:28
+--
+-- Description:
+--    Calls system configuration form
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfexpsysconfig( !form is FORM )
+
+   show !!sdnfsysconfigfrm
+   !!sdnfsysconfigfrm.showForm( |EXPORT|, !form )
+   -- Can't initialise the Export form here as the Config form isn't a blocking one
+
+endfunction
+
+------------------------------------------------------------------------

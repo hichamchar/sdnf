@@ -1,0 +1,124 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnffilebrowser.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         06/10/2009 14:55:09
+--
+--
+-- Description:
+--   Brings up a file browser.  You may ask why we need another function, but...
+--   Someone (who shall be nameless, but not me) introduced a bug in the canonical 12.1
+--   code that forced an undesirable type of behaviour.  This was nominally to fix P-18527.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      File to be imported
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnffilebrowser( !directory is STRING, !seedFile is STRING, !title is STRING, !loadFlag is BOOLEAN, !callback is STRING, !postCallback is STRING )
+
+   -- this is actually a version of the file browser BEFORE the introduction of the bug
+
+   if( !loadFlag ) then
+     !mode = 'OPEN'
+   else
+     !mode = 'SAVE'
+   endif
+
+   -- Strip any extension off the seed file and feed into the browser extension
+   !extension = !seedFile.after('.')
+   if (!extension eq '') then
+   !extension = 'all'
+      !dotExtension = '.*'
+   else
+      !dotExtension = '.' & !extension
+   endif
+
+   !extensionString = 'All files (*.*)|*.*'
+   !extensionString = !extensionString + '|' + !extension & ' files (*' & !dotExtension & ')|*' & !dotExtension
+
+   -- Save start position
+   !start = ( ref )
+
+   if (undefined(!!fileBrowser)) then
+      pml load form !!fileBrowser
+   endif
+
+   import 'pmlfilebrowser'
+   handle any
+   endhandle
+
+   Using namespace 'Aveva.Core.Presentation'
+   handle (47,15)
+      -- This is new syntax - revert to old system
+      --  callback |CALLIB XFILEMOTIF $$!!sdnfSearchStart $<call !!sdnfSetImpFile( !!sdnfResetCDSFILE( ) )$> $
+      --  $<$!!sdnfShortProduct - File Browser$> 'EXISTS' true $<call !!sdnfBrowserError( )$>| apply
+
+
+      !okErr = |call !!sdnfBrowserError( )|
+
+      if( undefined( !!cdsFile ) )then
+        !!cdsFile = ||
+      endif
+
+      -- wrapper to new file browser - won't work with reports
+      !!cdsFileOKCall = !postCallback
+      $M/%SDNFUI%/CLIB/FILES/XFILEMOTIF $<$!directory$> $<$!postCallback$> $<$!title$> $<$!loadFlag$> true $<$!okErr$>
+      return
+
+   elsehandle NONE
+      -- Show Browser
+      !browser = object PMLFILEBROWSER( !mode )
+      !browser.show( !directory, !seedFile, !title, !loadFlag ,!extensionString , 2 )
+
+      -- Set selected file
+      !!fileBrowser.file = !!file(!browser.file())
+      !!fileBrowser.existFlag   = !loadFlag
+   endhandle
+
+   if (!!fileBrowser.file.string() neq '') then
+
+      -- Run callback if it's a function
+      $!callback
+      handle any
+         -- Run callback if its a PML1 style Macro
+         var !unique unique
+         !fileName = '%SDNFWORK%' & !unique & '.pmlmac'
+         !tempFile = object FILE(!fileName)
+         !lines[1] = !callback
+         !tempFile.writefile('OVERWRITE', !lines)
+         !!runMacro(!tempFile.fullname(), '')
+         !tempFile.deleteFile()
+      endhandle
+   endif
+
+   -- now do the post Operation
+   $!postCallback
+
+   -- Return to start
+   $!start
+
+endfunction
+
+------------------------------------------------------------------------
