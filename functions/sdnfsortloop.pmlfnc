@@ -1,0 +1,145 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsortloop.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+--
+-- Description:
+--   Compares source and target loops, reversing source loop if necessary.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Source of comparison
+--    2   R      STRING      Target of comparison
+--
+-- Return:
+--   [Data Type]   [Description]
+--    STRING        DIFFERENT|SAME|REVERSED
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSortLoop( !source is STRING, !target is STRING ) is STRING
+
+  -- Set initial status
+  !start = ( ref )
+  !result = |DIFFERENT|
+
+  -- Do the Loops
+  $!source
+  var !sVertPos append eval ( pos $!!sdnfWRT ) for all PAVE for $!source
+  var !unusedSVertRef append eval ( ref ) for all PAVE for $!source
+
+  -- Go to target entity - Yes, make a list 3 times as long
+  $!target
+  var !tVertPos append eval ( pos $!!sdnfWRT ) for all PAVE for $!target
+  var !tVertPos append eval ( pos $!!sdnfWRT ) for all PAVE for $!target
+  var !tVertPos append eval ( pos $!!sdnfWRT ) for all PAVE for $!target
+
+  -- Look for point match between loops
+  do !i index !sVertPos
+    !firstPoint = !sVertPos[ !i ]
+    !fPtArray = ARRAY( )
+    do !j index !tVertPos
+      !testPoint = !tVertPos[ !j ]
+      var !sDist cons dist $!testPoint to $!firstPoint
+      !rDist = !sDist.real( )
+      if( !rDist lt !!sdnfDistTol )then
+        -- Found a match
+        !fPtArray.append( !j )
+      endif
+    enddo
+    if( not !fPtArray.unset( ) )then
+      -- Found a first point match
+      !firstIndex = !i
+      golabel /GotPoint
+    endif
+  enddo
+  -- No point match found - loops are different enough
+  golabel /Finished
+
+  -- Look at neighbouring point
+  label /GotPoint
+  -- Use second occurrence (for reasons that will become clear)
+  !startIndex = !fPtArray[ 2 ]
+  -- Try next point
+  !testPoint = !sVertPos[ !firstIndex + 1 ]
+  !secondPoint = !tVertPos[ !startIndex + 1 ]
+  var !sDist cons dist $!secondPoint to $!testPoint
+  !rDist = !sDist.real( )
+  if( !rDist lt !!sdnfDistTol )then
+    -- Not reversed
+    !reversed = false
+    !increment = ( 1 )
+    !result = |SAME|
+  else
+    -- Try previous point
+    !secondPoint = !tVertPos[ !startIndex - 1 ]
+    var !sDist cons dist $!secondPoint to $!testPoint
+    !rDist = !sDist.real( )
+    if( !rDist lt !!sdnfDistTol )then
+      -- Reversed
+      !reversed = true
+      !increment = ( -1 )
+      !result = |REVERSED|
+    else
+      -- Second point does not match
+      golabel /Finished
+    endif
+  endif
+
+  -- "Reorder" the source loop as necessary (to keep any frads on target)
+  if( !reversed )then
+    PLOO 1 of $!source
+    var !pointCount mem pave count
+    do !i from 1 to ( $!pointCount - 1 )
+      reorder pave $!pointCount before pave $!i
+    enddo
+    -- first point is not repeated at end
+
+    -- switch vertex codings to apply to following segment.
+    !ref = ref
+    !vertexCount = mem PAVE count
+    do !i from 1 to int( !vertexCount / 2 )
+      PAVE $!i
+      !desp1 = ( desp[ 1 ] )
+      !iOther = !vertexCount - !i + 1
+      PAVE $!iOther
+      !desp2 = ( desp[ 1 ] )
+      desp n 1 $!desp1
+      handle ANY
+      endhandle
+      PAVE $!i
+      desp n 1 $!desp2
+      handle ANY
+      endhandle
+    enddo
+    !!ce = !ref
+
+  endif
+
+  -- Finished
+  label /Finished
+  -- Return to start
+  $!start
+  return !result
+
+endfunction
+
+------------------------------------------------------------------------

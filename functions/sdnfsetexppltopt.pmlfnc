@@ -1,0 +1,53 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsetexppltopt.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         19/10/2009 12:17:37
+--
+--
+-- Description:
+--   Sets plate options on Export Information form.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      BOOLEAN     Option
+--
+-- Return:
+--   [Data Type]   [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfsetexppltopt( !option is BOOLEAN )
+
+  !!sdnfExpInfo.plate   = !option
+
+  if( !option )then
+    !!sdnfExpInfo.expHoles.active = true
+  else
+    !!sdnfExpInfo.expHoles.active = false
+  endif
+
+   -- Whatever happens - if file version is v2, suppress hole export
+   if( !!sdnfExpInfo.fileVersion.eq( |2.0| ) )then
+      !!sdnfExpInfo.expHoles.active = false
+   endif
+endfunction
+
+------------------------------------------------------------------------

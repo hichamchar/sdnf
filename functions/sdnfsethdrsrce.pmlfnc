@@ -1,0 +1,86 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsethdrsrce.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Sets Packet 00 header source site.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Option
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSetHdrSrce( !option is STRING ) is SDNFERROROBJ
+
+  -- Save start position
+  !start = ( ref )
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Set Header source element
+  if( !option eq |CE| ) then
+    -- Climb to Stru,Zone or Site
+    STRU
+    handle( 2,111 )
+      ZONE
+      handle( 2,111 )
+        SITE
+        handle( 2,111 )
+          -- In wrong place in database
+          !error.severity = !!sdnfSevError
+          !error.status   = !!sdnfErrBadDBPos
+          !unusedReply = !!sdnfError( !error )
+          golabel /Finished
+        endhandle
+      endhandle
+    endhandle
+    !!sdnfExpHeader = ( flnm )
+    !sourceText  = |Packet 00 from: | + !!sdnfExpHeader
+    if( !sourceText.length( ) gt 45 )then
+      -- Use refno instead
+      !sourceRef = ( ref )
+      !sourceText = |Packet 00 from: | + !sourceRef.string( )
+    endif
+
+    -- Set Form data
+    !!sdnfExpInfo.expHdrText.val  = !sourceText
+    !!sdnfExpInfo.hdrSource = !!sdnfExpHeader
+  endif
+
+  -- Finished
+  label /Finished
+  -- Return to start
+  $!start
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

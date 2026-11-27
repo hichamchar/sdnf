@@ -1,0 +1,600 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsystemdata.pmlfnc
+--   Type:          Function Definition
+--   Group:         Interfaces
+--   Keyword:       SDNF
+--   Module:        Design
+--   Replaces:
+--
+-- Author:          D.Wilson
+-- Created:         Mon Jan 28 14:07:39 1998
+--
+-- Description:
+-- Sets up System Data for Steel Detailing Neutral File Import Export System
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type] [Description]
+--    None
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSystemData( )
+
+  --set up product names and version numbering
+  call !!sdnfProdVerData()
+
+  -- Default model number
+  !!sdnfModelNr        = 1
+
+  -- Default SDNF file format
+  -- currently |2.0| or |3.0|
+  !!sdnfSDNFVersion    = |3.0|
+
+  -- Environment variables
+  var !!sdnfUnique     unique                $* Unique process identifier
+  var !!sdnfImpExp     evar SDNFIMPEXP       $* Source of NF macros
+  var !!sdnfMain       evar SDNFMAIN
+  var !!sdnfWork       evar SDNFWORK
+  var !!sdnfMDB        mdb
+  var !!sdnfUser       user
+  !!sdnfMapDir         = |SDNFMaps|
+  !!sdnfSearchStart    = |.|
+  var !!sdnfProj       proj code
+  !!sdnfRefSite        = |/SDNFRefSite/$!!sdnfUnique|
+  !!sdnfOrigFrmw       = nulref
+  !!sdnfDebug          = false
+  !!sdnfSUStatus       = false
+  !!sdnftty            = false
+  var !device dev
+  if( !device eq 'TTY' )then
+    !!sdnftty = true
+  endif
+
+  -- Decimal separator
+  !!sdnfSeparator      = |.|
+--  !!sdnfSeparator      = |,|
+
+  -- Mapping File separators
+  !!sdnfSpaceSep        = |SPACE|
+  !!sdnfCommaSep        = |COMMA|
+  !!sdnfBlockSep        = |BLOCK|
+  !!sdnfSeparators  = ARRAY( )
+  !!sdnfSeparators.append( !!sdnfSpaceSep )
+  !!sdnfSeparators.append( !!sdnfCommaSep )
+  !!sdnfSeparators.append( !!sdnfBlockSep )
+
+  !!sdnfProfSep         = !!sdnfBlockSep
+  !!sdnfMatSep          = !!sdnfCommaSep
+  !!sdnfOriSep          = !!sdnfSpaceSep
+  !!sdnfUniSep          = !!sdnfSpaceSep
+
+  -- Default MARK field separator
+  !!sdnfMarkSep         = |!|
+
+  -- WRT text
+  !!sdnfWRT            = |WRT /*|
+
+  -- Set up External Program list
+  !!sdnfDefProgram = !!sdnfThisProg
+  !!sdnfExtProgList.delete( )
+  handle( 2,751 )
+    -- Variable does not exist
+  endhandle
+  !!sdnfExtProgList = ARRAY( )
+  !!sdnfExtProgList.append( !!sdnfThisProg )
+  !!sdnfExtProgList.append( |FrameWorks| )
+  !!sdnfExtProgList.append( |PDMS| )
+
+  -- Program equivalent list
+  !!sdnfExtProgEquList = ARRAY( )
+
+  -- Set up External Program Abbreviation list (MUST be 3 letters)
+  !!sdnfExtProgAbbr.delete( )
+  handle( 2,751 )
+    -- Variable does not exist
+  endhandle
+  !!sdnfExtProgAbbr = ARRAY( )
+  !!sdnfExtProgAbbr.append( |AVE| )
+  !!sdnfExtProgAbbr.append( |FWX| )
+  !!sdnfExtProgAbbr.append( |PDM| )
+  -- ANY to be the last in the list
+  !!sdnfExtProgAbbr.append( |ANY| )
+
+  -- System objects
+  !!sdnfPrefix         = |/SDNF-|
+  !!sdnfConfigObj      = !!sdnfPrefix + |CONFIG-| + !!sdnfMDB.after( |/| ) + |-| + !!sdnfUser
+  !!sdnfExpHeader      = !!sdnfConfigObj
+
+  -- SITEs for Added and Deleted items
+  !!sdnfAddedObjArea   = !!sdnfPrefix + |NEW-| + !!sdnfMDB.after( |/| ) + |-| + !!sdnfUser
+  !!sdnfAddedObjArea   = !!sdnfGetValidName( !!sdnfAddedObjArea )
+
+  !!sdnfDeadObjArea    = !!sdnfPrefix + |OLD-| + !!sdnfMDB.after( |/| ) + |-| + !!sdnfUser
+  !!sdnfDeadObjArea    = !!sdnfGetValidName( !!sdnfDeadObjArea )
+
+  -- Set up Severity codes
+  !!sdnfSevOK          = ( 1 )
+  !!sdnfSevWarn        = ( 2 )
+  !!sdnfSevConfirm     = ( 3 )
+  !!sdnfSevQuestion    = ( 4 )
+  !!sdnfSevError       = ( 5 )
+  !!sdnfSevFatal       = ( 6 )
+  !!sdnfSevInfo        = ( 7 )
+
+
+  -- Set up Severity messages - 1:1 for Severity codes
+  !!sdnfSevMes.delete( )
+  handle( 2,751 )
+    -- Variable does not exist
+  endhandle
+  !!sdnfSevMes = ARRAY( )
+  !!sdnfSevMes.append( |Message| )           $* SDNFSevOK
+  !!sdnfSevMes.append( |Warning| )           $* SDNFSevWarn
+  !!sdnfSevMes.append( |Confirm| )           $* SDNFSevConfirm
+  !!sdnfSevMes.append( |Question| )          $* SDNFSevQuestion
+  !!sdnfSevMes.append( |Error| )             $* SDNFSevError
+  !!sdnfSevMes.append( |Fatal| )             $* SDNFSevFatal
+  !!sdnfSevMes.append( |Information| )       $* SDNFSevInfo
+
+
+  -- Set up Error codes
+  !!sdnfErrOK          = ( 1 )               $* No error
+  !!sdnfErrFatal       = ( 2 )               $* Fatal error
+  !!sdnfErrNoMat       = ( 3 )               $* No materials
+  !!sdnfErrNoUDA       = ( 4 )               $* No UDAs
+  !!sdnfErrNoConfig    = ( 5 )               $* No Configuration details
+  !!sdnfErrNoPlines    = ( 6 )               $* No Plines in Catalogue
+  !!sdnfErrNoStlCats   = ( 7 )               $* No Steel Catalogues
+  !!sdnfErrNoImpFile   = ( 8 )               $* No import file
+  !!sdnfErrIsExpFile   = ( 9 )               $* Export file exists
+  !!sdnfErrNSDNFFile   = ( 10 )              $* Not SDNF File
+  !!sdnfErrNoFile      = ( 11 )              $* File does not exist
+  !!sdnfErrNoOutFile   = ( 12 )              $* Output file name not specified
+  !!sdnfErrNoExpItem   = ( 13 )              $* Nothing to export
+  !!sdnfErrInExtProg   = ( 14 )              $* Error in external program
+  !!sdnfErrConnWOLM    = ( 15 )              $* Cannot output Connections without Linear Members
+  !!sdnfErrNoInFile    = ( 16 )              $* No input file
+  !!sdnfErrNoImpItem   = ( 17 )              $* No items to import
+  !!sdnfErrPSDead      = ( 18 )              $* export program dead?
+  !!sdnfErrSPDead      = ( 19 )              $* import program dead?
+  !!sdnfErrFileExist   = ( 20 )              $* File exists
+  !!sdnfErrBadObject   = ( 21 )              $* Bad object
+  !!sdnfErrComplete    = ( 22 )              $* Process complete
+  !!sdnfErrBadMap      = ( 23 )              $* Bad Map File
+  !!sdnfErrNoMapFile   = ( 24 )              $* Suitable Map File does not exist
+  !!sdnfErrNotMapFil   = ( 25 )              $* Not a suitable Mapping Table File
+  !!sdnfErrBadEleTyp   = ( 26 )              $* Bad Element Type
+  !!sdnfErrUnknownOS   = ( 27 )              $* Unknown Operating System
+  !!sdnfErrCompDone    = ( 28 )              $* Comparison completed
+  !!sdnfErrCompFail    = ( 29 )              $* Failed to compare models
+  !!sdnfErrNoExpWorl   = ( 30 )              $* Can''t export WORLD
+  !!sdnfErrNoStoreId   = ( 31 )              $* Data store unset.
+  !!sdnfErrInternErr   = ( 32 )              $* Internal error
+  !!sdnfErrNoIntMpLs   = ( 33 )              $* No internal mapping list
+  !!sdnfErrNoOwnStru   = ( 34 )              $* No owning Structure
+  !!sdnfErrNoAutoDet   = ( 35 )              $* Cannot auto-detect Source Package
+  !!sdnfErrBadDBPos    = ( 36 )              $* Wrong place in database
+  !!sdnfErrNoMpFrSel   = ( 37 )              $* No Map file for selection
+  !!sdnfErrIllTraLet   = ( 38 )              $* Illegal Transfer letter
+  !!sdnfErrNodTraLet   = ( 39 )              $* Cannot decrement Transfer letter
+  !!sdnfErrZerLenMem   = ( 40 )              $* Zero length member
+  !!sdnfErrNoMpAtAll   = ( 41 )              $* No Map Files of any kind found
+  !!sdnfErrUnsupVers   = ( 42 )              $* Unsupported version of AVEVA application
+  !!sdnfErrOnBrowser   = ( 43 )              $* Error on Browser Form
+  !!sdnfErrNoRWAcces   = ( 44 )              $* No R/W access to db
+  !!sdnfErrNoAltSys    = ( 45 )              $* Cannot change Operating system
+  !!sdnfErrSavMrgFil   = ( 46 )              $* Save merge file
+  !!sdnfErrMrgFrmFil   = ( 47 )              $* Merging from file
+  !!sdnfErrBadDate     = ( 48 )              $* Bad date
+  !!sdnfErrBadVers     = ( 49 )              $* Bad version
+  !!sdnfErrNoHighlig   = ( 50 )              $* Nothing to Highlight
+  !!sdnfErrLongFiller  = ( 51 )              $* String filler is too long
+  !!sdnfErrBadLoads    = ( 52 )              $* Badly formed load cases
+  !!sdnfErrBadModNum   = ( 53 )              $* Bad model number
+  !!sdnfErrBadFilVsn   = ( 54 )              $* Bad file version
+  !!sdnfErrBadModTyp   = ( 55 )              $* Bad model type (not CP or WP)
+  !!sdnfErrSTDiffDbs   = ( 56 )              $* Source and target are in different databases
+  !!sdnfErrProgError   = ( 57 )              $* Source and target are in different databases
+  !!sdnfErrObjNoExist  = ( 58 )              $* Object does not exist
+  !!sdnfErrMacNoExist  = ( 59 )              $* Object does not exist
+  !!sdnfErrBadFileSiz  = ( 60 )              $* Cannot read complete file.  Increase size of variable !!sdnfMaxFileSize.
+
+  -- User defined messages
+  !!sdnfErrUserMess    = ( 99 )              $* Marker for user messages
+
+  -- Set up Error Messages - 1:1 for Error codes
+  !!sdnfErrMes.delete( )
+  handle( 2,751 )
+    -- Variable does not exist
+  endhandle
+  !!sdnfErrMes = ARRAY( )
+  !!sdnfErrMes.append( |No error.| )
+  !!sdnfErrMes.append( |$!!sdnfShortProduct - Interface cannot proceed.| )
+  !!sdnfErrMes.append( |No materials found.| )
+  !!sdnfErrMes.append( |UDAs for $!!sdnfShortProduct not present. Must be installed first.| )
+  !!sdnfErrMes.append( |$!!sdnfShortProduct Configuration details not present.| )
+  !!sdnfErrMes.append( |$!!sdnfShortProduct Plines not present in Catalogue.  Must be installed first.| )
+  !!sdnfErrMes.append( |No Steel Catalogues available.| )
+  !!sdnfErrMes.append( |Import file does not exist.| )
+  !!sdnfErrMes.append( |Export file already exists.| )
+  !!sdnfErrMes.append( |Not an SDNF File.| )
+  !!sdnfErrMes.append( |File does not exist.| )
+  !!sdnfErrMes.append( |Output file name not specified.| )
+  !!sdnfErrMes.append( |Nothing to export.| )
+  !!sdnfErrMes.append( |Error in external program.| )
+  !!sdnfErrMes.append( |Cannot output End Connections without Linear Members.| )
+  !!sdnfErrMes.append( |Input file name not specified.| )
+  !!sdnfErrMes.append( |Nothing to import.| )
+  !!sdnfErrMes.append( |Export: Unexpectedly long wait - See log file.| )
+  !!sdnfErrMes.append( |Import: Unexpectedly long wait - See log file.| )
+  !!sdnfErrMes.append( |File exists.| )
+  !!sdnfErrMes.append( |Bad object.| )
+  !!sdnfErrMes.append( |Process completed.| )
+  !!sdnfErrMes.append( |Bad Map File.| )
+  !!sdnfErrMes.append( |Suitable Mapping Table File not found.| )
+  !!sdnfErrMes.append( |Not a suitable Mapping Table File.| )
+  !!sdnfErrMes.append( |Bad element type.| )
+  !!sdnfErrMes.append( |Unknown Operating System.| )
+  !!sdnfErrMes.append( |Model comparison completed.| )
+  !!sdnfErrMes.append( |Failed to compare models.| )
+  !!sdnfErrMes.append( |Cannot export the WORLD.| )
+  !!sdnfErrMes.append( |Data store unset.| )
+  !!sdnfErrMes.append( |Internal error.| )
+  !!sdnfErrMes.append( |Cannot find suitable internal mapping list.| )
+  !!sdnfErrMes.append( |No owning Structure.| )
+  !!sdnfErrMes.append( |Cannot auto-detect Source Package.| )
+  !!sdnfErrMes.append( |Wrong place in database.| )
+  !!sdnfErrMes.append( |No Mapping Table defined for selection.| )
+  !!sdnfErrMes.append( |Illegal Transfer letter.| )
+  !!sdnfErrMes.append( |Cannot decrement Transfer letter.| )
+  !!sdnfErrMes.append( |Zero length member.| )
+  !!sdnfErrMes.append( |No Map Files of any kind found.| )
+  !!sdnfErrMes.append( |Unsupported version of AVEVA application.| )
+  !!sdnfErrMes.append( |Error on $!!sdnfShortProduct File Browser Form.| )
+  !!sdnfErrMes.append( |DB containing Config element is not in Modify mode.| )
+  !!sdnfErrMes.append( |Cannot modify Operating System setting for AVEVA application.| )
+  !!sdnfErrMes.append( |Create file of Merge commands for later use during this session?| )
+  !!sdnfErrMes.append( |Merging models from session file.| )
+  !!sdnfErrMes.append( |Bad date input.| )
+  !!sdnfErrMes.append( |Bad version input.| )
+  !!sdnfErrMes.append( |Nothing to highlight.| )
+  !!sdnfErrMes.append( |String filler is too long.| )
+  !!sdnfErrMes.append( |Badly formed load case records.| )
+  !!sdnfErrMes.append( |Bad model number.| )
+  !!sdnfErrMes.append( |Bad file version.| )
+  !!sdnfErrMes.append( |Bad model type.| )
+  !!sdnfErrMes.append( |Source and target locations are in different databases.| )
+  !!sdnfErrMes.append( |Programming error.| )
+  !!sdnfErrMes.append( |Object does not exist.| )
+  !!sdnfErrMes.append( |Macro does not exist.| )
+  !!sdnfErrMes.append( |Cannot read complete file.  Increase the size of variable !!sdnfMaxFileSize.  See the Configuration Guide.| )
+
+  -- Set up Query codes
+  !!sdnfQueNone        = ( 1 )               $* None
+  !!sdnfQueInstall     = ( 2 )               $* Install
+  !!sdnfQueOverwrite   = ( 3 )               $* Overwrite
+  !!sdnfQueContinue    = ( 4 )               $* Continue
+  !!sdnfQueViewLog     = ( 5 )               $* View log
+  !!sdnfQueMerge       = ( 6 )               $* Merge models
+  !!sdnfQueSave        = ( 7 )               $* Save data
+  !!sdnfQueDelete      = ( 8 )               $* Delete data
+  !!sdnfQueLoadDfltMaps = ( 9 )              $* Load default maps
+
+  -- Set up Query messages - 1:1 for Query codes
+  !!sdnfQueMes.delete( )
+  handle( 2,751 )
+    -- Variable does not exist
+  endhandle
+  !!sdnfQueMes = ARRAY( )
+  !!sdnfQueMes.append( || )
+  !!sdnfQueMes.append( |OK to install?| )
+  !!sdnfQueMes.append( |OK to overwrite?| )
+  !!sdnfQueMes.append( |OK to continue?| )
+  !!sdnfQueMes.append( |OK to view log file?| )
+  !!sdnfQueMes.append( |OK to merge models?| )
+  !!sdnfQueMes.append( |OK to save?| )
+  !!sdnfQueMes.append( |OK to delete?| )
+  !!sdnfQueMes.append( |OK to use the supplied default SDNFMaps?| )
+
+
+  -- Set variable accuracy
+  precision variables to 3 dpls
+  !!sdnfMaxNameLen = ( 50 )
+
+  -- Map List
+  !!sdnfMapList.delete( )
+  handle( 2,751 )
+    -- Variable does not exist
+  endhandle
+  !!sdnfMapList = ARRAY( )
+
+  -- Create nil file for unwanted messages
+  !prefix       = |$!!sdnfWork\FNDS$!!sdnfUnique|
+  !nil          = |.nil|
+  !sdnfNilFile = |$!prefix$!nil|
+  !nilFile = object FILE( !sdnfNilFile )
+  !nilFile.open( |OVERWRITE| )
+  !nilFile.close( )
+
+  -- Get Reference Data
+    -- Materials
+    !error = !!sdnfGetMaterials( )
+    if( !error.status neq !!sdnfErrOK )then
+      -- Manage Error message
+      call !!sdnfError( !error )
+    endif
+    -- Get list of Steel Catalogues available
+    call !!sdnfGetCataList( )
+
+
+  -- Version data
+  !!sdnfDay = ARRAY( )
+  !!sdnfDay.append( |1| )
+  !!sdnfDay.append( |2| )
+  !!sdnfDay.append( |3| )
+  !!sdnfDay.append( |4| )
+  !!sdnfDay.append( |5| )
+  !!sdnfDay.append( |6| )
+  !!sdnfDay.append( |7| )
+  !!sdnfDay.append( |8| )
+  !!sdnfDay.append( |9| )
+  !!sdnfDay.append( |10| )
+  !!sdnfDay.append( |11| )
+  !!sdnfDay.append( |12| )
+  !!sdnfDay.append( |13| )
+  !!sdnfDay.append( |14| )
+  !!sdnfDay.append( |15| )
+  !!sdnfDay.append( |16| )
+  !!sdnfDay.append( |17| )
+  !!sdnfDay.append( |18| )
+  !!sdnfDay.append( |19| )
+  !!sdnfDay.append( |20| )
+  !!sdnfDay.append( |21| )
+  !!sdnfDay.append( |22| )
+  !!sdnfDay.append( |23| )
+  !!sdnfDay.append( |24| )
+  !!sdnfDay.append( |25| )
+  !!sdnfDay.append( |26| )
+  !!sdnfDay.append( |27| )
+  !!sdnfDay.append( |28| )
+  !!sdnfDay.append( |29| )
+  !!sdnfDay.append( |30| )
+  !!sdnfDay.append( |31| )
+
+  !!sdnfMonth = ARRAY( )
+  !!sdnfMonth.append( |Jan| )
+  !!sdnfMonth.append( |Feb| )
+  !!sdnfMonth.append( |Mar| )
+  !!sdnfMonth.append( |Apr| )
+  !!sdnfMonth.append( |May| )
+  !!sdnfMonth.append( |Jun| )
+  !!sdnfMonth.append( |Jul| )
+  !!sdnfMonth.append( |Aug| )
+  !!sdnfMonth.append( |Sep| )
+  !!sdnfMonth.append( |Oct| )
+  !!sdnfMonth.append( |Nov| )
+  !!sdnfMonth.append( |Dec| )
+
+  !!sdnfYear = ARRAY( )
+  !date = object DATETIME()
+  !currentyear = !date.year()
+  !startYear = 1998
+
+  do !year from 1998 to !currentyear
+    !!sdnfYear.append(!year.string())
+  enddo
+
+
+    -- supported SDNF File versions
+  !!sdnfFileVersions = ARRAY( )
+  !!sdnfFileVersions.append( |2.0| )
+  !!sdnfFileVersions.append( |3.0| )
+
+
+  -- Change colour coding
+  !!sdnfColChanged     = ( 12 )  $* Purple
+  !!sdnfColAdded       = ( 5 )   $* Green
+  !!sdnfColDeleted     = ( 2 )   $* Red
+  !!sdnfColDuplicate   = ( 6 )   $* Cyan
+  !!sdnfColExported    = ( 3 )   $* Orange
+  !!sdnfColDefault     = ( 1 )   $* Grey
+
+
+  -- Comparison flags
+  !!sdnfLinAttrJusl = ( 1 )
+  !!sdnfLinAttrHold = ( 2 )
+  !!sdnfLinAttrPspe = ( 3 )
+  !!sdnfLinAttrSpre = ( 4 )
+  !!sdnfLinAttrMatr = ( 5 )
+  !!sdnfLinAttrBang = ( 6 )
+  !!sdnfLinAttrPoss = ( 7 )
+  !!sdnfLinAttrPose = ( 8 )
+  !!sdnfLinAttrSrel = ( 9 )
+  !!sdnfLinAttrErel = ( 10 )
+  !!sdnfLinAttrFrty = ( 11 )
+  !!sdnfLinAttrFrth = ( 12 )
+  !!sdnfLinAttrFrde = ( 13 )
+  !!sdnfLinAttrFrst = ( 14 )
+  !!sdnfLinAttrFren = ( 15 )
+  !!sdnfLinAttrYdir = ( 16 )
+  !!sdnfLinAttrPoin = ( 17 )
+
+  !!sdnfPlaAttrJusl = ( 101 )
+  !!sdnfPlaAttrHold = ( 102 )
+  !!sdnfPlaAttrPspe = ( 103 )
+  !!sdnfPlaAttrThic = ( 104 )
+  !!sdnfPlaAttrMatr = ( 105 )
+  !!sdnfPlaAttrPos  = ( 106 )
+  !!sdnfPlaAttrFrty = ( 107 )
+  !!sdnfPlaAttrFrth = ( 108 )
+  !!sdnfPlaAttrFrde = ( 109 )
+  !!sdnfPlaAttrOri  = ( 110 )
+
+  !!sdnfAddedItem    = ( 201 )
+  !!sdnfDeletedItem  = ( 301 )
+
+  !!sdnfLinMemAttr = ARRAY( )
+  !!sdnfLinMemAttr[ $!!sdnfLinAttrJusl ] = true
+  !!sdnfLinMemAttr[ $!!sdnfLinAttrHold ] = true
+  !!sdnfLinMemAttr[ $!!sdnfLinAttrPspe ] = true
+  !!sdnfLinMemAttr[ $!!sdnfLinAttrSpre ] = true
+  !!sdnfLinMemAttr[ $!!sdnfLinAttrMatr ] = true
+  !!sdnfLinMemAttr[ $!!sdnfLinAttrBang ] = true
+  !!sdnfLinMemAttr[ $!!sdnfLinAttrPoss ] = true
+  !!sdnfLinMemAttr[ $!!sdnfLinAttrPose ] = true
+  !!sdnfLinMemAttr[ $!!sdnfLinAttrSrel ] = true
+  !!sdnfLinMemAttr[ $!!sdnfLinAttrErel ] = true
+  !!sdnfLinMemAttr[ $!!sdnfLinAttrFrty ] = true
+  !!sdnfLinMemAttr[ $!!sdnfLinAttrFrth ] = true
+  !!sdnfLinMemAttr[ $!!sdnfLinAttrFrde ] = true
+  !!sdnfLinMemAttr[ $!!sdnfLinAttrFrst ] = true
+  !!sdnfLinMemAttr[ $!!sdnfLinAttrFren ] = true
+  !!sdnfLinMemAttr[ $!!sdnfLinAttrYdir ] = true
+  !!sdnfLinMemAttr[ $!!sdnfLinAttrPoin ] = true
+
+  !!sdnfPlateAttr = ARRAY( )
+  !!sdnfPlateAttr[ $!!sdnfPlaAttrJusl ] = true
+  !!sdnfPlateAttr[ $!!sdnfPlaAttrHold ] = true
+  !!sdnfPlateAttr[ $!!sdnfPlaAttrPspe ] = true
+  !!sdnfPlateAttr[ $!!sdnfPlaAttrThic ] = true
+  !!sdnfPlateAttr[ $!!sdnfPlaAttrMatr ] = true
+  !!sdnfPlateAttr[ $!!sdnfPlaAttrPos ]  = true
+  !!sdnfPlateAttr[ $!!sdnfPlaAttrFrty ] = true
+  !!sdnfPlateAttr[ $!!sdnfPlaAttrFrth ] = true
+  !!sdnfPlateAttr[ $!!sdnfPlaAttrFrde ] = true
+  !!sdnfPlateAttr[ $!!sdnfPlaAttrOri ]  = true
+
+  -- Load Upgrade Data
+  call !!sdnfLoadCPData( )
+  call !!sdnfLoadPspeData( )
+
+  -- Default values for User Data
+    -- Maximum file size in lines
+    !!sdnfMaxFileSize    = ( 500000 )
+    -- Set distance tolerance
+    !!sdnfDistTol        = ( 1 )
+    !!sdnfMinTol         = ( 0.01 )
+    -- Set wait time
+    !!sdnfWaitTime       = ( 10 )
+    !!sdnfNoOfTries      = ( 5 )
+    -- Source of Export Header data
+    !!sdnfExpHeader      = !!sdnfConfigObj
+    -- Max length of Target Map string in Export Header
+    !!sdnfMaxMapLen      = ( 10 )
+    -- Ignore unconnected Linear members
+    !!sdnfNoUnconnMem    = false
+    -- Version list
+    !!sdnfVersionList    = |_ABCDEFGHIJKLMNOPQRSTUVWXYZ|
+    !!sdnfVerListLen     = !!sdnfVersionList.length( )
+    -- Pre/Post Export/Import User Defined Macros
+    !!sdnfPreExpMac = ||
+    !!sdnfPostExpMac = ||
+    -- Import ones not used yet
+    !!sdnfPreImpMac = ||
+    !!sdnfPostImpMac = ||
+    -- Material macro
+    !!sdnfMaterialMac = |sdnfgetusermatl|
+    -- Ignore Material changes
+    !!sdnfIgnoreMatl  = false
+    -- Unhitch deleted elements
+    !!sdnfUnhitchAll  = true
+    -- Profile Map Table Ref
+--    !!sdnfProfMapRef = |CATR|
+    !!sdnfProfMapRef = |SPRE|
+    !!sdnfProfMapRefs  = ARRAY( )
+    !!sdnfProfMapRefs.append( |CATR| )
+    !!sdnfProfMapRefs.append( |SPRE| )
+
+    -- Brief/Verbose SDNF file header
+    !!sdnfBriefHdr = true
+
+    -- Flag to handle a supplied trimmed model or one where cutbacks must be used
+    -- |CP| = trimmed positions;
+    -- |WP| = worked out positions
+  !!sdnfModelType      = |CP|
+  !!sdnfModelTypes     = ARRAY( )
+  !!sdnfModelTypes.append( |CP| )
+  !!sdnfModelTypes.append( |WP| )
+
+  -- Import Mark verification
+  !!sdnfMarkVerify = ARRAY( )
+  !!sdnfMarkVerify.append( |NONE| )
+  !!sdnfMarkVerify.append( |NEW| )
+  !!sdnfMarkVerify.append( |GLOBAL| )
+
+  -- Import Mark verification
+  !!sdnfEMarkModes = ARRAY( )
+  !!sdnfEMarkModes.append( |EXTERNAL| )
+  !!sdnfEMarkModes.append( |INTERNAL| )
+  !!sdnfEMarkMode = !!sdnfEMarkModes[ 1 ]
+
+  -- Flag to replace imported SCTNs with GENSECs
+  !!sdnfSCTNtoGENSEC  = true
+  !!sdnfRebuildGensec = true
+
+  -- Load User Data
+  call !!sdnfUserData( )
+  handle any
+    -- PML function probably not found
+    -- Use the default values set here
+  endhandle
+
+  -- Get data into Global vars from default configuration file
+  var !thisUser evar SDNFUSER
+  !!sdnfConfigFileName = !thisUser + |\| + !!sdnfShortProduct + |.xml|
+  !configData = object SDNFSYSCONFIGOBJ( !!sdnfConfigFileName )
+   if( !configData.loadSuccess )then
+      !configData.copyToGlobal( )
+   endif
+   -- Reset if necessary
+   !!sdnfExpHeader = !!sdnfConfigObj
+
+  -- Load Operating System Specific stuff
+  call !!sdnfLoadOSData( )
+
+  -- Version specific data
+  call !!sdnfLoadVersData( |11| )
+
+  -- Now we can put in OS specific things such as path names
+   var !!sdnfInBin  evar SDNFEXE
+   var !!sdnfOutBin evar SDNFEXE
+
+  -- Get Data from user files
+  call !!sdnfLoadMaps( )
+
+  -- Remove nil file
+  !nilFile.deleteFile( )
+
+  -- Object export counts
+  !!sdnfExp10Cnt = 0
+  !!sdnfExp20Cnt = 0
+  !!sdnfExp22Cnt = 0
+  !!sdnfExp40Cnt = 0
+  !!sdnfExp60Cnt = 0
+
+  -- Add pline rule
+  !rule             = object RULE()
+  !rule.name        = |SDNF Plines|
+  !rule.rule        = |(match( ( attrib PKEY ), 'SNF' ) gt 0)|
+  !rule.types       = ||
+  !rule.description = |SDNF Plines with PKEY = SNF[A-N].|
+  !rule.location    = |PDMS|
+  !!ruleStore.pLine.include(!rule)
+  handle ANY
+    -- Rule probably exists already
+  endhandle
+
+  -- Done
+  !!sdnfInitialised = true
+
+endfunction

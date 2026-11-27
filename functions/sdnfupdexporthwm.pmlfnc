@@ -1,0 +1,69 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfupdexporthwm.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Updates export HWM.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      REAL        Transfer number
+--    2   R      REAL        Revision number
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfUpdExportHWM( !transferNo is REAL, !revNo is REAL ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Save start pos
+  !start = ( ref )
+
+  -- Go to session specific Config Site
+  $!!sdnfConfigObj
+  :SDNFTRANO $!transferNo
+  :SDNFREVNO $!revNo
+  !trrvNo = !!sdnfVersionList.substring( !transferNo, 1 ) + |.$!revNo|
+  :SDNFTRRVNO  |$!trrvNo|
+
+  -- Update session added object name
+  !!sdnfSessAddedObj = !!sdnfAddedObjArea + |/| + !trrvNo.trim( )
+--  !!sdnfSessAddedObj = !!sdnfAddedObjArea + |/| + !!sdnfUnique
+  !!sdnfSessAddedObj = !!sdnfValidateName( !!sdnfSessAddedObj )
+
+  -- Return to base
+  $!start
+
+  -- Finished
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

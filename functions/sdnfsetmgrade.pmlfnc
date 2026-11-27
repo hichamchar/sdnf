@@ -1,0 +1,93 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsetmgrade.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Sets entity's material grade.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      FILE        Log file if errors are to be output
+--    2   R      STRING      Message mode [BRIEF|FULL]
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSetMgrade( !logFile is FILE, !messageMode is STRING ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Store grade as it has come in
+  !mgrade = ( :SDNFMGRADE )
+  !name = ( FLNM )
+
+  -- Look for a suitable match of a Material property
+  do !i index !!sdnfMatDescList
+    if( !!sdnfMatDescList[ !i ].match( !mgrade ) gt 0 )then
+      -- We've matched it - set the material reference
+      !matref = $!!sdnfMatRefList[ $!i ]
+      if( not !matref.badref( ) )then
+        -- Set MATR to valid matching material
+        matref $!matref
+        golabel /Finished
+      endif
+    endif
+  enddo
+  -- No Material information - try user function
+  matr nulref
+  !macroName = !!sdnfMaterialMac + !!sdnfFncSfx
+  !fullMacroName = |!!| + !!sdnfMaterialMac + |( )|
+  !fullMacroName = !fullMacroName.lowcase( )
+  !test = $!fullMacroName
+  handle any
+    if( !!error.text.match( |PML:| ) ne 0 )then
+      !logFile.writeRecord( |(Error) - $!name - User macro $!macroName not found.| )
+    else
+      !logFile.writeRecord( |(Error) - $!name - Error in user macro $!macroName .| )
+      !logFile.writeRecord( |        - $!!error.text| )
+    endif
+    !test = |unset|
+  endhandle
+  if( !test eq !mgrade )then
+    -- Super!
+    golabel /Finished
+  endif
+
+  -- No match found - only a warning
+  if( !messageMode eq |FULL| )then
+      !logFile.writeRecord( |(Warning) - $!name - No material match for '$!mgrade'.| )
+  endif
+
+  -- Finished
+  label /Finished
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

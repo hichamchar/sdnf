@@ -1,0 +1,149 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsetimppacks.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Sets up which packets may be imported on the Import form.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type]     [Description]
+--    1   R      SDNFHEADEROBJ  Name of header object containing packet information
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSetImpPacks( !header is SDNFHEADEROBJ ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- See what we can do for auto-detection
+  !sourInfoSet = !!sdnfSourInfo.set( )
+  handle( 2,751 )
+    -- Source Info Form not yet constructed
+    !sourInfoSet = false
+  endhandle
+  if( !!sdnfImpdata.mapMode eq |AUTO| )then
+    if( !sourInfoSet )then
+      !error = !!sdnfSetSource( !header.issue )
+      -- Update Main Form
+      !error = !!sdnfSetMainSour( !header.issue )
+    else
+      -- Update Main Form
+      !error = !!sdnfSetMainSour( !header.issue )
+    endif
+  endif
+
+  -- Default settings is on and active
+  !!sdnfImpInfo.impLinMem.active = true
+  !!sdnfImpInfo.impLinMem.val = true
+  !!sdnfImpInfo.linMem = true
+  !!sdnfImpInfo.impArcMem.active = true
+  !!sdnfImpInfo.impArcMem.val = true
+  !!sdnfImpInfo.arcMem = true
+  !!sdnfImpInfo.impPlate.active = true
+  !!sdnfImpInfo.impPlate.val = true
+  !!sdnfImpInfo.impHoles.active = true
+  !!sdnfImpInfo.impHoles.val = true
+  !!sdnfsetimppltopt( !!sdnfImpInfo.impPlate.val )
+  !!sdnfImpInfo.plate = true
+
+  if( not !header.packets.unset( ) )then
+    -- Tweak the Input Form buttons accordingly
+
+    !test = !header.packets[ 10 ]
+    handle( 2, 752 )
+      -- No array element
+      !!sdnfImpInfo.impLinMem.val = false
+      !!sdnfImpInfo.linMem = false
+      !!sdnfImpInfo.impLinMem.active = false
+      golabel /DoneLinMem
+    endhandle
+    if( !header.packets[ 10 ] eq 0 ) then
+      -- Linear Members
+      !!sdnfImpInfo.impLinMem.val = false
+      !!sdnfImpInfo.linMem = false
+      !!sdnfImpInfo.impLinMem.active = false
+    endif
+    label /DoneLinMem
+
+    !test = !header.packets[ 20 ]
+    handle( 2, 752 )
+      -- No array element
+      !!sdnfImpInfo.plate = false
+      !!sdnfImpInfo.impPlate.val = false
+      !!sdnfImpInfo.impPlate.active = false
+      golabel /DonePlate
+    endhandle
+    if( !header.packets[ 20 ] eq 0 ) then
+      -- Plates
+      !!sdnfImpInfo.plate = false
+      !!sdnfImpInfo.impPlate.val = false
+      !!sdnfImpInfo.impPlate.active = false
+      !!sdnfsetimppltopt( !!sdnfImpInfo.impPlate.val )
+    endif
+    label /DonePlate
+
+    !test = !header.packets[ 22 ]
+    handle( 2, 752 )
+      -- No array element
+      !!sdnfImpInfo.hole = false
+      !!sdnfImpInfo.impHoles.val = false
+      golabel /DoneHoles
+    endhandle
+    if( !header.packets[ 22 ] eq 0 ) then
+      -- Plates
+      !!sdnfImpInfo.hole = false
+      !!sdnfImpInfo.impHoles.val = false
+      !!sdnfsetimppltopt( !!sdnfImpInfo.impPlate.val )
+    endif
+    label /DoneHoles
+
+    !test = !header.packets[ 60 ]
+    handle( 2, 752 )
+      -- No array element
+      !!sdnfImpInfo.arcMem = false
+      !!sdnfImpInfo.impArcMem.val = false
+      !!sdnfImpInfo.impArcMem.active = false
+      golabel /DoneArcMem
+    endhandle
+    if( !header.packets[ 60 ] eq 0 ) then
+      -- Plates
+      !!sdnfImpInfo.arcMem = false
+      !!sdnfImpInfo.impArcMem.val = false
+      !!sdnfImpInfo.impArcMem.active = false
+    endif
+    label /DoneArcMem
+  endif
+
+  -- Finished
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

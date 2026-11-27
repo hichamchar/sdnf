@@ -1,0 +1,100 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsetimpfile.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Sets import file details.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      File to be imported
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSetImpFile( !file is STRING ) is SDNFERROROBJ
+
+  -- Save start position
+  !start = ( ref )
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- See if we have entered a filename
+  if( !file.unset( ) or $
+      !file.length( ) eq 0 ) then
+    !error.severity = !!sdnfSevError
+    !error.status   = !!sdnfErrNoInFile
+    !error.query    = !!sdnfQueNone
+    !reply = !!sdnfError( !error )
+  else
+
+    -- Get file names entered
+    !unusedMode = |READ|
+
+    -- Test to see if file exists
+    !tempFile = !!sdnfExpandEnv( !file )
+    !testFile = object FILE( !tempFile )
+    if( not !testFile.exists( ) )then
+      -- File does not exist
+      !tempFile = |null|
+      !error.severity = !!sdnfSevError
+      !error.status   = !!sdnfErrNoImpFile
+      !reply = !!sdnfError( !error )
+    else
+      -- Now modify form buttons if possible
+      !header = !!sdnfGetFileHead( !file )
+      if( !header.error eq |No Error| )then
+        !!sdnfImpInfo.fileVersion = !header.fileVersion
+        call !!sdnfSetImpPacks( !header )
+      else
+        -- Problem
+        !tempFile = |null|
+      endif
+
+      -- Set Form fields
+      !!sdnfImpInfo.impFile.val = !tempFile
+      !!sdnfImpInfo.file        = !tempFile
+
+       -- Update Search Start
+       if( !tempFile.upcase( ).neq( |NULL| ) )then
+          !pathName = !testFile.pathName()
+          if( !pathName.length( ).gt( 0 ) )then
+             !!sdnfSearchStart = !pathName
+          endif
+       endif
+    endif
+  endif
+
+  -- Return to start
+  $!start
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

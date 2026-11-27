@@ -1,0 +1,58 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsetimpsouinf.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Updates data on SDNFImport form from Source Info form.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]  [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSetImpSouInf( )
+
+  -- Set Member Data
+  !!sdnfSourInfo.target   = !!sdnfThisProg
+  !!sdnfSourInfo.source   = !!sdnfSourInfo.autoSourceMap.selection( )
+  !!sdnfSourInfo.mapMode  = !!sdnfSourInfo.sourceMapMode.selection( )
+  !!sdnfSourInfo.matMode  = !!sdnfSourInfo.sourceMatMode.selection( )
+
+  -- Member data
+  !!sdnfImpdata.target     = !!sdnfSourInfo.target
+  !!sdnfImpdata.source     = !!sdnfSourInfo.source
+  !!sdnfImpdata.sourceAbbr = !!sdnfSourInfo.sourceAbbr
+  !!sdnfImpdata.mapMode    = !!sdnfSourInfo.mapMode
+  !!sdnfImpdata.matMode    = !!sdnfSourInfo.matMode
+  !!sdnfImpdata.mapFile    = !!sdnfSourInfo.mapFile
+  !!sdnfImpdata.matFile    = !!sdnfSourInfo.matFile
+  !!sdnfImpdata.oriFile    = !!sdnfSourInfo.oriFile
+  !!sdnfImpdata.uniFile    = !!sdnfSourInfo.uniFile
+
+endfunction
+
+------------------------------------------------------------------------

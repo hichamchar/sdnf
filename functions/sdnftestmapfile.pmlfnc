@@ -1,0 +1,104 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnftestmapfile.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Tests that a mapping file is suitable for the stated packages.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      File name to be tested
+--    2   R      STRING      Module destined for the Mapping File
+--    3   R      STRING      Separator
+--
+-- Return:
+--   [Data Type]   [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfTestMapFile( !file is STRING, !module is STRING, !separator is STRING ) is SDNFERROROBJ
+
+  -- Save start position
+  !start = ( ref )
+  !unusedTempFile = !file
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Test to see if file exists
+
+  !testFile = object FILE( !file )
+  if( not !testFile.exists( ) )then
+    -- File does not exist - Problem
+    !error.severity = !!sdnfSevError
+    !error.status   = !!sdnfErrNoMapFile
+  else
+    -- Check this matches required module
+    !lines = !testFile.readFile( )
+    if( !lines.size( ).eq( 0 ) )then
+      -- Empty file!
+      !error.severity = !!sdnfSevError
+      !error.status   = !!sdnfErrNotMapFil
+    else
+
+      !line = !lines[ 1 ]
+      -- Special treatment for space separated files
+      if( !separator eq |SPACE| OR !separator eq |BLOCK| )then
+        !tokens = !line.split( )
+      elseif( !separator eq |COMMA| )then
+        !tokens = !line.split( |,| )
+      endif
+      if( !tokens.size( ) lt 2 )then
+        -- Not suitable mapping file
+        !error.severity = !!sdnfSevError
+        !error.status   = !!sdnfErrNotMapFil
+      elseif( !tokens[ 2 ].upcase( ) neq !module.upcase( ) )then
+        -- look for equivalents
+        !found = false
+        do !equivalent values !!sdnfExtProgEquList
+           if( !tokens[ 2 ].upcase( ).eq( !equivalent[ 1 ].upcase( ) ) )then
+              if( !module.upcase( ).eq( !equivalent[ 2 ].upcase( ) ) )then
+                 !found = true
+                 !module = !equivalent[ 1 ]
+              endif
+           endif
+        enddo
+        if( not !found )then
+          -- Not suitable mapping file
+          !error.severity = !!sdnfSevError
+          !error.status   = !!sdnfErrNotMapFil
+        endif
+      endif
+    endif
+  endif
+
+  -- Return to start
+  $!start
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

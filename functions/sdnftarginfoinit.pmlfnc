@@ -1,0 +1,71 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnftarginfoinit.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Initialises the !!sdnfTargInfo form.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]  [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfTargInfoInit( )
+
+  -- Initialise choices
+  !target        = !!sdnfExpdata.target
+  !targetMapMode = !!sdnfExpdata.mapMode
+  !targetMatMode = !!sdnfExpdata.matMode
+
+  !!sdnfTargInfo.targetMapMode.select( !targetMapMode )
+  !!sdnfTargInfo.targetMatMode.select( !targetMatMode )
+
+  -- make RTEXT upper case
+  !!sdnfTargInfo.autoTargetMap.dText = !!sdnfExtProgList
+  !rText = !!sdnfTargInfo.autoTargetMap.dText
+  do !prog values !rText
+   !prog = !prog.upcase( )
+  enddo
+  !!sdnfTargInfo.autoTargetMap.rText = !rText
+
+  do !val values !!sdnfTargInfo.autoTargetMap.dText
+    if( !val.upcase( ) eq !target.upcase( ) ) then
+      !!sdnfTargInfo.autoTargetMap.select( |DTEXT|, !val )
+    endif
+  enddo
+
+  -- Set Member Data
+  !!sdnfTargInfo.source   = !!sdnfThisProg
+  !!sdnfTargInfo.target   = !target
+  !!sdnfTargInfo.mapMode  = !targetMapMode
+  !!sdnfTargInfo.matMode  = !targetMatMode
+
+  call !!sdnfSetTMapMode( )
+
+endfunction
+
+------------------------------------------------------------------------

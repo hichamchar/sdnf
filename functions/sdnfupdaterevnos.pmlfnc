@@ -1,0 +1,58 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfupdaterevnos.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         08/10/2009 14:13:48
+--
+--
+-- Description:
+--   Updates the transfer revision numbers.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Item refno
+--
+-- Return:
+--   [Data Type]  [Description]
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfupdaterevnos( )
+
+   if( not !!sdnfTestRun )then
+      !thisTraNo = ( :SDNFTRANO )
+      if( !thisTraNo eq 1 )then
+         -- Has not yet been exported
+         !siteTraNo = ( :SDNFTRANO of $!!sdnfConfigObj )
+         -- Build text version
+         !trrvNo = !!sdnfVersionList.substring( !siteTraNo, 1 ) + |.0|
+         :SDNFTRANO $!siteTraNo
+         handle ANY
+            -- DB is read only
+            !ref = ( ref )
+            !!sdnfVerFile.writeRecord( !ref.string( ) )
+            !!sdnfVerFile.writeRecord( |:SDNFTRANO $!siteTraNo| )
+            !!sdnfVerFile.writeRecord( |:SDNFTRRVNO  '$!trrvNo'| )
+            return
+         endhandle
+         :SDNFTRRVNO  |$!trrvNo|
+      endif
+   endif
+
+endfunction

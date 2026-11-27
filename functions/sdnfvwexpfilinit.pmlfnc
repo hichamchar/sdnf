@@ -1,0 +1,88 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfvwexpfilinit.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Sets up form to view header of Export file.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Name of source object of data
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfVwExpFilInit( !source is STRING ) is SDNFERROROBJ
+
+  -- Save start position
+  !start = ( ref )
+  $!source
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Form Member data defaults
+  !title = |$!!sdnfProduct - Export File Header Details from: $!source|
+  !!sdnfViewExpFile.formTitle = !title
+
+   -- Form Text data
+  !!sdnfViewExpFile.vFirm.val       = ( :SDNFEFID )
+  !!sdnfViewExpFile.vClient.val     = ( :SDNFCLID )
+  !!sdnfViewExpFile.vStructure.val  = ( :SDNFSTID )
+  !!sdnfViewExpFile.vProject.val    = ( :SDNFPRID )
+  !!sdnfViewExpFile.vRevision.val   = ( :SDNFREVNO of $!!sdnfConfigObj )
+  !transfer = ( :SDNFTRANO of $!!sdnfConfigObj )
+  !transferText = !!sdnfVersionList.substring( ( !transfer ), 1 )
+  !!sdnfViewExpFile.vTransfer.val   = !transferText
+  !!sdnfViewExpFile.vIssue.val      = !!sdnfExpdata.source
+  !!sdnfViewExpFile.vDesigncode.val = ( :SDNFDECODE )
+  !!sdnfViewExpFile.vTarget.val     = ( :SDNFTARGET )
+  !!sdnfViewExpFile.vModelNr.val    = ( :SDNFMODNR )
+
+
+  -- Set the Gadgets inactive
+  !!sdnfViewExpFile.vFirm.active       = false
+  !!sdnfViewExpFile.vClient.active     = false
+  !!sdnfViewExpFile.vStructure.active  = false
+  !!sdnfViewExpFile.vProject.active    = false
+  !!sdnfViewExpFile.vRevision.active   = false
+  !!sdnfViewExpFile.vTransfer.active   = false
+  !!sdnfViewExpFile.vIssue.active      = false
+  !!sdnfViewExpFile.vDesigncode.active = false
+  !!sdnfViewExpFile.vTarget.active     = false
+  !!sdnfViewExpFile.apply.active       = false
+  !!sdnfViewExpFile.vModelNr.active    = false
+  !!sdnfViewExpFile.edit.active        = true
+
+  -- Return to start
+  $!start
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

@@ -1,0 +1,50 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfvalidatename.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         18 November 2003
+--
+--
+-- Description:
+--   Ensures a name is within 50 characters
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   RW     STRING      name
+--
+-- Return:
+--   [Data Type]   [Description]
+--    STRING        name
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfValidateName( !name is STRING ) is STRING
+
+  !newName = !name
+  if( !name.length( ) gt 50 )then
+    -- contract it to 50 characters, separated by ... in the middle
+    !unusedLength = !name.length( )
+    !newName = !!sdnfContractString( !name, 50, |...| )
+  endif
+
+  return !newName
+
+endfunction
+
+------------------------------------------------------------------------

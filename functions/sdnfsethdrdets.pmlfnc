@@ -1,0 +1,126 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsethdrdets.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Sets the Header details on the SITE element.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Source object name/refno
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSetHdrDets( !source is STRING ) is SDNFERROROBJ
+
+  -- Save start position
+  !start = ( ref )
+  $!source
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Check validity of transfer number
+  !transferNo = !!sdnfVersionList.match( !!sdnfViewExpFile.vTransfer.val.upcase( ) )
+  if( !transferNo lt 1 )then
+    -- Illegal Transfer letter
+    !error.severity = !!sdnfSevError
+    !error.status   = !!sdnfErrIllTraLet
+    !error.query    = !!sdnfQueNone
+    !reply = !!sdnfError( !error )
+    golabel /Finished
+  endif
+
+  -- Check we are not going backwards in Transfer letters
+  !oldTransferNo = ( :SDNFTRANO of $!!sdnfConfigObj )
+  if( !transferNo lt !oldTransferNo )then
+    -- Cannot decrement Transfer letter
+    !error.severity = !!sdnfSevError
+    !error.status   = !!sdnfErrNodTraLet
+    !error.query    = !!sdnfQueNone
+    !reply = !!sdnfError( !error )
+    golabel /Finished
+  endif
+
+  -- Set Header details
+  :SDNFEFID |$!!sdnfViewExpFile.vFirm.val|
+  :SDNFCLID |$!!sdnfViewExpFile.vClient.val|
+  :SDNFSTID |$!!sdnfViewExpFile.vStructure.val|
+  :SDNFPRID |$!!sdnfViewExpFile.vProject.val|
+  !progSource = ( :SDNFSOURCE )
+  if( !progSource eq |unset| or !progSource.empty( ) )then
+     :SDNFSOURCE |$!!sdnfExpdata.source|
+  endif
+  :SDNFDECODE |$!!sdnfViewExpFile.vDesigncode.val|
+  :SDNFTARGET |$!!sdnfViewExpFile.vTarget.val|
+
+  -- set model number
+  !modelNr = $!!sdnfViewExpFile.vModelNr.val
+  if( ( !modelNr - int( !modelNr ) ) ne 0 )then
+    -- Cannot decrement Transfer letter
+    !error.severity = !!sdnfSevError
+    !error.status   = !!sdnfErrBadModNum
+    !error.query    = !!sdnfQueNone
+    !reply = !!sdnfError( !error )
+    golabel /Finished
+  endif
+  :SDNFMODNR $!modelNr
+  !!sdnfExpInfo.modelNr = $!modelNr
+
+
+  $!!sdnfConfigObj
+  :SDNFREVNO $!!sdnfViewExpFile.vRevision.val
+  :SDNFTRANO ( $!transferNo )
+  -- Reconstruct Transfer/Revision #
+  !trrvNo = !!sdnfVersionList.substring( !transferNo, 1 ) + |.| + |$!!sdnfViewExpFile.vRevision.val|
+  :SDNFTRRVNO  |$!trrvNo|
+
+  -- Set the Gadgets inactive
+  !!sdnfViewExpFile.vFirm.active       = false
+  !!sdnfViewExpFile.vClient.active     = false
+  !!sdnfViewExpFile.vStructure.active  = false
+  !!sdnfViewExpFile.vProject.active    = false
+  !!sdnfViewExpFile.vRevision.active   = false
+  !!sdnfViewExpFile.vTransfer.active   = false
+  !!sdnfViewExpFile.vIssue.active      = false
+  !!sdnfViewExpFile.vDesigncode.active = false
+  !!sdnfViewExpFile.vTarget.active     = false
+  !!sdnfViewExpFile.vModelNr.active    = false
+  !!sdnfViewExpFile.apply.active       = false
+  !!sdnfViewExpFile.edit.active        = true
+
+  -- Finished
+  label /Finished
+  -- Return to start
+  $!start
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

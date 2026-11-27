@@ -1,0 +1,117 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsetmainsmap.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Sets the Automatic mapping table file details, checking that one
+--   exists and it is valid.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      File Source
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSetMainSMap( !source is STRING ) is SDNFERROROBJ
+
+  -- Save start position and go to object to be output
+  !unusedStart = ( ref )
+  !found = false
+
+  -- Initialise Error object
+  !error = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Set Form member data
+  !!sdnfImpdata.source = !source
+  -- Get Source abbreviation
+  do !i index !!sdnfExtProgList
+    if( !!sdnfExtProgList[ !i ].upcase( ) eq !source.upcase( ) )then
+      -- Found it
+      !!sdnfImpdata.sourceAbbr = !!sdnfExtProgAbbr[ !i ]
+      golabel /GotAbbrev
+    endif
+  enddo
+  -- No abbreviation
+  !error.status   = !!sdnfErrInternErr
+  golabel /Finished
+
+  -- Construct Map File Table name
+  label /GotAbbrev
+  !table = |!!sdnf| + !!sdnfProj + |PrfMap|
+  -- Try to see if this array exists
+  !test = $!table
+  handle( 2,751 )
+    -- No it doesn't - construct a general one
+    !table = |!!sdnfAny| + |PrfMap|
+    !test = $!table
+    handle( 2,751 )
+      -- Give up
+      !error.status   = !!sdnfErrNoIntMpLs
+      golabel /Finished
+    endhandle
+  endhandle
+  do !i index $!table
+    if( !i eq 1 )then
+      -- Table heading
+      skip
+    endif
+    !tokens = $!table[ $!i ].split( |*| )
+    if( !!sdnfImpdata.source.upcase( ) eq !tokens[ 1 ].upcase( ) )then
+      -- Found match
+      !found = true
+
+      -- Test to see if file is valid
+      !tempFile = !tokens[ 2 ]
+      !error = !!sdnfTestMapFile( !tempFile, !!sdnfImpdata.source, !!sdnfProfSep )
+      if( !error.status neq !!sdnfErrOK )then
+        -- Handle error
+        !reply = !!sdnfError( !error )
+        !tempFile = ||
+      endif
+
+      -- Set form variables
+      !!sdnfImpdata.mapFile           = !tempFile
+      golabel /Finished
+    endif
+  enddo
+  -- File not found
+  !error.status   = !!sdnfErrNoMpFrSel
+
+  -- Finished
+  label /Finished
+  if( not !found )then
+    !error.severity = !!sdnfSevError
+    !error.query    = !!sdnfQueNone
+    !reply = !!sdnfError( !error )
+  endif
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

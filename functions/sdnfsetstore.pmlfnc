@@ -1,0 +1,86 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsetstore.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Sets Source object for comparison and storing input/merged data.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]   [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSetStore( )
+
+  -- Save start
+  !start = ( ref )
+
+  -- This has to be at lowest a SBFR
+  STRU
+  handle( 2,111 )
+    -- Can't climb to STRU - try ZONE
+    ZONE
+    handle( 2,111 )
+      -- At SITE
+    endhandle
+  endhandle
+  !type = ( type )
+  if( !type eq |SITE| or$
+      !type eq |ZONE| or$
+      !type eq |STRU| )then
+    -- Right type
+    !store = ( fullname )
+    !storeRef = ( ref )
+    !storeText = |Store in: | + !store
+    if( !storeText.length( ) gt 60 )then
+      -- Use refno instead
+      !storeText = |Store in: | + !storeRef.string( )
+    endif
+    !!sdnfsetimpstore( !storeText )
+    !!sdnfOrigSite = ( ref )
+    !!sdnfImpdata.store = !!sdnfOrigSite
+  else
+    -- Wrong type
+    !error = object SDNFERROROBJ( )
+    !error.severity = !!sdnfSevWarn
+    !error.status   = !!sdnfErrBadEleTyp
+    !error.query    = !!sdnfQueNone
+    !unusedReply = !!sdnfError( !error )
+    !storeText = |Store in: |
+    !!sdnfsetimpstore( !storeText )
+    !!sdnfOrigSite.unset( )
+    handle( 2,751 )
+      -- Variable does not exist yet
+    endhandle
+  endif
+
+  -- Return to base
+  $!start
+
+endfunction
+
+------------------------------------------------------------------------

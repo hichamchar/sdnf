@@ -1,0 +1,72 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsetusertori.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Sets User defined Orientation File mode for Target Map in SDNF TargInfo form.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Orientation Mapping file name
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSetUserTOri( !file is STRING ) is SDNFERROROBJ
+
+  -- Save start position
+  !start = ( ref )
+  !tempFile = !file
+  !prefix = |Orient'n:  |
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Test to see if file exists
+  !tempFile = !file
+  !error = !!sdnfTestMapFile( !file, !!sdnfTargInfo.autoTargetMap.selection( ), !!sdnfOriSep )
+  if( !error.status neq !!sdnfErrOK )then
+    -- Handle error
+    !unusedReply = !!sdnfError( !error )
+    !tempFile = ||
+  endif
+
+  -- Finished
+
+  -- Set Form fields
+  !!sdnfTargInfo.userTargetFile.val = !tempFile
+  !!sdnfTargInfo.oriFile            = !tempFile
+  !!sdnfTargInfo.targetOriFile.val  = !prefix + !!sdnfContractString( !tempFile, !!sdnfMaxNameLen, |...| )
+
+  -- Return to start
+  $!start
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

@@ -1,0 +1,103 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfshowviewfile.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Shows the log file.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      File name
+--    2   R      STRING      View mode - filters out Warning messages
+--    3   R      STRING      Suggested save file name
+--
+-- Return:
+--   [Data Type]   [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfShowViewFile( !file is STRING, !mode is STRING, !saveFile is STRING )
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Show form (create if necessary)
+  show !!sdnfViewFile
+
+  -- Form Member data defaults
+  !title = |$!!sdnfProduct - File Viewer: No file|
+  !!sdnfViewFile.formTitle = !title
+  !!sdnfViewFile.saveFile = !saveFile
+  !!sdnfViewFile.message.val = !saveFile
+  !!sdnfViewFile.file = ||
+  -- Clear Text view
+  !!sdnfViewFile.text.clear( )
+  !!sdnfViewFile.save.active = true
+  if( !saveFile.length( ) eq 0 )then
+    !!sdnfViewFile.save.active = false
+  endif
+
+  -- Try to see if input file exists
+  !text = ARRAY( )
+  if( !file.length( ) gt 0 )then
+    -- Pick up from file
+    !testFile = object FILE( !file )
+    if( not !testFile.exists( ) )then
+      -- File does not exist
+      !error.severity = !!sdnfSevError
+      !error.status   = !!sdnfErrNoFile
+      !!sdnfError( !error )
+      golabel /Finished
+    else
+      !title = |$!!sdnfProduct - File Viewer: $!file|
+      !!sdnfViewFile.formTitle = !title
+      !!sdnfViewFile.file = !file
+      -- Read input file
+      !lines = !testFile.readFile( !!sdnfMaxFileSize )
+      do !i indices !lines
+        !line = !lines[ !i ]
+        handle any
+          break
+        endhandle
+        -- Filter out according to mode
+        if( !mode eq |BRIEF| and $
+            !line.trim( ).substring( 1, 9 ) eq |(Warning)| )then
+          -- Ignore line
+        else
+          !text.append( !line )
+        endif
+      enddo
+    endif
+  endif
+  -- Set list text
+  !!sdnfViewFile.text.dtext = !text
+
+  -- Finished
+  label /Finished
+
+endfunction
+
+------------------------------------------------------------------------

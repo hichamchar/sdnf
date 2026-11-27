@@ -1,0 +1,85 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsrchevar.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Performs search through directory(ies) pointed to by EVAR for file.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Environment variable pointing to directory(ies)
+--    2   R      STRING      Possible intermediate directory(ies) - not a tree
+--    3   R      STRING      File suffix to be searched for
+--
+-- Return:
+--   [Data Type]   [Description]
+--    ARRAY         Array of full path names of file
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSrchEVAR( !evar is STRING, !subDirectory is STRING, !fileSuffix is STRING ) is ARRAY
+
+  -- Initialise Variables
+  !fullNames = ARRAY()
+  !subDir = ||
+  if( !subDirectory.length( ) gt 0 )then
+    !subDir = !!sdnfPathSeparatr + !subDirectory
+  endif
+
+  -- Break up environment variable
+  var !envVariable evar $!evar
+  if( !envVariable.length().eq( 0 ) )then
+    -- Environment variable unset
+    golabel /Finished
+  endif
+  !separator = | |
+  if( !envVariable.match( |;| ).gt( 0 ) )then
+    !separator = |;|
+  endif
+  !directories = !envVariable.split( !separator )
+
+  -- Search each directory listed in !evar
+  do !directoryName values !directories
+    -- Search in this directoryName/subdirectory
+    !trialDirectory = !directoryName + !subDir
+    !directory = object FILE( !trialDirectory )
+    if( !directory.exists( ) and !directory.type().eq( |DIRECTORY| ) )then
+      !files = !directory.files( )
+      do !file values !files
+         -- Check file has right suffix
+         !fileName = !file.name( )
+         if( ( !fileSuffix.length( ) eq 0 ) or $
+             ( !fileName.match( !fileSuffix ) gt 0 ) )then
+           -- Append to array
+           !fullNames.append( !fileName )
+         endif
+      enddo
+    endif
+  enddo
+
+  -- Finished
+  label /Finished
+  return !fullNames
+
+endfunction
+
+------------------------------------------------------------------------

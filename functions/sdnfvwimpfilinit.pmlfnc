@@ -1,0 +1,131 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfvwimpfilinit.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Sets up View file form to view header of stated input file.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Name of file to be viewed
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfVwImpFilInit( !file is STRING ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  !file = !!sdnfImpInfo.file
+
+  -- Form Member data defaults
+  !title = |$!!sdnfProduct - Input File Header Details from: No File|
+  !!sdnfViewImpFile.formTitle        = !title
+  !!sdnfViewImpFile.sDNFVersion      = ||
+  !!sdnfViewImpFile.file             = ||
+  !!sdnfViewImpFile.firm             = ||
+  !!sdnfViewImpFile.client           = ||
+  !!sdnfViewImpFile.structure        = ||
+  !!sdnfViewImpFile.project          = ||
+  !!sdnfViewImpFile.date             = ||
+  !!sdnfViewImpFile.time             = ||
+  !!sdnfViewImpFile.revision         = ||
+  !!sdnfViewImpFile.issue            = ||
+  !!sdnfViewImpFile.designCode       = ||
+
+  -- Form Paragraph data
+  !!sdnfViewImpFile.vSDNFVersion.val = ||
+  !!sdnfViewImpFile.vFirm.val        = ||
+  !!sdnfViewImpFile.vClient.val      = ||
+  !!sdnfViewImpFile.vStructure.val   = ||
+  !!sdnfViewImpFile.vProject.val     = ||
+  !!sdnfViewImpFile.vDate.val        = ||
+  !!sdnfViewImpFile.vTime.val        = ||
+  !!sdnfViewImpFile.vRevision.val    = ||
+  !!sdnfViewImpFile.vIssue.val       = ||
+  !!sdnfViewImpFile.vDesigncode.val  = ||
+
+  -- Try to get input file header
+  !header = object SDNFHEADEROBJ( )
+  !header.issue = |Unset|
+
+  if( not !file.unset( ) )then
+    -- Convert input file to target format
+    if( !!sdnfImpConv.length( ) neq 0 )then
+      !command = |$!!sdnfImpConv $!file $!file|
+      syscom |$!command|
+    endif
+    !header = !!sdnfGetFileHead( !file )
+  endif
+
+  if( !header.issue neq |Unset| )then
+
+    !!sdnfViewImpFile.file             = !file
+    !title = |$!!sdnfProduct - Input File Header Details from: | + !file
+    !!sdnfViewImpFile.formTitle        = !title
+    -- File Version
+    !!sdnfViewImpFile.sDNFVersion      = !header.sDNFVersion
+    !!sdnfViewImpFile.vSDNFVersion.val = !!sdnfViewImpFile.sDNFVersion
+    -- Firm
+    !!sdnfViewImpFile.firm             = !header.firm
+    !!sdnfViewImpFile.vFirm.val        = !!sdnfViewImpFile.firm
+    -- Client
+    !!sdnfViewImpFile.client           = !header.client
+    !!sdnfViewImpFile.vClient.val      = !!sdnfViewImpFile.client
+    -- Structure
+    !!sdnfViewImpFile.structure        = !header.structure
+    !!sdnfViewImpFile.vStructure.val   = !!sdnfViewImpFile.structure
+    -- Project
+    !!sdnfViewImpFile.project          = !header.project
+    !!sdnfViewImpFile.vProject.val     = !!sdnfViewImpFile.project
+    -- Date, Time
+    !!sdnfViewImpFile.date             = !header.date
+    !!sdnfViewImpFile.vDate.val        = !!sdnfViewImpFile.date
+    !!sdnfViewImpFile.time             = !header.time
+    !!sdnfViewImpFile.vTime.val        = !!sdnfViewImpFile.time
+    -- Revision,Issue
+    !!sdnfViewImpFile.revision         = !header.revision
+    !!sdnfViewImpFile.vRevision.val    = !!sdnfViewImpFile.revision
+    !!sdnfViewImpFile.issue            = !header.issue
+    !!sdnfViewImpFile.vIssue.val       = !!sdnfViewImpFile.issue
+    -- Design code
+    !!sdnfViewImpFile.designCode       = !header.designCode
+    !!sdnfViewImpFile.vDesigncode.val  = !!sdnfViewImpFile.designCode
+
+    -- Modify Import form buttons
+    call !!sdnfSetImpPacks( !header )
+
+  endif
+
+  -- Finished
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

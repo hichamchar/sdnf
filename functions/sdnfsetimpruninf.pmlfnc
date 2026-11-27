@@ -1,0 +1,58 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsetimpruninf.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Sets main Import form Run Information.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]   [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSetImpRunInf( )
+
+  -- Set Form Member Data
+  !!sdnfImpRunInf.viewMode  = !!sdnfImpRunInf.impMode.selection( )
+  !!sdnfImpRunInf.viewLog   = !!sdnfImpRunInf.impViewLog.val
+  !!sdnfImpRunInf.saveModel = !!sdnfImpRunInf.impSaveModel.val
+
+  -- Set Export Form member data
+  !!sdnfImpdata.viewMode     = !!sdnfImpRunInf.viewMode
+  !!sdnfImpdata.viewLog      = !!sdnfImpRunInf.viewLog
+  !!sdnfImpdata.saveModel    = !!sdnfImpRunInf.saveModel
+  !!sdnfImpdata.mapVerify    = !!sdnfImpRunInf.mapVerify
+  !!sdnfImpdata.markVerify   = !!sdnfImpRunInf.markVerify
+  !!sdnfImpdata.sortMode     = !!sdnfImpRunInf.sortMode
+
+  -- Attribute modification lists from child form
+  !!sdnfImpdata.linMemAttr   = !!sdnfImpRunInf.linMemAttr
+  !!sdnfImpdata.plateAttr    = !!sdnfImpRunInf.plateAttr
+
+endfunction
+
+------------------------------------------------------------------------

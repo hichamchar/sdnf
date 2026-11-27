@@ -1,0 +1,70 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsetsearchid.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Nov 30 2003
+--
+--
+-- Description:
+--   Sets starting point for highlighting searching.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]   [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSetSearchId( )
+
+  -- Save start
+  !start = ( ref )
+  !baseText = |Search in: |
+
+  SITE
+  handle( 2,111 )
+    -- Can't climb to SITE - probably at WORL
+    !searchSite = |World|
+    !searchRef = ( ref )
+    !searchText = !baseText + !searchSite
+    !!sdnfHighlighter.searchId.val = !searchText
+    !!sdnfHighlighter.source = !searchRef
+
+  elsehandle none
+    -- Can climb to SITE
+    !searchSite = ( fullname )
+    !searchRef = ( ref )
+    !searchText = !baseText + !searchSite
+    if( !searchText.length( ) gt 50 )then
+      -- Use refno instead
+      !searchText = !baseText + !searchRef.string( )
+    endif
+    !!sdnfHighlighter.searchId.val = !searchText
+    !!sdnfHighlighter.source = !searchRef
+  endhandle
+
+  -- Return to base
+  $!start
+
+endfunction
+
+------------------------------------------------------------------------

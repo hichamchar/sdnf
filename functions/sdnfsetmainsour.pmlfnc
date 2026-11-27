@@ -1,0 +1,83 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsetmainsour.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Sets the source details on the main form.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Source Package
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSetMainSour( !source is STRING ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+   -- Look for mapping of source
+   !found = false
+   do !i index !!sdnfExtProgList
+      if( !!sdnfExtProgList[ !i ].upcase( ) eq !source.upcase( ) )then
+         -- Found it
+         !found = true
+         break
+      endif
+   enddo
+
+   if( not !found )then
+      -- try the equivalents
+      do !equivalent values !!sdnfExtProgEquList
+         if( !equivalent[ 2 ].upcase( ) eq !source.upcase( ) )then
+            -- Found it - but it is the first entry
+            !found = true
+            !source = !equivalent[ 1 ]
+            break
+         endif
+      enddo
+   endif
+
+   if( !found )then
+      -- Got Abbreviation - select Mapping files
+      call !!sdnfSetMainMap( 'IMPORT', 'AUTO', 'PROFILE', ' ', !source )
+   else
+      -- No abbreviation
+      !error.status   = !!sdnfErrNoAutoDet
+      !error.severity = !!sdnfSevError
+      !error.query    = !!sdnfQueNone
+      !unusedReply = !!sdnfError( !error )
+   endif
+
+  -- Finished
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

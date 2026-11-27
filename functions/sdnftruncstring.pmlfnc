@@ -1,0 +1,53 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnftruncstring.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Truncates string to certain length.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      String to be possibly truncated
+--    2   R      REAL        Max length of string
+--
+-- Return:
+--   [Data Type]   [Description]
+--    STRING        Modified string
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfTruncString( !iString is STRING, !trLen is REAL ) is STRING
+
+  -- Initialise
+  !oString = !iString
+
+  if( !iString.length( ) gt !trLen )then
+    -- Truncate it to !trLen chars and add a ~
+    !oString = !iString.substring( 1, ( !trLen - 1 ) ) + |~|
+  endif
+
+  -- Finished
+  return !oString
+
+endfunction
+
+------------------------------------------------------------------------

@@ -1,0 +1,96 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsetmarknos.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         08/10/2009 14:13:48
+--
+--
+-- Description:
+--   Resolves the import/export mark numbers.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Item refno
+--
+-- Return:
+--   [Data Type]  [Description]
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfsetmarknos( !ref is DBREF, !markMode is STRING ) is STRING
+
+   -- save starting point
+   !start = !!ce
+
+   -- Use AVEVA database reference number or External Mark No.
+   !expRef = |$!ref|
+   if( !markMode eq |EXTERNAL| )then
+      -- Use :SDNFEMARK as refno
+      !test = ( :SDNFEMARK )
+      if( !test.length( ) gt 0 )then
+         -- Pre-pend '=' to make it look like a refno
+         !expRef = |=| + !test
+         -- Check if it is the AVEVA database reference number of this item
+         $!expRef
+         handle any
+            -- It is not - leave it.  It is an external refno or rubbish.
+            !!ce = !start
+            return !test
+         endhandle
+         -- Check this refers to CE
+         if( |$!expRef| ne |$!ref| )then
+            -- It does not. It must be a copy.
+            -- Reset SDNF Export variables as it has not been exported before.
+            !expRef = |$!ref|
+            same
+            !expRef = !expRef.after( |=| )
+
+            !error = false
+            :SDNFREVNO 0
+            handle ANY
+              !error = true
+            endhandle
+
+            :SDNFTRANO 1
+            handle ANY
+              !error = true
+            endhandle
+
+            :SDNFEMARK |$!expRef|
+            handle ANY
+              !error = true
+            endhandle
+
+            if (!error) then
+               -- Probably DB is read only
+               !!sdnfVerFile.writeRecord( !ref.string( ) )
+               !!sdnfVerFile.writeRecord( |:SDNFREVNO 0| )
+               !!sdnfVerFile.writeRecord( |:SDNFTRANO 1| )
+               !!sdnfVerFile.writeRecord( |:SDNFEMARK '$!expRef'| )
+            endif
+
+         endif
+      endif
+   endif
+
+   -- return to base
+   !!ce = !start
+   return !expRef
+
+endfunction

@@ -1,0 +1,101 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsortnewitems.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+--
+-- Description:
+--   Sorts added items on merging into FRMW of different SDNFMGRADE.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      DBREF       Refno of STRU to contain sorted items
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSortNewItems( !targetStru is DBREF ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Set initial status
+  !start = ( ref )
+
+  -- List of added items is !!sdnfAddedObj an ARRAY of DBREFs
+  if( !!sdnfAddedObj.size( ) gt 0 )then
+
+    -- Build lists
+    !mgradeList = ARRAY( )
+    !matrList   = ARRAY( )
+    do !item values !!sdnfAddedObj
+      !mgradeList.append( :SDNFMgrade of $!item )
+      !matrList.append( MATR of $!item )
+    enddo
+    -- Sort list - but get the indices for use in other lists
+    !indexList = !mgradeList.sortedIndices( )
+
+    -- Let's go
+    $!targetStru
+    !currentMgrade = !mgradeList[ !indexList[ 1 ] ]
+    !matRef        = !matrList[ !indexList[ 1 ] ]
+    !matGrade      = !mgradeList[ !indexList[ 1 ] ]
+
+    -- Create initial FRMW
+    NEW FRMW
+    matr $!matRef
+    :SDNFMGRADE |$!matGrade|
+    handle( 2,6 )
+      -- UDA has not been defined
+    endhandle
+
+    -- Go down list of added items
+    do !i index !indexList
+      !index = !indexList[ !i ]
+      if( !currentMgrade neq !mgradeList[ !index ] )then
+        -- New Material grade
+        !matRef   = !matrList[ !index ]
+        !matGrade = !mgradeList[ !index ]
+        NEW FRMW
+        matr $!matRef
+        :SDNFMGRADE |$!matGrade|
+      endif
+      -- Include new item for this grade
+      !item = !!sdnfAddedObj[ !index ]
+      include $!item
+      rem $!item add $!item colour $!!sdnfColAdded
+    enddo
+  endif
+
+  -- Finished
+
+  -- Return to start
+  $!start
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

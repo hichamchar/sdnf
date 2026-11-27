@@ -1,0 +1,58 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsetexptarinf.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Updates data on SDNFExport form from Target Info form.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]  [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSetExpTarInf( )
+
+  -- Set Member Data
+  !!sdnfTargInfo.source   = !!sdnfThisProg
+  !!sdnfTargInfo.target   = !!sdnfTargInfo.autoTargetMap.selection( )
+  !!sdnfTargInfo.mapMode  = !!sdnfTargInfo.targetMapMode.selection( )
+  !!sdnfTargInfo.matMode  = !!sdnfTargInfo.targetMatMode.selection( )
+
+  -- Member data
+  !!sdnfExpdata.source     = !!sdnfTargInfo.source
+  !!sdnfExpdata.target     = !!sdnfTargInfo.target
+  !!sdnfExpdata.targetAbbr = !!sdnfTargInfo.targetAbbr
+  !!sdnfExpdata.mapMode    = !!sdnfTargInfo.mapMode
+  !!sdnfExpdata.matMode    = !!sdnfTargInfo.matMode
+  !!sdnfExpdata.mapFile    = !!sdnfTargInfo.mapFile
+  !!sdnfExpdata.matFile    = !!sdnfTargInfo.matFile
+  !!sdnfExpdata.oriFile    = !!sdnfTargInfo.oriFile
+  !!sdnfExpdata.uniFile    = !!sdnfTargInfo.uniFile
+
+endfunction
+
+------------------------------------------------------------------------

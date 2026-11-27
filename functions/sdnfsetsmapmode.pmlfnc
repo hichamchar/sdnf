@@ -1,0 +1,63 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsetsmapmode.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Sets constraints on Mapping Table usage on the SDNFSourInfo form.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]   [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSetSMapMode( )
+
+  -- Set Form member data
+  !!sdnfSourInfo.mapMode = !!sdnfSourInfo.sourceMapMode.selection( )
+
+  -- In/activate options
+  if( !!sdnfSourInfo.mapMode eq |MANUAL| )then
+    -- Manual settings
+    !!sdnfSourInfo.autoSourceMap.active = true
+    !!sdnfSourInfo.userSourceFile.active = true
+    !!sdnfSourInfo.sMapBrowse.active = true
+    !!sdnfSourInfo.sourceMatMode.active = true
+  elseif( !!sdnfSourInfo.mapMode eq |AUTO| )then
+    -- Automatic settings
+    !!sdnfSourInfo.autoSourceMap.active = true
+    !!sdnfSourInfo.userSourceFile.active = false
+    !!sdnfSourInfo.sMapBrowse.active = false
+    !!sdnfSourInfo.sourceMatMode.active = false
+
+    -- Reset form to current setting
+    call !!sdnfSetMap( |IMPORT|, |AUTO|, |PROFILE|, | | )
+
+  endif
+
+endfunction
+
+------------------------------------------------------------------------

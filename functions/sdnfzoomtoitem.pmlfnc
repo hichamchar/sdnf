@@ -1,0 +1,83 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfzoomtoitem.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Zooms to element named in argument.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Line containing item refno
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfZoomToItem( !line is STRING ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Search for refno in string
+  !tokens = !line.split( )
+  do !j from 2 to !tokens.size( )
+    !val = !tokens[ !j ]
+    !val = !val.replace(|"|, ||)
+    !refNo = !val.dBRef( )
+    handle any
+      -- Can't convert to DBREF
+      skip
+    endhandle
+    if( not !refNo.badref( ) )then
+      -- Call Limit Box Function
+      $!refNo
+      unmark all
+      mark ce
+      --  Zoom to it in all windows - WARNING: NEXT LINE IS HARD CODED
+      !form = !!gphViews
+      !formDtext = !form.views
+      !formRtext = !formDtext
+      !startIndex = 1
+      !operation = |.type( )|
+      do !i from !startIndex to !formDtext.size( )
+        !gadgetType = !formDtext[ !i ]$!operation
+        if( !gadgetType.match( |3D| ) ne 0 )then
+          -- Found a 3D Volume view
+          !formName = !formRtext[ !i ]
+          !!gphViews.limits( !formName, !refNo )
+        endif
+      enddo
+      break
+    endif
+  enddo
+
+  -- Return to start
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

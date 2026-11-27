@@ -1,0 +1,58 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsetmarkno.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         05/10/2009 09:38:31
+--
+--
+-- Description:
+--   Sets mark number attribute
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R
+--
+-- Return:
+--   [Data Type] [Description]
+--    None
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfsetmarkno( !ref is DBREF )
+
+   -- Save start position
+   !start = ( ref )
+
+   -- Go to element
+   $!ref
+
+  !mark = |$!ref|
+  !mark = !mark.after( |=| )
+  :SDNFMARK |$!mark|
+   handle ANY
+      -- DB is read only
+      !!sdnfVerFile.writeRecord( !ref.string( ) )
+      !!sdnfVerFile.writeRecord( |:SDNFMARK '$!mark'| )
+   endhandle
+
+   -- Return to base
+   $!start
+
+endfunction
+
+------------------------------------------------------------------------

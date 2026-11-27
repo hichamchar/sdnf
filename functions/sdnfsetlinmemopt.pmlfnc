@@ -1,0 +1,52 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsetlinmemopt.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Sets linear member options on Export Information form.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      BOOLEAN     Option
+--
+-- Return:
+--   [Data Type]   [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSetLinMemOpt( !option is BOOLEAN )
+
+   !!sdnfExpInfo.linMem   = !option
+
+   -- only if we don't already want curved beams
+   if( not !!sdnfExpInfo.expArcMem.val )then
+      if( !option )then
+         !!sdnfExpInfo.expLinMemDet.active = true
+      else
+         !!sdnfExpInfo.expLinMemDet.active = false
+      endif
+   endif
+
+endfunction
+
+------------------------------------------------------------------------

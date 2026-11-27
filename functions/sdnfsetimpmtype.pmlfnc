@@ -1,0 +1,51 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsetimpmtype.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Jun 07 14:07:39 2004
+--
+--
+-- Description:
+--   Sets import model type.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]   [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSetImpMType( )
+
+  -- Set Form member data
+--  !!sdnfImpInfo.modelType = !!sdnfImpInfo.impModelType.selection( )
+
+  -- Set Form member data
+  if( !!sdnfImpInfo.impModelType.val ) then
+    !!sdnfImpInfo.modelType = |WP|
+  else
+    !!sdnfImpInfo.modelType = |CP|
+  endif
+
+endfunction
+
+------------------------------------------------------------------------

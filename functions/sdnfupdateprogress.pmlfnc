@@ -1,0 +1,48 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfupdateprogress.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        Design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         20/01/2010 13:34:41
+--
+--
+-- Description:
+--   Updates the progress bar
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfUpdateProgress( !count is REAL, !totalCount is REAL, !incProgress is STRING, !message is STRING )
+
+   if(!!sdnftty)then
+      return
+   endif
+
+   -- Do it every 5%
+   !perCent = !count * ( 20 / !totalCount )
+   handle any
+      -- assume all done
+      !perCent = 20.0
+   endhandle
+
+   !perCentInt = !perCent.int( ) * 5
+   if( !perCentInt.neq ( !!sdnfProgCount ) )then
+       !!sdnfProgCount = !perCentInt
+       !promptMessage = !message + | - $!perCentInt% complete.|
+       !!sdnfPrompt( |$!promptMessage| )
+       -- Poke the UI to do a refresh
+       $!incProgress
+   endif
+
+endfunction
