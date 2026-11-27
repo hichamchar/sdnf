@@ -1,0 +1,125 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfreplacesctn.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         16/11/2009 16:33:25
+--
+--
+-- Description:
+--   Detects new SCTN elements and replace them with GENSECs.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    2   R      STRING      Message mode [BRIEF|FULL]
+--    3   R      ARRAY of BOOLEAN Attribute comparison list for Linear Members
+--    4   R      ARRAY of BOOLEAN Attribute comparison list for Plates
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfreplacesctn( !doTest is BOOLEAN )
+
+   -- Set initial status
+   !origin = ( ref )
+
+   -- Collect all SCTNs not forgetting the AddedObjArea
+   !refSctnRef  = ARRAY( )
+
+   -- After the Comparison, Reference items may be in either RefSite or
+   -- AddedObjArea, so we must pick them up from both places.
+   var !refSctnRef append eval ( ref ) for all (SCTN) for $!!sdnfRefSite
+   var !refSctnRef append eval ( ref ) for all (SCTN) for $!!sdnfAddedObjArea
+
+   do !ref values !refSctnRef
+      -- If the SDNFEMARK does not contain an AVEVA database reference number it must be new.
+      $!ref
+      !spre = SPRE
+      !ori  = ORI $!!sdnfWRT
+      var !ydir PPLIN NA Z DIR $!!sdnfWRT
+      !eMark = |=| + !!ce.attribute( |:SDNFEMARK| )
+
+      !doConvert = false
+      if( !doTest )then
+         !unusedTestRef = !eMark.dbRef( )
+         handle (2,813) (2,107) (47,62)
+            -- Cannot convert to a valid dbRef.  It's new.  Convert SCTN to a GENSEC.
+            !doConvert = true
+         endhandle
+      else
+         !doConvert = true
+      endif
+
+      if( !doConvert )then
+         NEW GENSEC COPY LIKE PREV
+         !gensec = !!ce
+         SPRE $!spre
+         ORI  $!ori
+
+         $!ref
+         !drns = DRNS $!!sdnfWRT
+         !drne = DRNE $!!sdnfWRT
+         !!ce = !gensec
+
+         NEW SPINE
+         DRNS $!drns
+         DRNE $!drne
+         YDIR $!ydir $!!sdnfWRT
+         !spine = !!ce
+
+         $!ref
+         !poss = POSS $!!sdnfWRT
+         !pose = POSE $!!sdnfWRT
+         !!ce = !spine
+
+         NEW POINSP
+         at $!poss
+
+         NEW POINSP
+            --   'Posend'
+         at $!pose
+
+         -- Get attributes that are to be transferred AFTER the SCTN is deleted
+         $!ref
+         !name = NAME
+         !jois = JOIS
+         !joie = JOIE
+
+         -- Delete section
+         DELETE SCTN
+
+         -- Last minute attributes
+         !!ce = !gensec
+         JOIS $!jois
+         JOIE $!joie
+
+         if( !name.substring( 1,1 ).eq( |/| ) )then
+            name $!name
+         endif
+      endif
+   enddo
+
+   -- Finished
+   $!origin
+
+endfunction
+
+------------------------------------------------------------------------

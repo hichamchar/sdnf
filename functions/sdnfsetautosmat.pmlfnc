@@ -1,0 +1,120 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsetautosmat.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Sets the Automatic mapping table file details, checking that one
+--   exists and it is valid.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSetAutoSMat( !file is STRING ) is SDNFERROROBJ
+
+  -- Save start position and go to object to be output
+  !unusedStart = ( ref )
+  !prefix = |Materials: |
+  !found = false
+
+  -- Initialise Error object
+  !error = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Set Form member data
+  !!sdnfSourInfo.source = !!sdnfSourInfo.autoSourceMap.selection( )
+  -- Get Source abbreviation
+  do !i index !!sdnfExtProgList
+    if( !!sdnfExtProgList[ !i ].upcase( ) eq !!sdnfSourInfo.source.upcase( ) )then
+      -- Found it
+      !!sdnfSourInfo.sourceAbbr = !!sdnfExtProgAbbr[ !i ]
+      golabel /GotAbbrev
+    endif
+  enddo
+  -- No abbreviation
+  !error.status   = !!sdnfErrInternErr
+  golabel /Finished
+
+  -- Construct Map File Table name
+  label /GotAbbrev
+  !table = |!!sdnf| + !!sdnfProj + |MatMap|
+  -- Try to see if this array exists
+  !test = $!table
+  handle( 2,751 )
+    -- No it doesn't - construct a general one
+    !table = |!!sdnfAny| + |MatMap|
+    !test = $!table
+    handle( 2,751 )
+      -- Give up
+      !error.status   = !!sdnfErrNoIntMpLs
+      golabel /Finished
+    endhandle
+  endhandle
+  do !i index $!table
+    if( !i eq 1 )then
+      -- Table heading
+      skip
+    endif
+    !tokens = $!table[ $!i ].split( |*| )
+    if( !!sdnfSourInfo.source.upcase( ) eq !tokens[ 1 ].upcase( ) or $
+        !!sdnfgetequivalent( !!sdnfSourInfo.source ).upcase( ) eq !tokens[ 1 ].upcase( ) )then
+      -- Found match
+      !found = true
+
+      -- Test to see if file is valid
+      !file = !tokens[ 2 ]
+      !error = !!sdnfTestMapFile( !file, !!sdnfSourInfo.source, !!sdnfMatSep )
+      if( !error.status neq !!sdnfErrOK )then
+        -- Handle error
+        !reply = !!sdnfError( !error )
+        !file = ||
+      endif
+
+      -- Set form variables
+      !!sdnfSourInfo.matFile           = !file
+      !!sdnfSourInfo.sourceMatFile.val = !prefix + !!sdnfContractString( !file, !!sdnfMaxNameLen, |...| )
+      golabel /Finished
+    endif
+  enddo
+  -- File not found
+  !error.status   = !!sdnfErrNoMpFrSel
+
+  -- Finished
+  label /Finished
+  if( not !found )then
+    !error.severity = !!sdnfSevError
+    !error.query    = !!sdnfQueNone
+    !reply = !!sdnfError( !error )
+  endif
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

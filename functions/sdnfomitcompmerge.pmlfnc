@@ -1,0 +1,120 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfomitcompmerge.pmlfnc
+--   Type:          Function Definition
+--   Group:         Interfaces
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson
+-- Created:         20/01/2010 09:00:44
+--
+--
+-- Description:
+--   Function to perform tasks to bypass the compare/merge import functions as we are importing into
+--   and empty area.
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Input macro file name
+--    2   R      STRING      Log file name
+--    3   R      STRING      Message mode [BRIEF|FULL]
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfOmitCompMerge( !macroFile is STRING, !logFileF is FILE, !messageMode is STRING ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+   -- return because we should not have been here
+   if( !!sdnfImpdata.store.mCount( ).gt( 0 ) )then
+      !error.status = !!sdnfErrProgError
+      return !error
+   endif
+
+   -- bypass compare/merge process as we are importing into an empty area
+   !storeName = !!sdnfImpdata.store.attribute( |NAME| )
+   if( !storeName.upcase( ).match( |=| ).eq( 1 ) )then
+      -- unnamed target area - construct a name
+      !storeName = |/ImportStore|
+      !storeName = !!sdnfGetValidName( !storeName )
+   endif
+   !tempName = !!sdnfRefSite
+--   !!sdnfRefSite = !!sdnfGetValidName( !storeName )
+
+   -- import
+   !error = !!sdnfProcess( !macroFile, !logFileF, !messageMode )
+   if( !error.status eq !!sdnfErrOK )then
+
+      if( !!sdnfSCTNtoGENSEC )then
+         !!sdnfreplacesctn( false )
+      endif
+
+      -- delete old store
+      !!ce = !!sdnfImpdata.store
+      !type = ( type )
+      delete $!type
+
+      -- transform new site to imitate original target area
+      $!!sdnfRefSite
+      rename $!storeName
+      !revNo = ( :SDNFREVNO of $!!sdnfConfigObj + 1 )
+      !traNo = ( :SDNFTRANO of $!!sdnfConfigObj )
+      !trrvNo = !!sdnfVersionList.substring( !traNo, 1 ) + |.| + |$!revNo|
+
+      -- add added items to log file
+      !sdnfType = STRING( )
+      !argList  = STRING( )
+      var !items coll all ( SCTN GENSEC PANE ) for ce
+      do !item values !items
+         !!ce = !item.dbref( )
+         if( !!ce.type.neq( |PANE| ) )then
+            !!sdnfConvPlines( !item )
+         endif
+
+         -- Update flags
+         :SDNFREVNO ( $!revNo )
+         :SDNFTRANO ( $!traNo )
+         :SDNFTRRVNO  |$!trrvNo|
+         :SDNFSTATUS |ADDED|
+
+         !!sdnfGetAddedMemDets( !!ce, !sdnfType, !argList )
+         if( !messageMode eq |FULL| )then
+            !logFileF.writeRecord( | $!sdnfType $!item has been added.| )
+         else
+            !logFileF.writeRecord( |$!sdnfType $!item$!argList| )
+         endif
+      enddo
+
+      $!!sdnfaddedobjarea
+      delete zone
+
+      -- update main form in GRAPHICS mode
+      if( not !!sdnftty )then
+         !!sdnfSetStore( )
+      endif
+
+      -- restore settings
+      !!sdnfRefSite = !tempName
+   endif
+
+   return !error
+
+endfunction
+
+------------------------------------------------------------------------

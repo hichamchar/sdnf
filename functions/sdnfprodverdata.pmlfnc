@@ -1,0 +1,77 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfprodverdata.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNFIMPEXP
+--   Module:        all
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Jan 28 14:07:39 1998
+--
+--
+-- Description:
+-- Sets up Product name and Version number for Steel Detailing Neutral File Import Export System
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type] [Description]
+--    None
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfProdVerData( )
+
+  -- Versions
+
+  -- Find an environment variable to distinguish between PDMS and other products
+  !isPDMS = false
+  var !test evar |AVEVA_DESIGN_EXE|
+  if( !test.length().eq( 0 ) )then
+    -- Environment variable not set
+    !isPDMS = true
+  endif
+
+
+  if( !isPDMS )then
+    !!sdnfShortProduct   = |OpenSteel|
+    -- Standalone product date
+    !!sdnfVersionDate    = |2025|
+    -- Standalone product version
+    !!sdnfVersion        = |v2.3 - | + !!sdnfVersionDate
+    !!sdnfLongVersion    = ||
+    !!sdnfLongVersion    = !!sdnfShortProduct + | [| + !!sdnfVersion + |]|
+    !!sdnfThisProg       = |PDMS|
+    !!sdnfExportProgram  = |pdms2sdnf|
+    !!sdnfImportProgram  = |sdnf2pdms|
+  else
+    !!sdnfShortProduct   = |SDNF Interface|
+    -- Integrated product date
+    !!sdnfVersionDate    = |2025|
+    -- Integrated product version
+    !!sdnfVersion        = |v3.1.9 - | + !!sdnfVersionDate
+    !!sdnfLongVersion    = ||
+--  !!sdnfLongVersion    = !!sdnfShortProduct + | [| + !!sdnfVersion + |]|
+    !!sdnfThisProg       = |AVEVA|
+    -- External programs can remain these names for the moment
+    !!sdnfExportProgram  = |pdms2sdnf|
+    !!sdnfImportProgram  = |sdnf2pdms|
+  endif
+
+  !!sdnfProduct        = |AVEVA | + !!sdnfShortProduct
+  !!sdnfCopyright      = |Copyright 2012 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved.|
+
+endfunction

@@ -1,0 +1,164 @@
+--  Created:         Thu Aug  6 13:30:28 2015
+
+--
+--  Description:     --   Maps Cardinal Point to Pline based on catalogue profile configuration.----   Only handles no mirror + rotation(0)--                mirror + rotation(0)--                no mirror + rotation(180)--                mirror + rotation(180)--
+--
+----------------------------------------------------------------------
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfImpMapPline.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       bocad
+--   Module:        Design/Model
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+--
+-- Description:
+--   Maps Cardinal Point to Pline based on catalogue profile configuration.
+--
+--   Only handles no mirror + rotation(0)
+--                mirror + rotation(0)
+--                no mirror + rotation(180)
+--                mirror + rotation(180)
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type] [Description]
+
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfImpMapPline( !cardinalPoint is REAL, !iMirror is REAL, !rotation is REAL, !type is REAL ) is STRING
+
+   !result = |NA|
+   !mirror = !iMirror.eq( 1 )
+
+   !plna = plna
+   -- A typical old Pline
+   !plIndex = !plna.findFirst( |SNFA| )
+   if( !plIndex.set() )then
+      -- use old plines
+
+      if( not !mirror ) then
+
+         if( not defined( !!oldCPs ) )then
+            !!oldCPs = ARRAY()
+            !!oldCPs.append(|SNFA|)
+            !!oldCPs.append(|SNFB|)
+            !!oldCPs.append(|SNFC|)
+            !!oldCPs.append(|SNFD|)
+            !!oldCPs.append(|SNFE|)
+            !!oldCPs.append(|SNFF|)
+            !!oldCPs.append(|SNFG|)
+            !!oldCPs.append(|SNFH|)
+            !!oldCPs.append(|SNFI|)
+            !!oldCPs.append(|SNFJ|)
+            !!oldCPs.append(|SNFK|)
+            !!oldCPs.append(|SNFL|)
+            !!oldCPs.append(|SNFM|)
+            !!oldCPs.append(|SNFN|)
+         endif
+         !result = !!oldCPs[ !cardinalPoint ]
+         handle any
+            -- out of range
+         endhandle
+
+      else
+
+         if( not defined( !!oldMirrorCPs ) )then
+            !!oldMirrorCPs = ARRAY()
+            !!oldMirrorCPs.append(|SNFC|)
+            !!oldMirrorCPs.append(|SNFB|)
+            !!oldMirrorCPs.append(|SNFA|)
+            !!oldMirrorCPs.append(|SNFF|)
+            !!oldMirrorCPs.append(|SNFE|)
+            !!oldMirrorCPs.append(|SNFD|)
+            !!oldMirrorCPs.append(|SNFI|)
+            !!oldMirrorCPs.append(|SNFH|)
+            !!oldMirrorCPs.append(|SNFG|)
+            !!oldMirrorCPs.append(|SNFJ|)
+            !!oldMirrorCPs.append(|SNFK|)
+            !!oldMirrorCPs.append(|SNFM|)
+            !!oldMirrorCPs.append(|SNFL|)
+            !!oldMirrorCPs.append(|SNFN|)
+         endif
+         !result = !!oldMirrorCPs[ !cardinalPoint ]
+         handle any
+            -- out of range
+         endhandle
+      endif
+
+      return !result
+   endif
+
+   -- A typical new Pline
+   !plIndex = !plna.findFirst( |CMID| )
+   if( !plIndex.set() )then
+
+      if( not !mirror or (!mirror and (!type inset( 1, 2, 3, 4, 8, 9, 12, 20 )))) then
+         -- L, C and Z shapes (codes 1, 2, 3, 4, 8, 9, 12, 20) added as they were not correctly
+         -- justified on import.
+         -- Lazy building
+         if( not defined(!!sdnfDefMap ) )then
+            !!sdnfDefMap = ARRAY()
+            !!sdnfDefMap.append(|LBOT|)
+            !!sdnfDefMap.append(|CBOT|)
+            !!sdnfDefMap.append(|RBOT|)
+            !!sdnfDefMap.append(|LMID|)
+            !!sdnfDefMap.append(|CMID|)
+            !!sdnfDefMap.append(|RMID|)
+            !!sdnfDefMap.append(|LTOP|)
+            !!sdnfDefMap.append(|CTOP|)
+            !!sdnfDefMap.append(|RTOP|)
+            !!sdnfDefMap.append(|NA|)
+            !!sdnfDefMap.append(|BNA|)
+            !!sdnfDefMap.append(|LNA|)
+            !!sdnfDefMap.append(|RNA|)
+            !!sdnfDefMap.append(|TNA|)
+         endif
+         !result = !!sdnfDefMap[!cardinalPoint]
+         handle any
+            -- out of range
+         endhandle
+      else
+         -- Lazy building of array
+         if( not defined(!!sdnfDefMirrorMap ) )then
+            !!sdnfDefMirrorMap = ARRAY()
+            !!sdnfDefMirrorMap.append(|RBOT|)
+            !!sdnfDefMirrorMap.append(|CBOT|)
+            !!sdnfDefMirrorMap.append(|LBOT|)
+            !!sdnfDefMirrorMap.append(|RMID|)
+            !!sdnfDefMirrorMap.append(|CMID|)
+            !!sdnfDefMirrorMap.append(|LMID|)
+            !!sdnfDefMirrorMap.append(|RTOP|)
+            !!sdnfDefMirrorMap.append(|CTOP|)
+            !!sdnfDefMirrorMap.append(|LTOP|)
+            !!sdnfDefMirrorMap.append(|NA|)
+            !!sdnfDefMirrorMap.append(|BNA|)
+            !!sdnfDefMirrorMap.append(|RNA|)
+            !!sdnfDefMirrorMap.append(|LNA|)
+            !!sdnfDefMirrorMap.append(|TNA|)
+         endif
+         !result = !!sdnfDefMirrorMap[!cardinalPoint]
+         handle any
+            -- out of range
+         endhandle
+
+      endif
+
+      return !result
+   endif
+
+   return !result
+
+endfunction

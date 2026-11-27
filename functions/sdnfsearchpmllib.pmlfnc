@@ -1,0 +1,66 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsearchpmllib.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Performs a search in directories of PMLLIB for fileName.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      File name to be searched for
+--
+-- Return:
+--   [Data Type]   [Description]
+--    STRING        Full treename of fileName
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSearchPMLLIB( !fileName is STRING ) is STRING
+
+  -- Initialise Variables
+  !fullName = STRING()
+
+  -- AVEVA Solution Ltd's File
+  var !pmllib evar PMLLIB
+  !directories = !pmllib.split( )
+
+  -- Search each directory listed in PMLLIB
+  do !directory values !directories
+    -- Construct full path name of file
+    !pathName = !directory + |$!!sdnfPathSeparatr| + !fileName
+    -- Try opening it
+    !testFile = object FILE( !pathName )
+    if( not !testFile.exists( ) )then
+      -- File not found
+      skip
+    endif
+    -- File found
+    !fullName = !pathName
+    break
+  enddo
+
+  -- Finished
+  return !fullName
+
+endfunction
+
+------------------------------------------------------------------------

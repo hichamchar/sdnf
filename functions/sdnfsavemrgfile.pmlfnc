@@ -1,0 +1,83 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsavemrgfile.pmlfnc
+--   Type:          Function Definition
+--   Group:         Interfaces
+--   Keyword:       SDNF
+--   Module:        Design
+--   Replaces:
+--
+-- Author:          D.Wilson
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+-- Description:
+--   Saves Merge Commands file.  It actually exists in the work area. We just
+--   copy it to the home directory.
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      path of file to be copied from
+--    2   R      STRING      path to be copied to
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSaveMrgFile( !inFile is STRING, !outFile is STRING ) is SDNFERROROBJ
+
+  -- Save start position
+  !start = ( ref )
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Open file
+  !testFile = object FILE( !outFile )
+  !copy = true
+  if( !testFile.exists( ) )then
+    -- File exists - overwrite?
+    !error.severity = !!sdnfSevConfirm
+    !error.status   = !!sdnfErrFileExist
+    !error.query    = !!sdnfQueOverwrite
+    !error.default  = |NO|
+    !reply = !!sdnfError( !error )
+    if( !reply eq |YES| )then
+      -- Overwrite
+    elseif( !reply eq |NO| )then
+      -- Finish
+      !copy = false
+    endif
+  endif
+
+  -- Copy to file
+  if( !copy )then
+    !command = |$!!sdnfCopy $!inFile $!outFile|
+    syscom |$!command|
+
+    -- Update Search Start
+    if( !outFile.upcase( ).neq( |NULL| ) )then
+       !pathName = !testFile.pathName()
+       if( !pathName.length( ).gt( 0 ) )then
+         !!sdnfSearchStart = !pathName
+       endif
+    endif
+  endif
+
+  -- Return to start
+  $!start
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

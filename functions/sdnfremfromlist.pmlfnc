@@ -1,0 +1,177 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfremfromlist.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Removes item(s) from export list.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Remove option = [CE|PICK|SELECTED|ALL]
+--
+-- Return:
+--   [Data Type]   [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+  define function !!sdnfRemFromList( !option is STRING, !selectedElement is STRING, !selectedElemInd is REAL ) is ARRAY
+
+  -- Save start point
+  !origin   = ( ref )
+  trace off
+
+  -- Save list gadget first
+  !tempList = !!sdnfExpdata.expList
+  !elementList = ARRAY( )
+  do !e values !tempList
+    if( !e.split( ).size( ).eq( 1 ) )then
+      !elementList.append( |/| + !e )
+    else
+      !elementList.append( !e )
+    endif
+  enddo
+  !nameList    = ARRAY( )
+
+  -- If the list was empty, just return
+  if( not !elementList.empty( ) )then
+
+    -- Get selection
+    if( !option eq |CE| )then
+      -- Select
+      !ref = ( ref )
+      -- Remove reference from elementList
+      do !i index !elementList
+        !itemRef = ( ref of $!elementList[ $!i ] )
+        handle( 2,109 )
+          -- Bad reference in list - remove it
+          !elementList[ $!i ].delete( )
+          skip
+        endhandle
+        if( !ref eq !itemRef )then
+          -- Found it
+          !elementList[ $!i ].delete( )
+          if( not !!sdnftty ) then
+            unenhance ce
+          endif
+          break
+        endif
+      enddo
+    elseif( !option eq |PICK| )then
+      do
+        var !item pick
+        handle( 61,528 )
+          -- User cancelled
+          break
+        endhandle
+        $!item[ 1 ]
+        !ref = ( ref )
+        -- Remove from list (if possible)
+        do !i index !elementList
+          !itemRef = ( ref of $!elementList[ $!i ] )
+          if( !ref eq !itemRef )then
+            !elementList[ $!i ].delete( )
+            if( not !!sdnftty ) then
+              unenhance ce
+            endif
+            break
+          endif
+        enddo
+        -- Loop round
+      enddo
+    elseif( !option eq |SELECTED| )then
+      -- Remove from list (if possible)
+      !badRef = false
+      $!selectedElement
+      handle( 47,15 )
+        -- Syntax error - name without leading '/'
+        /$!selectedElement
+        handle( 2,109 )
+          -- Bad reference in list - remove it
+          !elementList[ $!selectedElemInd ].delete( )
+          !badRef = true
+        endhandle
+      endhandle
+      if( not !badRef )then
+        !ref = (ref)
+        !name = ( flnm )
+        do !i index !elementList
+         if( |$!name| eq |$!elementList[ $!i ]| )then
+           var !elementList[ $!i ] delete
+           if( not !!sdnftty ) then
+               unenhance ce
+           endif
+           break
+         endif
+        enddo
+      endif
+    elseif( !option eq |ALL| )then
+      -- Remove all from list (if possible)
+      do !i index !elementList
+  --       rem $!elementList[ $!i ]
+        handle any
+          -- Probably item does not exist - was in RefSite?
+        endhandle
+  --      add $!elementList[ $!i ] colour $!!sdnfColDefault
+        $!elementList[ $!i ]
+        handle( 2,113 )( 2,109 )
+           -- Item does not exist - probably deleted
+           skip
+        endhandle
+        if( not !!sdnftty ) then
+          unenhance ce
+        endif
+        handle any
+          -- Probably item does not exist - was in RefSite?
+        endhandle
+      enddo
+      !elementList.clear( )
+    endif
+
+    -- Remove duplicates
+    !elementList.sort( )
+    !elementList.unique( )
+
+    -- Write back list gadget
+    do !item values !elementList
+      !name = ( name of $!item )
+      if( !name.match( |=| ).eq( 1 ) )then
+        !name = ( flnn of $!item )
+      elseif( !name.match( |/| ).eq( 1 ) )then
+        !name = !name.after( |/| )
+      endif
+      !nameList.append( !name )
+    enddo
+    !nameList.sort( )
+    !nameList.unique( )
+
+    !!sdnfExpdata.expList      = !nameList
+  endif
+
+  -- Return to base
+  $!origin
+  trace on
+  return !nameList
+
+endfunction
+
+------------------------------------------------------------------------

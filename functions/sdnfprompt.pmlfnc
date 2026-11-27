@@ -1,0 +1,41 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfprompt.pmlfnc
+--   Type:          Function Definition
+--   Group:         Interfaces
+--   Keyword:       SDNF
+--   Module:        Design
+--   Replaces:
+--
+-- Author:          Tim Sharrock
+-- Created:         13 Jan 2010
+--
+-- Description:
+--   abstracts the F&M Prompt mechanism for use in a TTY context
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type]   [Description]
+--    1   R     STRING        prompt message
+--
+-- Return:
+--   [Data Type]   [Description]
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfPrompt( !message is STRING )
+
+  if(!!sdnftty)then
+     write(!message)
+  else
+     prompt |$!message|
+  endif
+
+endfunction
+
+------------------------------------------------------------------------

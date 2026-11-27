@@ -1,0 +1,116 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfimportinit.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Initialises the SDNFImport form.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]  [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfImportInit( )
+
+  -- Get System Configuration Details
+  call !!sdnfGetConfig( )
+  !transferNo = ( -1 )
+  !revNo = ( -1 )
+  !!sdnfGetExportHWM( !transferNo, !revNo )
+  !!sdnfUpdExportHWM( !transferNo, !revNo )
+
+  -- do not lose previous settings
+  !unusedTest = !!sdnfImpdata.set()
+  handle (2,751)
+
+    -- create a new one
+    !!sdnfImpdata     = object SDNFIMPORTDATA( )
+
+    -- Set Member Data
+    !!sdnfImpdata.mainFunc = |COMPARE|
+    !!sdnfImpdata.store    = !!sdnfOrigSite
+    handle( 2,751 )
+      -- Unset
+      !!sdnfImpdata.store = nulref
+    endhandle
+
+    -- Initialise choices
+    if( not !!sdnftty ) then
+      !!sdnfImport.impMainFunc.select( !!sdnfImpdata.mainFunc )
+      !!sdnfsetimpmainfunc( )
+    endif
+    !!sdnfImpdata.target       = !!sdnfThisProg
+    !!sdnfImpdata.mapFile      = |unset|
+    !!sdnfImpdata.matFile      = |unset|
+    !!sdnfImpdata.oriFile      = |unset|
+    !!sdnfImpdata.uniFile      = |unset|
+    !!sdnfImpdata.mapMode      = |AUTO|
+    !!sdnfImpdata.matMode      = |PROFILE|
+
+    -- Import Info
+    !!sdnfImpdata.file         = ||
+    !!sdnfImpdata.linMem       = true
+    !!sdnfImpdata.arcMem       = true
+    !!sdnfImpdata.plate        = true
+    !!sdnfImpdata.hole         = true
+    !!sdnfImpdata.endConn      = true
+    !!sdnfImpdata.specMode     = |DEFAULT|
+
+    -- Run Info
+    !!sdnfImpdata.viewLog      = true
+    !!sdnfImpdata.viewMode     = |FULL|
+    !!sdnfImpdata.saveModel    = true
+    !!sdnfImpdata.mapVerify    = false
+    !!sdnfImpdata.markVerify   = |NONE|
+    !!sdnfImpdata.sortMode     = true
+    !!sdnfImpdata.reviewDiffs  = false
+
+    -- Attribute comparison lists
+    !!sdnfImpdata.linMemAttr.clear( )
+    !!sdnfImpdata.linMemAttr = !!sdnfLinMemAttr
+
+    !!sdnfImpdata.plateAttr.clear( )
+    !!sdnfImpdata.plateAttr = !!sdnfPlateAttr
+
+    -- Version specific features
+    !!sdnfImpdata.features    = !!sdnfgetfeatures( |IMPORT| )
+
+    -- specials for TTY running
+    !!sdnfImpdata.logFile     = ||
+    !!sdnfImpdata.testing     = false
+  endhandle
+
+   -- these might have been changed by the sysConfig form
+   !!sdnfImpdata.sourceList   = !!sdnfExtProgList
+   !!sdnfImpdata.source       = !!sdnfExtProgList[ 1 ]
+   !!sdnfImpdata.sourceAbbr   = !!sdnfExtProgAbbr[ 1 ]
+   !!sdnfImpdata.fileVersion  = !!sdnfSDNFVersion
+   !!sdnfImpdata.modelType    = !!sdnfModelType
+
+endfunction
+
+------------------------------------------------------------------------

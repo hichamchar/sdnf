@@ -1,0 +1,73 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfmergehdr.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Merges header details from those imported.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      DBREF       fromSite
+--    2   R      DBREF       toSite
+--
+-- Return:
+--   [Data Type]   [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfMergeHdr( !mergeFile is FILE, !fromSite is STRING, !toSite is STRING )
+
+  -- Initialisation
+  !origin = ( ref )
+
+  -- Get Header details
+  $!fromSite
+  !efid   = ( :SDNFEFID )
+  !clid   = ( :SDNFCLID )
+  !stid   = ( :SDNFSTID )
+  !prid   = ( :SDNFPRID )
+  !decode = ( :SDNFDECODE )
+  !target = ( :SDNFTARGET )
+  !source = ( :SDNFSOURCE )
+  !iDate  = ( :SDNFIDATE )
+  !iTime  = ( :SDNFITIME )
+
+  -- Set Header details
+  !mergeFile.writeRecord( |$!toSite| )
+  !mergeFile.writeRecord( |:SDNFEFID   '$!efid'| )
+  !mergeFile.writeRecord( |:SDNFCLID   '$!clid'| )
+  !mergeFile.writeRecord( |:SDNFSTID   '$!stid'| )
+  !mergeFile.writeRecord( |:SDNFPRID   '$!prid'| )
+  !mergeFile.writeRecord( |:SDNFDECODE '$!decode'| )
+  !mergeFile.writeRecord( |:SDNFTARGET '$!target'| )
+  !mergeFile.writeRecord( |:SDNFSOURCE '$!source'| )
+  !mergeFile.writeRecord( |:SDNFIDATE  '$!iDate'| )
+  !mergeFile.writeRecord( |:SDNFITIME  '$!iTime'| )
+  !mergeFile.writeRecord( |same| )
+
+  -- Finished
+  $!origin
+
+endfunction
+
+------------------------------------------------------------------------

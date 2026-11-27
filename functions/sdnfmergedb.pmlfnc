@@ -1,0 +1,113 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfmergedb.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Inputs Merge command file.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Input macro file name
+--    3   R      STRING      Message mode [BRIEF|FULL]
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfMergeDB( !macroFile is STRING, !logFile is FILE, !dummyMessageMode is STRING ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  !initProgress = STRING( )
+  !incProgress = STRING( )
+  !!sdnfSetProgress( !initProgress, !incProgress )
+
+  -- Set local variables
+  !origin     = ( ref )
+  trace off
+
+  -- Open input file if we need it.
+  if( !macroFile.length( ) eq 0 )then
+    !error.severity = !!sdnfSevError
+    !error.status   = !!sdnfErrNoInFile
+  else
+
+    !macroFileF = object FILE( !macroFile )
+    if( not !macroFileF.exists( ) )then
+      !error.severity = !!sdnfSevError
+      !error.status   = !!sdnfErrUserMess
+      !error.query    = !!sdnfQueNone
+      !error.message  = |Merge file not found.|
+      !!sdnfError( !error )
+    else
+
+      -- Process input file
+      !lines = !macroFileF.readFile( !!sdnfMaxFileSize )
+      handle (160,47)
+         !macroFileF.close( )
+         !error.severity = !!sdnfSevError
+         !error.status   = !!sdnfErrBadFileSiz
+         !error.query    = !!sdnfQueNone
+         !!sdnfError( !error )
+      endhandle
+
+      !totalLines = !lines.size( )
+      do !lineCount indices !lines
+        -- Read input file
+        !line = !lines[ !lineCount ]
+        -- Go and do it
+        $!line
+        handle any
+          -- Debug
+          if( !!sdnfDebug )then
+            !logFile.writeRecord( |Error on line $!lineCount in input macro $!macroFile .| )
+            !logFile.writeRecord( |  $!!error.text| )
+            !logFile.writeRecord( |  $!line| )
+          endif
+        endhandle
+
+        -- prompt
+        !promptMessage = |$!!sdnfShortProduct Merge|
+        !!sdnfUpdateProgress( !lineCount, !totalLines, !incProgress, !promptMessage )
+
+        -- Go round again
+      enddo
+    endif
+  endif
+
+  -- Finished
+
+  -- Restore original units
+  !origin
+  trace on
+  !!sdnfStopProgress()
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

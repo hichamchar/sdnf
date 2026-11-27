@@ -1,0 +1,63 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfremudas.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        paragon
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+--
+-- Description:
+--   Removes SDNF UDAs from the Dictionary database.
+--   Macro to be called from Lexicon.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type] [Description]
+--    None
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfRemUDAs( )
+
+  -- Removes all SDNF related UDAs in the Lexicon DB
+  WORL
+
+  -- Collect all UDAs with SDNF in their PKEY
+  var !list coll all UDA where ( matchwild( UDNA, |SDNF*| ) ) for CE
+  !length = !list.size( )
+  write( |$!length $!!sdnfShortProduct UDAs to delete| )
+
+  -- Go and delete them
+  do !val values !list
+    $!val
+    write( |Deleting UDA $!val| )
+    DELETE UDA
+    handle any
+      write( |Error in deleting UDA $!val| )
+    endhandle
+  enddo
+
+  -- save it all
+  compile
+
+
+endfunction
+
+------------------------------------------------------------------------

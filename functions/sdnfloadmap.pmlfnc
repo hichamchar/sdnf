@@ -1,0 +1,81 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfloadmap.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Generates an internal mapping table from xxx.map file in PMLLIB.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Mapping file name
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfLoadMap( !file is STRING ) is SDNFERROROBJ
+
+  -- Save start position
+  !start = ( ref )
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevWarn
+  !error.status   = !!sdnfErrBadMap
+  !error.query    = !!sdnfQueNone
+
+  -- Open file
+  !firstRec = true
+  !lines = ARRAY( )
+  !mapFile = object FILE( !file )
+  !lines = !mapFile.readFile( )
+  do !i indices !lines
+    !line = !lines[ !i ].trim( )
+    -- First record gives name of Map
+    !tokens = !line.split( |*| )
+    if( !tokens.size( ) neq 2 )then
+      -- Empty line
+      skip
+    endif
+    if( !firstRec )then
+      -- At least 1 record
+      !error.status   = !!sdnfErrOK
+      !firstRec = false
+      !arrayHandle = |!!sdnf| + !tokens[ 2 ].substring( 1, 9 ) + |Map|
+      !arrayAppend = |$!arrayHandle| + |.append( !line )|
+      !!sdnfMapList.append( !arrayHandle )
+      $!arrayHandle = ARRAY( )
+      -- Stick source filename as first line
+      !line = !file + |*| + !tokens[ 1 ]
+    endif
+    $!arrayAppend
+  enddo
+
+  -- Return to start
+  $!start
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

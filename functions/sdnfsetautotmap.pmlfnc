@@ -1,0 +1,128 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsetautotmap.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Fri Mar 06 14:07:39 1998
+--
+--
+-- Description:
+--   Sets Automatic Target Mapping Table file details.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSetAutoTMap( !file is STRING ) is SDNFERROROBJ
+
+  -- Save start position and go to object to be output
+  !unusedStart = ( ref )
+  !prefix = |Profiles:  |
+
+  -- Initialise Error object
+  !error = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+  !found = false
+
+  -- Set Form member data
+  !!sdnfTargInfo.target = !!sdnfTargInfo.autoTargetMap.selection( )
+  -- Get Target abbreviation
+  !gotAbbrev = false
+  do !i index !!sdnfExtProgList
+    if( !!sdnfExtProgList[ !i ].upcase( ) eq !!sdnfTargInfo.target.upcase( ) )then
+      -- Found it
+      !!sdnfTargInfo.targetAbbr = !!sdnfExtProgAbbr[ !i ]
+      !gotAbbrev = true
+      break
+    endif
+  enddo
+
+  if( not !gotAbbrev )then
+    -- No abbreviation
+    !error.status   = !!sdnfErrInternErr
+  else
+    -- Construct Map File Table name
+    !table = |!!sdnf| + !!sdnfProj + |PrfMap|
+    !gotATable = true
+    -- Try to see if this array exists
+    !test = $!table
+    handle( 2,751 )
+      -- No it doesn't - construct a general one
+      !table = |!!sdnfAny| + |PrfMap|
+      !test = $!table
+      handle( 2,751 )
+        -- Give up
+        !error.status   = !!sdnfErrNoIntMpLs
+        !gotATable = false
+      endhandle
+    endhandle
+
+    if( !gotATable )then
+      do !i index $!table
+        if( !i eq 1 )then
+          -- Table heading
+          skip
+        endif
+        !tokens = $!table[ $!i ].split( |*| )
+        if( !!sdnfTargInfo.target.upcase( ) eq !tokens[ 1 ].upcase( ) or $
+            !!sdnfgetequivalent( !!sdnfTargInfo.target ).upcase( ) eq !tokens[ 1 ].upcase( ) )then
+          -- Found match
+          !found = true
+
+          -- Test to see if file is valid
+          !file = !tokens[ 2 ]
+          !error = !!sdnfTestMapFile( !file, !!sdnfTargInfo.target, !!sdnfProfSep )
+          if( !error.status neq !!sdnfErrOK )then
+            -- Handle error
+            !reply = !!sdnfError( !error )
+            !file = ||
+          endif
+
+          -- Set form variables
+          !!sdnfTargInfo.mapFile           = !file
+          !!sdnfTargInfo.targetMapFile.val = !prefix + !!sdnfContractString( !file, !!sdnfMaxNameLen, |...| )
+          break
+        endif
+      enddo
+      if( not !found )then
+        -- File not found
+        !error.status   = !!sdnfErrNoMpFrSel
+      endif
+    endif
+  endif
+
+  -- Finished
+  label /Finished
+  if( not !found )then
+    !error.severity = !!sdnfSevError
+    !error.query    = !!sdnfQueNone
+    !reply = !!sdnfError( !error )
+  endif
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

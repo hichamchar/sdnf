@@ -1,0 +1,56 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfrstexpruninf.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Resets main Export form Run Information.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]   [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfRstExpRunInf( )
+
+  -- Reset Run Information Form Member Data
+  !default = false
+  !!sdnfExpRunInf.expTestRun.val = !default
+  handle( 2,765 )
+    -- Export Run Info form not yet created
+  elsehandle none
+    !!sdnfExpRunInf.testRun        = !default
+  endhandle
+
+  -- Set Export Form member data
+  !!sdnfExpdata.testRun           = !default
+
+  -- Set Export File mode to unknown if we need to ask again
+  !!sdnfExpdata.fileMode = |UNKNOWN|
+
+endfunction
+
+------------------------------------------------------------------------

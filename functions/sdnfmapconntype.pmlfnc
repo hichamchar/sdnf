@@ -1,0 +1,114 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfmapconntype.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Returns mapped connection type from the connection mapping table
+--   for output.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Connection type
+--    2   R      FILE        Log file
+--    3   R      STRING      Message Mode [BRIEF|FULL]
+--
+-- Return:
+--   [Data Type]   [Description]
+--    STRING        Mapped connection type
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfMapConnType( !type is STRING, !logFile is FILE, !messageMode is STRING ) is STRING
+
+  -- Initialise
+  !mappedType = STRING( )
+  !result = ARRAY( )
+
+  -- Search in system connection map
+  !found = false
+  !mapConnList = |!!sdnf| + !!sdnfExpdata.targetAbbr + !!sdnfProj + |ConMap|
+
+  -- Try to see if this array exists
+  !test = $!mapConnList
+  handle( 2,751 )
+    -- No it doesn't - construct a general one
+    !mapConnList = |!!sdnfAny| + !!sdnfProj + |ConMap|
+    !test = $!mapConnList
+    handle( 2,751 )
+      -- Neither does this exist - try again
+      !mapConnList = |!!sdnfAnyAny| + |ConMap|
+      !test = $!mapConnList
+      handle( 2,751 )
+        !result.append( |(Error) - No Connection mapping table for $!!sdnfExpdata.targetAbbr for project $!!sdnfProj .| )
+        !mappedType = ||
+        golabel /Finished
+      endhandle
+    endhandle
+  endhandle
+
+  do !item values $!mapConnList
+    if( !type eq !item.before( |*| ) )then
+      -- Found map
+      !mappedType = !item.after( |*| )
+      !found = true
+      break
+    endif
+  enddo
+
+  -- See if this is a macro
+  if( !found )then
+    if( !mappedType.substring( 1, 5 ).upcase( ) eq |MACRO| )then
+      -- Call macro
+      !macroName = !mappedType.after( | | ).trim( ).lowcase( )
+      !fullMacroName = |!!| + !macroName + |( )|
+      !name = !macroName + !!sdnfFncSfx
+      !mappedType = $!fullMacroName
+      handle any
+        if( !!error.text.match( |PML:| ) ne 0 )then
+          -- I hope it's just that the pml macro doesn't exist
+          !result.append( |(Error) - User macro $!name not found.| )
+        else
+          !result.append( |(Error) - Error in user macro $!name .| )
+        endif
+        !mappedType = ||
+      endhandle
+    endif
+  else
+    -- Not mapped
+    !result.append( |(Error) - No mapping for Connection type $!type .| )
+    !mappedType = ||
+  endif
+
+  -- Finished
+  label /Finished
+  -- Output error messages
+  if( !messageMode eq |FULL| )then
+    do !line values !result
+      !logFile.writeRecord( |$!line| )
+    enddo
+  endif
+
+  return !mappedType
+
+endfunction
+
+------------------------------------------------------------------------

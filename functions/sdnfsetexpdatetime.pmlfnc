@@ -1,0 +1,98 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsetexpdatetime.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         05/10/2009 09:38:31
+--
+--
+-- Description:
+--   Sets creation, modification and export dates and times
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING     Date
+--    2   R      STRING     Time
+--
+-- Return:
+--   [Data Type] [Description]
+--    None
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfsetexpdatetime( !ref is DBREF, !date is STRING, !time is STRING )
+
+   -- Save start position
+   !start = ( ref )
+
+   -- Go to element
+   $!ref
+
+   -- if unset - haven't been exported before
+   !crDate = :SDNFCDATE
+   if( !crDate.length( ).eq( 0 ) )then
+      !crDate = !date
+   endif
+   !mdDate = :SDNFMDATE
+   if( !mdDate.length( ).eq( 0 ) )then
+      !mdDate = !date
+   endif
+   !crTime = :SDNFCTIME
+   if( !crTime.length( ).eq( 0 ) )then
+      !crTime = !time
+   endif
+   !mdTime = :SDNFMTIME
+   if( !mdTime.length( ).eq( 0 ) )then
+      !mdTime = !time
+   endif
+
+   -- do this automatically
+   !error = false
+   :SDNFEDATE |$!date|
+   handle ANY
+      !error = true
+   endhandle
+
+   :SDNFETIME |$!time|
+   handle any
+      !error = true
+   endhandle
+
+   if (!error) then
+      -- DB is probably read only
+      !!sdnfVerFile.writeRecord( !ref.string( ) )
+      !!sdnfVerFile.writeRecord( |:SDNFEDATE '$!date'| )
+      !!sdnfVerFile.writeRecord( |:SDNFETIME '$!time'| )
+      !!sdnfVerFile.writeRecord( |:SDNFCDATE '$!crDate'| )
+      !!sdnfVerFile.writeRecord( |:SDNFMDATE '$!mdDate'| )
+      !!sdnfVerFile.writeRecord( |:SDNFCTIME '$!crTime'| )
+      !!sdnfVerFile.writeRecord( |:SDNFMTIME '$!mdTime'| )
+      return
+   endif
+
+   -- if unset - haven't been exported before
+   :SDNFCDATE |$!crDate|
+   :SDNFMDATE |$!mdDate|
+   :SDNFCTIME |$!crTime|
+   :SDNFMTIME |$!mdTime|
+
+   -- Return to base
+   $!start
+
+endfunction
+
+------------------------------------------------------------------------

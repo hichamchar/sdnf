@@ -1,0 +1,63 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfloadversdata.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Loads AVEVA application version specific data.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      The AVEVA application version
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfLoadVersData( !version is STRING ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  if( !version eq |11| )then
+    -- Database version 11 onwards
+    !!sdnfFncSfx = |.pmlfnc|
+    !!sdnfObjSfx = |.pmlobj|
+    !!sdnfFrmSfx = |.pmlfrm|
+  else
+    -- Unknown AVEVA application version
+    !error.severity = !!sdnfSevFatal
+    !error.status   = !!sdnfErrUnsupVers
+    !unusedReply = !!sdnfError( !error )
+  endif
+
+
+  -- Finished
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

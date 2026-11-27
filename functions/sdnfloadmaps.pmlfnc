@@ -1,0 +1,116 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfloadmaps.pmlfnc
+--   Type:          Function Definition
+--   Group:         Interfaces
+--   Keyword:       SDNF
+--   Module:        Design
+--   Replaces:
+--
+-- Author:          D.Wilson
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+-- Description:
+--   Loads maps from xxx.map files to generate internal mapping tables.
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfLoadMaps( ) is SDNFERROROBJ
+
+  -- Save start position
+  !start = ( ref )
+  !iteration = 1
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Search PMLLIB for *.map files
+  !files = ARRAY( )
+  !files.appendArray( !!sdnfSrchEVAR( |SDNFDFLTS|, |$!!sdnfMapDir|, |.map| ) )
+  !projectDefaults = !!sdnfProj + |DFLTS|
+  !files.appendArray( !!sdnfSrchEVAR( !projectDefaults, |$!!sdnfMapDir|, |.map| ) )
+  !files.appendArray( !!sdnfSrchEVAR( |SDNFUSER|, |$!!sdnfMapDir|, |.map| ) )
+
+  label /Loop
+  if( !files.size( ) gt 0 )then
+    -- Some maps have been found - load them
+    do !file values !files
+      -- Load each map
+      !error = !!sdnfLoadMap( !file )
+      if( !error.status neq !!sdnfErrOK )then
+        !reply = !!sdnfError( !error )
+        !error.severity = !!sdnfSevConfirm
+        !error.status   = !!sdnfErrBadMap
+        !error.query    = !!sdnfQueContinue
+        !error.default  = |NO|
+        if( !reply eq |YES| )then
+          -- Continue
+        elseif( !reply eq |NO| )then
+          -- Treat as Fatal error
+          !error.severity = !!sdnfSevFatal
+          !error.query    = !!sdnfQueNone
+          !!sdnfError( !error )
+          break
+        endif
+      endif
+    enddo
+  else
+    if( !iteration.eq( 1 ) )then
+      -- No maps found - use the supplied default?
+      !test = !!sdnfTestBed
+      handle(2,751)
+        -- variable does not exist
+        !!sdnfTestBed = false
+      endhandle
+      !error.default  = |NO|
+      if( !!sdnfTestBed )then
+         !error.default  = |YES|
+      endif
+      !error.severity = !!sdnfSevConfirm
+      !error.status   = !!sdnfErrNoMpAtAll
+      !error.query    = !!sdnfQueLoadDfltMaps
+      !reply = !!sdnfError( !error )
+      if( !reply eq |YES| )then
+        -- Use a default set
+        !files.appendArray( !!sdnfSrchEVAR( |SDNFDATA|, |$!!sdnfMapDir|, |.map| ) )
+        !iteration = 2
+        golabel /Loop
+      elseif( !reply eq |NO| )then
+        -- Treat as Fatal error
+        !error.severity = !!sdnfSevFatal
+        !error.query    = !!sdnfQueNone
+        !!sdnfError( !error )
+      endif
+    else
+      -- Treat as Fatal error
+      !error.severity = !!sdnfSevFatal
+      !error.query    = !!sdnfQueNone
+      !!sdnfError( !error )
+    endif
+  endif
+
+  -- Finished
+  -- Return to start
+  $!start
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

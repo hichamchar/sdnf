@@ -1,0 +1,121 @@
+--    Group:         Undefined
+--      Keyword:     Undefined
+--    Module:        Undefined
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:          sdnfsetautosuni.pmlfnc
+-- Type:          Function Definition
+--
+-- Author:          D.Wilson
+-- Created:         12/11/2010 10:36:43
+--
+-- Description:
+--   Sets the Automatic Source Unicode mapping table file details,
+--   checking that one exists and it is valid.
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfsetautosuni( !file is STRING ) is SDNFERROROBJ
+
+  -- Save start position and go to object to be output
+  !unusedStart = ( ref )
+  !prefix = |Unicode:   |
+  !found = false
+
+  -- Initialise Error object
+  !error = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Set Form member data
+  !!sdnfSourInfo.source = !!sdnfSourInfo.autoSourceMap.selection( )
+  -- Get Source abbreviation
+  !gotAbbrev = false
+  do !i index !!sdnfExtProgList
+    if( !!sdnfExtProgList[ !i ].upcase( ) eq !!sdnfSourInfo.source.upcase( ) )then
+      -- Found it
+      !!sdnfSourInfo.sourceAbbr = !!sdnfExtProgAbbr[ !i ]
+      !gotAbbrev = true
+      break
+    endif
+  enddo
+
+  if( !gotAbbrev.eq( false ) )then
+    -- No abbreviation
+    !error.status   = !!sdnfErrInternErr
+  else
+    -- Construct Map File Table name
+    !internalMapExists = true
+    !table = |!!sdnf| + !!sdnfProj + |UniMap|
+    -- Try to see if this array exists
+    !test = $!table
+    handle( 2,751 )
+      -- No it doesn't - construct a general one
+      !table = |!!sdnfAny| + |UniMap|
+      !test = $!table
+      handle( 2,751 )
+        -- Give up
+        !error.status   = !!sdnfErrNoIntMpLs
+        !internalMapExists = false
+      endhandle
+    endhandle
+    if( !internalMapExists.eq( true ) )then
+      !foundValidFile = false
+      do !i index $!table
+        if( !i eq 1 )then
+          -- Table heading
+          skip
+        endif
+        !tokens = $!table[ $!i ].split( |*| )
+        if( !!sdnfSourInfo.source.upcase( ) eq !tokens[ 1 ].upcase( ) or $
+            !!sdnfgetequivalent( !!sdnfSourInfo.source ).upcase( ) eq !tokens[ 1 ].upcase( ) )then
+          -- Found match
+          !found = true
+
+          -- Test to see if file is valid
+          !file = !tokens[ 2 ]
+          !testFile = object FILE( !file )
+          if( !testFile.exists( ) )then
+             !error = !!sdnfTestMapFile( !file, !!sdnfSourInfo.source, !!sdnfUniSep )
+             if( !error.status neq !!sdnfErrOK )then
+               -- Handle error
+               !reply = !!sdnfError( !error )
+               !file = ||
+             endif
+          else
+             !file = ||
+          endif
+
+          -- Set form variables
+          !!sdnfSourInfo.uniFile           = !file
+          !!sdnfSourInfo.sourceUniFile.val = !prefix + !!sdnfContractString( !file, !!sdnfMaxNameLen, |...| )
+          !foundValidFile = true
+          break
+        endif
+      enddo
+      if( !foundValidFile.eq( false ) )then
+        -- File not found
+        !error.status   = !!sdnfErrNoMpFrSel
+      endif
+    endif
+  endif
+
+  -- Finished
+  if( not !found )then
+    -- not fatal - Set form variables
+    !!sdnfSourInfo.uniFile           = ||
+    !!sdnfSourInfo.sourceUniFile.val = !prefix
+  endif
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

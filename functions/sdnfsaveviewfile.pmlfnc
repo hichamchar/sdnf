@@ -1,0 +1,91 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsaveviewfile.pmlfnc
+--   Type:          Function Definition
+--   Group:         Interfaces
+--   Keyword:       SDNF
+--   Module:        Design
+--   Replaces:
+--
+-- Author:          D.Wilson
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+-- Description:
+--   Saves temporary file in Viewer form.
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      File to be saved as
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfSaveViewFile( !file is STRING ) is SDNFERROROBJ
+
+  -- Save start position
+  !start = ( ref )
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  -- Open file
+  !mode   = |READ|
+  !oKFile = false
+  !testFile = object FILE( !file )
+  if( not !testFile.exists( ) )then
+    -- File does not exist
+    !mode = |WRITE|
+    !oKFile = true
+  endif
+
+  if( not !oKFile )then
+    !error.severity = !!sdnfSevConfirm
+    !error.status   = !!sdnfErrFileExist
+    !error.query    = !!sdnfQueOverwrite
+    !error.default  = |NO|
+    !reply = !!sdnfError( !error )
+    if( !reply eq |YES| )then
+      -- Overwrite
+      !mode = |OVERWRITE|
+      !oKFile = true
+    elseif( !reply eq |NO| )then
+      -- Finish
+    endif
+  endif
+
+  if( !oKFile )then
+    -- Save to file
+    !obfile = object FILE(!file)
+    !obfile.writefile(!mode, !!sdnfViewFile.text.dText)
+    handle(160,46)
+     -- problem
+    elsehandle NONE
+      -- Update Search Start
+      if( !file.upcase( ).neq( |NULL| ) )then
+         !pathName = !testFile.pathName()
+         if( !pathName.length( ).gt( 0 ) )then
+            !!sdnfSearchStart = !pathName
+         endif
+      endif
+    endhandle
+  endif
+
+  -- Return to start
+  $!start
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

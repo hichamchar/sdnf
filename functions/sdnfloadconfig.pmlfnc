@@ -1,0 +1,96 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfloadconfig.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Loads configuration details.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfLoadConfig( ) is SDNFERROROBJ
+
+   -- Save start position
+   !start = ( ref )
+
+   -- Initialise Error object
+   !error = object SDNFERROROBJ( )
+   !error.severity = !!sdnfSevOK
+   !error.status   = !!sdnfErrOK
+   !error.query    = !!sdnfQueNone
+
+   -- Loads SDNF Configuration Objects
+   WORL
+   NEW SITE $!!sdnfConfigObj
+   handle any
+      -- Are we in the correct database?  Bad RW status
+      !error.severity = !!sdnfSevFatal
+      !error.status   = !!sdnfErrNoRWAcces
+   elsehandle NONE
+      -- Try getting the SDNF UDA's
+      !unusedTest = ( :SDNFEFID )
+      handle( 99,532 )
+         -- UDA's not installed - tidy up and quit
+         DELETE SITE
+         -- List upgrade instructions if possible
+         !fileName = !!pml.getpathname( |sdnfudaupgrade.pmldat| )
+         handle ANY
+            -- File does not exist - was it installed?
+            !error.severity = !!sdnfSevFatal
+            !error.status   = !!sdnfErrNoUDA
+         elsehandle NONE
+            !file = object FILE( !fileName )
+            !lines = !file.readFile( )
+            do !line values !lines
+               write( !line )
+            enddo
+            -- Fatal error
+            !error.severity = !!sdnfSevFatal
+            !error.status   = !!sdnfErrNoUDA
+         endhandle
+      endhandle
+   endhandle
+
+   if( !error.severity.neq( !!sdnfSevOK ) )then
+      !unusedReply = !!sdnfError( !error )
+   else
+   -- Create area to hold added items
+      !session = ( :SDNFTRRVNO )
+      !!sdnfSessAddedObj = !!sdnfAddedObjArea + |/| + !session.trim( )
+      --  !!sdnfSessAddedObj = !!sdnfAddedObjArea + |/| + !!sdnfUnique
+      !!sdnfSessAddedObj = !!sdnfValidateName( !!sdnfSessAddedObj )
+   endif
+
+   -- Return to start
+   $!start
+   return !error
+
+endfunction
+
+------------------------------------------------------------------------

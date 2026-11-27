@@ -1,0 +1,215 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfprocess.pmlfnc
+--   Type:          Function Definition
+--   Group:         Interfaces
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Processes input macro file on import.
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Input macro file name
+--    2   R      STRING      Log file name
+--    3   R      STRING      Message mode [BRIEF|FULL]
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfProcess( !macroFile is STRING, !logFileF is FILE, !messageMode is STRING ) is SDNFERROROBJ
+
+  -- Initialise Error object
+  !error          = object SDNFERROROBJ( )
+  !error.severity = !!sdnfSevOK
+  !error.status   = !!sdnfErrOK
+  !error.query    = !!sdnfQueNone
+
+  !initProgress = STRING( )
+  !incProgress = STRING( )
+  !!sdnfSetProgress( !initProgress, !incProgress )
+
+  -- Set local variables
+  !origin     = ( ref )
+  trace off
+  WORL
+
+  -- Delete reference site if it exists
+  !gotSite = true
+  $!!sdnfRefSite
+  handle any
+    -- Does not exist - OK
+    !gotSite = false
+  endhandle
+  if( !gotSite )then
+     delete SITE
+  endif
+
+  -- Tidy up Deleted and Added areas
+  !transferNo = ( -1 )
+  !revNo = ( -1 )
+  !!sdnfGetExportHWM( !transferNo, !revNo )
+  !!sdnfUpdExportHWM( !transferNo, !revNo )
+  !!sdnfAddedObj.delete( )
+  handle( 2,751 )
+    -- Variable does not exist
+  endhandle
+  !!sdnfAddedObj = ARRAY( )
+  !!sdnfDeletedObj.delete( )
+  handle( 2,751 )
+    -- Variable does not exist
+  endhandle
+  !!sdnfDeletedObj = ARRAY( )
+  !!sdnfChangedObj.delete( )
+  handle( 2,751 )
+    -- Variable does not exist
+  endhandle
+  !!sdnfChangedObj = ARRAY( )
+
+  -- Open input file if we need it.
+  !badMacroFile = false
+  if( !macroFile.length( ) eq 0 )then
+    !error.severity = !!sdnfSevError
+    !error.status   = !!sdnfErrNoInFile
+    !badMacroFile = true
+  endif
+  if( not !badMacroFile )then
+    !macroFileF = object FILE( !macroFile )
+
+    -- Process input file
+    !lines =   !macroFileF.readFile( !!sdnfMaxFileSize )
+    handle (160,47)
+      !macroFileF.close( )
+      !error.severity = !!sdnfSevError
+      !error.status   = !!sdnfErrBadFileSiz
+      !badMacroFile = true
+    elsehandle ANY
+      !macroFileF.close( )
+      !error.severity = !!sdnfSevError
+      !error.status   = !!sdnfErrNoImpFile
+      !badMacroFile = true
+    endhandle
+  endif
+
+  if( not !badMacroFile )then
+    $!initProgress
+    !totalLines = !lines.size( )
+    do !lineCount indices !lines
+
+      -- Read input file
+      !line = !lines[ !lineCount ]
+
+      -- Ignore comments or empty lines
+      if( !line.trim( ).length( ) eq 0 or $
+          !line.trim( ).substring( 1, 2 ) eq |--| )then
+        -- Empty line
+      else
+        -- Go and do it
+        $!line
+        handle( 73,2 )
+          -- Workaround for bug at 11.2/NT for Horizontal beams
+          !line1 = !line.replace( |Y|, |PPLIN NA|, 1, 1 )
+          $!line1
+          handle any
+            -- Debug
+            if( !!sdnfDebug )then
+              !logFileF.writeRecord( |Error on line $!lineCount in input macro.| )
+              !logFileF.writeRecord( |  $!!error.text| )
+              !logFileF.writeRecord( |  $!line| )
+            endif
+          endhandle
+        elsehandle any
+          -- Debug
+          if( !!sdnfDebug )then
+              !logFileF.writeRecord( |Error on line $!lineCount in input macro.| )
+              !logFileF.writeRecord( |  $!!error.text| )
+              !logFileF.writeRecord( |  $!line| )
+          endif
+        endhandle
+        -- Go round again
+      endif
+
+      -- prompt
+      !promptMessage = |$!!sdnfShortProduct Import|
+      !!sdnfUpdateProgress( !lineCount, !totalLines, !incProgress, !promptMessage )
+
+    enddo
+
+    -- Remove the unwanted items before we compare or merge
+    if( not !!sdnfImpdata.linMem )then
+      -- We don't want these - delete them
+      var !sctnList collect all SCTN for $!!sdnfRefSite
+      do !item values !sctnList
+        $!item
+        delete SCTN
+      enddo
+    endif
+    if( not !!sdnfImpdata.plate )then
+      -- We don't want these - delete them
+      var !paneList collect all PANE for $!!sdnfRefSite
+      do !item values !paneList
+        $!item
+        delete PANE
+      enddo
+    endif
+
+    -- Now set :SDNFMGRADE on all remaining objects
+    var !sctnList collect all (SCTN GENSEC) for $!!sdnfRefSite
+    do !item values !sctnList
+      $!item
+      call !!sdnfSetMgrade( !logFileF, !messageMode )
+    enddo
+    var !paneList collect all PANE for $!!sdnfRefSite
+    do !item values !paneList
+      $!item
+      call !!sdnfSetMgrade( !logFileF, !messageMode )
+    enddo
+
+     -- rebuild gensecs
+     if( !!sdnfRebuildGensec )then
+        !!sdnfrebuildgensecs( !!sdnfRefSite )
+     endif
+
+    -- Create area for storing the added objects
+    $!!sdnfRefSite
+
+    -- Create Zones
+    $!!sdnfAddedObjArea
+    handle ANY
+      -- does not exist - ref site already existing?
+      NEW ZONE $!!sdnfAddedObjArea
+    endhandle
+
+    -- Create STRU with a valid name
+    !!sdnfSessAddedObj = !!sdnfGetValidName( !!sdnfSessAddedObj )
+
+    $!!sdnfAddedObjArea
+    NEW STRU $!!sdnfSessAddedObj
+
+    -- Finished
+  endif
+
+  -- Restore original units
+  !origin
+  trace on
+  !!sdnfStopProgress()
+  return !error
+
+endfunction
+
+------------------------------------------------------------------------

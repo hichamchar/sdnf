@@ -1,0 +1,58 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfsetanyatt.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         16/10/2009 09:25:57
+--
+--
+-- Description:
+--   Sets any attribute.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Attribute name
+--    2   R      ANY         Attribute value
+--
+-- Return:
+--   [Data Type]   [Description]
+--    SDNFERROROBJ  Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfsetanyatt( !attName is STRING, !attVal is ANY )
+
+   !valType = !attVal.objectType()
+   if( !valType.eq( |STRING| ) )then
+      if( !attVal.set( ) and !attVal.length( ).gt( 0 ) )then
+         $!attName |$!attVal|
+         handle(2,10)(47,15)
+            -- try as a WORD
+            $!attName $!attVal
+            handle any
+--               $P $!attName $!attVal $!valType
+            endhandle
+         endhandle
+      endif
+   else
+      $!attName $!attVal
+      handle( 47,15 )
+--         $P $!attName $!attVal $!valType
+      endhandle
+   endif
+endfunction

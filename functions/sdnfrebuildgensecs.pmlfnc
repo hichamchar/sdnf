@@ -1,0 +1,435 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfrebuildgensecs.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         16/10/2009 09:25:57
+--
+--
+-- Description:
+--   Rebuilds any GENSECs that we can.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Input macro file name
+--    2   R      STRING      Log file name
+--    3   R      STRING      Message mode [BRIEF|FULL]
+--
+-- Return:
+--   [Data Type]   [Description]
+--   ARRAY         Error list
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfrebuildgensecs( !startElem is STRING ) is ARRAY
+
+   -- Initialise error list
+   !errors          = ARRAY( )
+
+   -- Set local variables
+   !origin     = ( ref )
+   -- Set point tolerance to be relatively high because it is unlikely
+   -- that there is going to be a bit of steel shorter than this
+   !tolDist    = 1.0
+   trace off
+
+   -- Go to start
+   $!startElem
+
+   -- extract all bits that may have come from an exported GENSEC
+   var !partList coll all (SCTN GENSEC) with ( matchwild( :SDNFEMARK, |*.*| ) ) for ce
+
+   if( !partList.size( ).gt( 0 ) )then
+
+      -- sort into bags
+      !origGensecRefArr = ARRAY( )
+      !origGensecArr    = ARRAY( )
+      !firstSegment     = nulref
+      !firstSegIndex    = ( 0 )
+
+      do !index indices !partList
+         !part = !partList[ !index ]
+         !!ce = !part.dbref( )
+         !mark = :SDNFEMARK
+         !test = !mark.before( |.| )
+         !origIndex = !origGensecRefArr.findFirst( !test )
+         if( !origIndex.unset( ) )then
+            -- new GENSEC
+            !origGensecRefArr.append( !test )
+            !bag = ARRAY( )
+            !origGensecArr.append( !bag )
+            !origIndex = !origGensecRefArr.size( )
+         endif
+         !origGensecArr[ !origIndex ].append( !part )
+      enddo
+
+      -- sort each bag
+      do !bagIndex indices !origGensecArr
+         !partSuffix = ||
+
+         do !partCount from 2
+            !buildNextPart = false
+
+            -- get start and end points of each segment
+            !startArr = ARRAY( )
+            !endArr   = ARRAY( )
+
+            -- Don't do anything if there is only 1 item in the bag...
+            if( !origGensecArr[ !bagIndex ].size( ).eq( 1 ) )then
+               -- ...except adjust the mark
+               !ref = !origGensecArr[ !bagIndex ][ 1 ]
+               !!ce = !ref.dbref( )
+               !eMark     = :SDNFEMARK
+               !eMark     = !eMark.before( |.| ) + !partSuffix
+               :SDNFEMARK   |$!eMark|
+               break
+            endif
+
+            do !index indices !origGensecArr[ !bagIndex ]
+               !ref = !origGensecArr[ !bagIndex ][ !index ]
+               !!ce = !ref.dbref( )
+               if( !!ce.type.eq( |SCTN| ) )then
+                  !start = POSS $!!sdnfWRT
+                  !end   = POSE $!!sdnfWRT
+               elseif( !!ce.type.eq( |GENSEC| ) )then
+                  -- get POINSP positions
+                  !start = POS of POINSP 1 of SPINE 1 $!!sdnfWRT
+                  !end   = POS of POINSP 2 of SPINE 1 $!!sdnfWRT
+               endif
+               !startArr.append( !start )
+               !endArr.append( !end )
+            enddo
+
+            -- swing along chain of start/end positions
+            !segOrder = ARRAY( )
+            !firstSegIndex = 1
+            !firstSegment = !origGensecArr[ !bagIndex ][ !firstSegIndex ].dbref( )
+            if( not !firstSegment.badRef( ) )then
+               -- start with straight segment
+               !segIndex = !firstSegIndex
+            else
+               -- no starting segment - error
+               !errors.append( |no starting segment| )
+               break
+            endif
+            !segOrder.append( !segIndex )
+            !nextPoint = !endArr[ !segIndex ]
+            do
+               !segIndex = REAL()
+               do !i indices !startArr
+                  if( !startArr[ !i ].distance( !nextPoint ).lt( !tolDist ) )then
+                     !segIndex = !i
+                     break
+                  endif
+               enddo
+               if( !segIndex.unset( ) )then
+                  -- can't find next point
+                  break
+               endif
+               !segOrder.append( !segIndex )
+               !nextPoint = !endArr[ !segIndex ]
+               break if( !segOrder.size( ).eq( !startArr.size( ) ) )
+            enddo
+            if( !segOrder.size( ).lt( !startArr.size( ) ) )then
+               -- haven't finished - have to swing backwards
+               !nextPoint = !startArr[ 1 ]
+               do
+                  !segIndex = REAL()
+                  do !i indices !endArr
+                     if( !endArr[ !i ].distance( !nextPoint ).lt( !tolDist ) )then
+                        !segIndex = !i
+                        break
+                     endif
+                  enddo
+                  if( !segIndex.unset( ) )then
+                     -- can't find next point
+                     break
+                  endif
+                  !segOrder.insert( 1, !segIndex )
+                  !nextPoint = !startArr[ !segIndex ]
+                  break if( !segOrder.size( ).eq( !startArr.size( ) ) )
+               enddo
+            endif
+
+            if( !segOrder.size( ).lt( !startArr.size( ) ) )then
+               -- Need to build a subsequent part of the same GENSEC.  This is possibly because
+               -- the tolerance values are too small and we have missed our grip as we swing
+               -- from one segment end point to the next segment start point.  I.e. start and
+               -- end points have not joined up close enough.
+               !buildNextPart = true
+            endif
+
+            -- Now we have the sequence of segments that made up the original
+            !firstSeg = !origGensecArr[ !bagIndex ][ !segOrder[ 1 ] ]
+            !!ce = !firstSeg.dbref( )
+
+            -- transfer values from first segment
+            !attArray = ARRAY( )
+            !valArray = ARRAY( )
+            !attArray.append( |:SDNFCDATE| )
+            !attArray.append( |:SDNFCTIME| )
+            !attArray.append( |:SDNFEDATE| )
+            !attArray.append( |:SDNFEMARK| )
+            !attArray.append( |:SDNFETIME| )
+            !attArray.append( |:SDNFEXCLUDE| )
+            !attArray.append( |:SDNFFDESC| )
+            !attArray.append( |:SDNFFEND| )
+            !attArray.append( |:SDNFFSTART| )
+            !attArray.append( |:SDNFFTHICK| )
+            !attArray.append( |:SDNFHOLD| )
+            !attArray.append( |:SDNFIDATE| )
+            !attArray.append( |:SDNFITIME| )
+            !attArray.append( |:SDNFMARK| )
+            !attArray.append( |:SDNFMDATE| )
+            !attArray.append( |:SDNFMGRADE| )
+            !attArray.append( |:SDNFMODNR| )
+            !attArray.append( |:SDNFMTIME| )
+            !attArray.append( |:SDNFPSPEC| )
+            !attArray.append( |:SDNFREVNO| )
+            !attArray.append( |:SDNFSTATUS| )
+            !attArray.append( |:SDNFTRANO| )
+            !attArray.append( |:SDNFTRRVNO| )
+   --         !attArray.append( |Bangle| )
+            !attArray.append( |Ctyend| )
+            !attArray.append( |Ctystart| )
+            !attArray.append( |Erelease| )
+            !attArray.append( |Firesistance| )
+            !attArray.append( |Grade| )
+            !attArray.append( |Gtype| )
+            !attArray.append( |Inref| )
+            !attArray.append( |Ispec| )
+            !attArray.append( |Jusline| )
+            !attArray.append( |Matref| )
+            !attArray.append( |Number| )
+            !attArray.append( |Spref| )
+            !attArray.append( |Srelease| )
+            !attArray.append( |LMirror| )
+            !attArray.append( |Orientation| )
+
+   --         !attArray.append( |Antype| )
+   --         !attArray.append( |Bevcodes| )
+   --         !attArray.append( |Built| )
+   --         !attArray.append( |Description| )
+   --         !attArray.append( |Desparam| )
+   --         !attArray.append( |Function| )
+   --         !attArray.append( |Joiend| )
+   --         !attArray.append( |Joistart| )
+   --         !attArray.append( |Memline| )
+   --         !attArray.append( |ParNam| )
+   --         !attArray.append( |PosNo| )
+   --         !attArray.append( |Prodrf| )
+   --         !attArray.append( |Purpose| )
+   --         !attArray.append( |RepCount| )
+   --         !attArray.append( |Shop| )
+   --         !attArray.append( |Tmrref| )
+   --         !attArray.append( |WeldDp| )
+
+--   -- other specific attributes
+--   SCTN
+--   Jline unset
+--   Drgpriority 0
+--   :SSTX 0mm
+--   :SENX 0mm
+--   :SPREF unset
+--
+--   GENSEC
+--   Jlnstart unset
+--   Jlnend unset
+
+            !!ce = $!firstSeg
+            do !index indices !attArray
+               !valArray[ !index ] = !!ce.attribute( !attArray[ !index ] )
+               handle any
+                  -- Probably unknown attribute
+                  !valArray[ !index ] = |***badAttr***|
+               endhandle
+            enddo
+
+            NEW GENSEC
+            !gensec = ref
+            !!ce = !gensec
+            do !index indices !attArray
+               !test = |$!valArray[ $!index ]|
+               if( !test.neq( |***badAttr***| ) )then
+                  !!sdnfsetanyatt( !attArray[ !index ], !valArray[ !index ] )
+               endif
+            enddo
+
+            -- correct eMark
+            !eMark     = :SDNFEMARK
+            !eMark     = !eMark.before( |.| ) + !partSuffix
+            :SDNFEMARK   |$!eMark|
+
+            !!ce = !gensec
+            NEW SPINE
+
+            -- put POINSP and CURVE elements here
+            -- make sure SPINE Ydir is not along first segment - make it orthogonal
+            !curPoint = ref
+            do !index indices !segOrder
+               !segRef = !origGensecArr[ !bagIndex ][ !segOrder[ !index ] ]
+               !!ce = !segRef.dbref( )
+               if( !!ce.type.eq( |SCTN| ) )then
+                  !start = POSS $!!sdnfWRT
+                  !end   = POSE $!!sdnfWRT
+                  !ori   = ORI $!!sdnfWRT
+                  !!ce   = !curPoint
+                  if( !index.eq( 1 ) )then
+                     -- take SCTN's Y direction - orthogonal to direction of first segment
+                     !yDir = !ori.yDir( )
+                     YDIR $!yDir
+                  endif
+                  NEW POINSP at $!start
+                  NEW POINSP at $!end
+                  !curPoint = !!ce
+               elseif( !!ce.type.eq( |GENSEC| ) )then
+                  SPINE 1
+                  if( !!ce.mcount.eq( 2 ) )then
+                     POINSP 1
+                     !startRef = ref
+                     NEXT
+                     !endRef = ref
+                     !!ce   = !curPoint
+                     if( !index.eq( 1 ) )then
+                       -- Get YDIR from original SPINE
+                       !startEl = !!ce
+                          !!ce = !firstSeg.dbref()
+                          SPINE 1
+                          !yDir = ydir $!!sdnfWRT
+                       !!ce = !startEl
+                        YDIR $!yDir
+                     endif
+                     NEW POINSP copy $!startRef at $!startRef
+                     NEW POINSP copy $!endRef at $!endRef
+                     !curPoint = !!ce
+                  else
+                     POINSP 1
+                     !startRef = ref
+                     NEXT
+                     !curveRef = ref
+                     !cpos     = CPOS $!!sdnfWRT
+                     !yDir = ( p5 dir $!!sdnfWRT )
+                     NEXT
+                     !endRef = ref
+                     !!ce = !curPoint
+                     if( !index.eq( 1 ) )then
+                        -- take GENSEC's plane normal direction
+                        SPINE
+                        YDIR $!yDir
+                        !!ce = !curPoint
+                     endif
+                     NEW POINSP copy $!startRef
+                     AT $!startRef
+                     NEW CURVE copy $!curveRef
+                     AT $!curveRef
+                     CPOS $!cpos
+                     NEW POINSP copy $!endRef
+                     AT $!endRef
+                     !curPoint = !!ce
+                  endif
+               endif
+            enddo
+
+            !!ce = !gensec
+            SPINE1
+            DRNS PERP
+            DRNE PERP
+
+            -- tidy up duplicate points
+            do
+               !deletedPoint = false
+               FIRST MEM
+               !prevType = ||
+               !prevPos  = object POSITION( )
+               !prevPos.east   = -999999.0
+               !prevPos.north  = -999999.0
+               !prevPos.up     = -999999.0
+               !prevPos.origin = /*
+               do
+                  !thisType = type
+                  !thisPos  = pos $!!sdnfWRT
+                  if( !prevType.eq( |POINSP| ) and !thisType.eq( |POINSP| ) ) then
+                     -- possibly duplicates
+                     if( !thisPos.distance( !prevPos ).lt( !!sdnfDistTol ) )then
+                        delete POINSP
+                        !deletedPoint = true
+                        break
+                     endif
+                  endif
+                  !prevType = !thisType
+                  !prevPos  = pos $!!sdnfWRT
+                  NEXT
+                  handle( 2,113 )
+                     -- list exhausted - finished
+                     break
+                  endhandle
+               enddo
+               break if ( not !deletedPoint )
+            enddo
+
+            -- remove the used elements from the bag
+            do !i index !segOrder
+               !ref = !origGensecArr[ !bagIndex ][ !segOrder[ !i ] ]
+               handle any
+                  -- Segment order is corrupt.
+                  -- Usually this will be because of very small segments, less than the distance tolerance.
+                  skip
+               endhandle
+               !!ce = !ref.dbref( )
+               !type = !!ce.type
+               delete $!type
+
+               -- delete enclosing hierarchy if zero members
+               do
+                  if( !!ce.mcount.eq( 0 ) )then
+                     -- delete upwards
+                     !type = !!ce.type
+                     delete $!type
+                  else
+                     break
+                  endif
+               enddo
+
+               !origGensecArr[ !bagIndex ].deleteFrom( !segOrder[ !i ], 1 )
+            enddo
+            !origGensecArr[ !bagIndex ].compress( )
+
+            if( not !buildNextPart or $
+                !origGensecArr[ !bagIndex ].size( ).eq( 0 ) )then
+               -- nothing more to do
+               break
+            else
+               -- go round again to try to build a subsequent section out of the remaining parts
+               !partSuffix = |.Part| + !partCount.string( )
+               !firstSegIndex = 1
+               !firstSegment = !origGensecArr[ !bagIndex ][ !firstSegIndex ].dbref()
+            endif
+         enddo
+         -- Finished bag
+      enddo
+
+   endif
+
+   -- Restore original units
+   !origin
+   trace on
+   return !errors
+
+endfunction
+
+------------------------------------------------------------------------

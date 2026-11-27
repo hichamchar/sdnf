@@ -1,0 +1,156 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfprocessbndry.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         02/12/2009 15:20:45
+--
+--
+-- Description:
+--   Process plate/hole boundary
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      ARRAY      Vertex position array
+--    2   R      ARRAY      Vertex type array
+
+--
+-- Return:
+--   [Data Type]  [Description]
+--    SDNFERROROBJ Error object
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfprocessbndry( !elemType is STRING, !newPosArray is ARRAY, !newTypArray is ARRAY, !isCircular is BOOLEAN )
+
+   !isCircular   = false
+   !vertPosArray = ARRAY( )
+   !vertTypArray = ARRAY( )
+
+   -- special case for circular boundaries
+   !isCircular = !!sdnfcheckcircle( !elemType, !vertPosArray, !vertTypArray )
+   if( !isCircular )then
+      -- copy up the circle data
+      !newPosArray.clear( )
+      !newTypArray.clear( )
+      !newPosArray.appendArray( !vertPosArray )
+      !newTypArray.appendArray( !vertTypArray )
+      return
+   endif
+
+   first $!elemType
+   do
+      !radius = 0.0
+      !desp  = DESP
+      handle (2,201)
+         --element does not have DESP attribute
+         !desp = ARRAY()
+      endhandle
+
+      -- ignore vertices tagged as fillet type 3
+      if( not !desp.set( ) or !desp[ 1 ].neq( 3 ) )then
+         !vertType = 1
+         if( !desp.set( ) )then
+            !temp = !desp[ 1 ]
+            if( !temp.geq( 0 ) and !temp.leq( 4 ) )then
+               !vertType = !temp
+            endif
+            !vertPos = ( POS $!!sdnfWRT )
+            !vertPosArray.append( !vertPos )
+            !vertTypArray.append( !vertType )
+         else
+            -- untagged vertex
+            !radius = ( FRAD )
+            if( !radius.neq( 0.0 ) )then
+               -- untagged fillet vertex - convert to 3 point arc
+               -- plane of definition
+               !ptPos  = p0 pos $!!sdnfWRT
+               !ptDir  = p0 dir $!!sdnfWRT
+               !psPos  = p6 pos $!!sdnfWRT
+               !pePos  = p4 pos $!!sdnfWRT
+               if( !psPos.distance( !pePos ).gt( !!sdnfDistTol ) )then
+                  !pyDir  = !psPos.direction( !pePos )
+                  !ptOri  = object ORIENTATION( |Y is $!pyDir and Z is $!ptDir| )
+                  !defPlane = object PLANE( !ptPos, !ptOri )
+                  -- arc points
+                  !pcPos  = p8 pos $!!sdnfWRT
+                  !psPos  = p6 pos $!!sdnfWRT
+                  !pePos  = p4 pos $!!sdnfWRT
+                  -- project these onto plane through p10
+                  !pcPos  = !defPlane.near( !pcPos )
+                  !psPos  = !defPlane.near( !psPos )
+                  !pePos  = !defPlane.near( !pePos )
+                  -- calculate arc midpoint
+                  !pmPos = object POSITION( )
+                  !pmPos.origin = /*
+                  !tDir = !pcPos.direction( !psPos.midpoint( !pePos ) )
+
+                  !pmPos.east  = !pcPos.east  + !tDir.east  * abs( !radius )
+                  !pmPos.north = !pcPos.north + !tDir.north * abs( !radius )
+                  !pmPos.up    = !pcPos.up    + !tDir.up    * abs( !radius )
+
+                  !vertPosArray.append( !psPos )
+                  !vertTypArray.append( 2 )
+                  !vertPosArray.append( !pmPos )
+                  !vertTypArray.append( 2 )
+                  !vertPosArray.append( !pePos )
+                  !vertTypArray.append( !vertType )
+               endif
+            else
+               -- normal straight segment vertex
+               !vertPos = ( POS $!!sdnfWRT )
+               !vertPosArray.append( !vertPos )
+               !vertTypArray.append( !vertType )
+            endif
+         endif
+      endif
+      next $!elemType
+      handle( 2,113 )
+         -- Done vertices
+         break
+      endhandle
+   enddo
+
+--   -- Repeat first point as closing point if current last point is different from first
+   if( !vertPosArray[ 1 ].distance( !vertPosArray[ !vertPosArray.size( ) ] ).gt( !!sdnfMinTol ) )then
+      -- assume last segment is straight
+      !vertTypArray[ !vertPosArray.size( ) ] = 1
+      !vertPosArray.append( !vertPosArray[ 1 ] )
+      !vertTypArray.append( !vertTypArray[ 1 ] )
+   endif
+
+   -- remove duplicate consecutive points
+   -- do this backwards so that the higher connection flag is picked up it they are duplicate
+   !newPosArray.clear( )
+   !newTypArray.clear( )
+   !newPosArray.append( !vertPosArray[ !vertPosArray.size( ) ] )
+   !newTypArray.append( !vertTypArray[ !vertTypArray.size( ) ] )
+   !prevPos = !vertPosArray[ !vertPosArray.size( ) ]
+   do !index from !vertPosArray.size( ) - 1 to 1 by -1
+      !thisPos = !vertPosArray[ !index ]
+      if( !thisPos.distance( !prevPos ).gt( !!sdnfMinTol ) )then
+         -- new point
+         !newPosArray.insert( 1, !thisPos )
+         !newTypArray.insert( 1, !vertTypArray[ !index ] )
+      endif
+      !prevPos = !thisPos
+   enddo
+
+endfunction
+
+------------------------------------------------------------------------

@@ -1,0 +1,59 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File: sdnfmirrorcompat.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword: SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         08/10/2009 14:13:48
+--
+--
+-- Description:
+--   Resolves the compatibility issue of GENSECs when the mirror flag is set in PDMS.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      STRING      Item refno
+--    2   R      STRING      Item refno
+--
+-- Return:
+--   [Data Type]  [Description]
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfmirrorcompat( !source is STRING, !target is STRING )
+
+   -- save starting point
+   !start = !!ce
+
+   -- Test 1: They must both be GENSECs.
+   !sRef = !source.dbref( )
+   !tRef = !target.dbref( )
+   if( !sREF.type.match( |GENSEC| ).gt( 0 ) and $
+       !tREF.type.match( |GENSEC| ).gt( 0 ) )then
+
+      -- Test 2.  They must have opposite LMIRROR attributes
+      if( !sRef.attribute( |LMIRROR| ).neq( !tRef.attribute( |LMIRROR| ) ) )then
+         -- The incoming item needs to be switched round
+         !!ce = !sRef
+         !!sdnfReverseSpine( )
+      endif
+   endif
+
+   -- return to base
+   !!ce = !start
+
+endfunction

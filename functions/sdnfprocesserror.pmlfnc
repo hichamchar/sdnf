@@ -1,0 +1,48 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfprocesserror.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         29/10/2009 10:22:13
+--
+--
+-- Description:
+--   Writes reasons for external program failure to logfile
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      REAL       Log file handle
+--
+-- Return:
+--   [Data Type]   [Description]
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfprocesserror( !logFileF is FILE )
+
+      !logFileF.writeRecord( || )
+      !logFileF.writeRecord( |The external process (export or import) may appear to have failed for one| )
+      !logFileF.writeRecord( |of several reasons.  For example, it may just be taking a long time, it| )
+      !logFileF.writeRecord( |may have crashed, or there may not actually be a valid licence file.| )
+      !logFileF.writeRecord( |Try repeating the process while observing the status line on the main window.| )
+      !logFileF.writeRecord( |It should indicate where in the import/export process the error occurs.| )
+      !logFileF.writeRecord( || )
+
+endfunction
+
+------------------------------------------------------------------------

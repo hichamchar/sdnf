@@ -1,0 +1,62 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfimpruninfini.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+-- Description:
+--   Initialises the !!sdnfImpRunInfo form.
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    None
+--
+-- Return:
+--   [Data Type]  [Description]
+--    None
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfImpRunInfIni( )
+
+  -- Initialise choices
+  !!sdnfImpRunInf.impViewLog.val    = !!sdnfImpdata.viewLog
+  !!sdnfImpRunInf.impMode.val       = !!sdnfImpdata.viewMode
+  !!sdnfImpRunInf.impSaveModel.val  = !!sdnfImpdata.saveModel
+  !!sdnfImpRunInf.impSortMode.val   = !!sdnfImpdata.sortMode
+  !!sdnfImpRunInf.impSortMode.val   = !!sdnfImpdata.sortMode
+  !!sdnfImpRunInf.impMapVerify.val  = !!sdnfImpdata.mapVerify
+  !!sdnfImpRunInf.impMarkVerify.select( |DTEXT|, !!sdnfImpdata.markVerify )
+
+  -- Set Member Data
+  !!sdnfImpRunInf.viewMode       = !!sdnfImpdata.viewMode
+  !!sdnfImpRunInf.viewLog        = !!sdnfImpdata.viewLog
+  !!sdnfImpRunInf.saveModel      = !!sdnfImpdata.saveModel
+  !!sdnfImpRunInf.sortMode       = !!sdnfImpdata.sortMode
+  !!sdnfImpRunInf.mapVerify      = !!sdnfImpdata.mapVerify
+  !!sdnfImpRunInf.markVerify     = !!sdnfImpdata.markVerify
+
+  -- Attribute Comparison lists
+  !!sdnfImpRunInf.linMemAttr   = !!sdnfImpdata.linMemAttr
+  !!sdnfImpRunInf.plateAttr    = !!sdnfImpdata.plateAttr
+
+endfunction
+
+------------------------------------------------------------------------

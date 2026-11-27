@@ -1,0 +1,65 @@
+------------------------------------------------------------------------
+--
+-- Copyright 1974 to current year. AVEVA Solutions Limited and its subsidiaries. All rights reserved in original code only.
+--
+-- File:            sdnfpostostring.pmlfnc
+--   Type:          Function Definition
+--   Group:         Integration Services
+--   Keyword:       SDNF
+--   Module:        design
+--   Replaces:
+--
+-- Author:          D.Wilson,,,
+-- Created:         Mon Apr 28 14:07:39 1998
+--
+--
+--
+-- Description:
+--   Converts ENU into a text string
+-- Autoname
+-- Storage Area
+-- Specification
+-- Material
+--
+------------------------------------------------------------------------
+--
+-- Function Type:   Function/Procedure
+-- Arguments:
+--   [#] [R/RW] [Data Type] [Description]
+--    1   R      REAL        Easting
+--    2   R      REAL        Northing
+--    3   R      REAL        Upping
+--
+-- Return:
+--   [Data Type]  [Description]
+--    STRING
+--
+------------------------------------------------------------------------
+
+-- Define function
+define function !!sdnfPosToString( !east is REAL, !north is REAL, !up is REAL ) is STRING
+
+  !eText = |E|
+  !nText = |N|
+  !uText = |U|
+
+  if( !east lt 0.0 )then
+    !eText = |W|
+    !east = (-1.0 ) * !east
+  endif
+  if( !north lt 0.0 )then
+    !nText = |S|
+    !north = (-1.0 ) * !north
+  endif
+  if( !up lt 0.0 )then
+    !uText = |D|
+    !up = (-1.0 ) * !up
+  endif
+
+  !string = !eText + | | + !east + | | + !nText + | | + !north + | | +!uText + | | + !up
+
+  return !string
+
+endfunction
+
+------------------------------------------------------------------------
